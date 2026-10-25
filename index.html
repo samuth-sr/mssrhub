@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Installs">
   <meta name="theme-color" content="#4f46e5">
-  <title>Wellcome to Merchant Support SR HUB</title>
+  <title>Installation Tracker</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -181,7 +181,7 @@
   <form class="login-card fade-in" id="loginForm" autocomplete="on">
     <button class="theme-btn login-theme theme-toggle" type="button" title="Light / dark mode" style="background:#eef2ff;color:#4f46e5"><i class="bi bi-moon-stars-fill"></i></button>
     <div class="logo"><i class="bi bi-tools"></i></div>
-    <h4 class="text-center fw-bold mb-1">Merchant Support SR HUB Activities Records</h4>
+    <h4 class="text-center fw-bold mb-1">Installation Tracker</h4>
     <p class="text-center text-muted mb-4">Sign in to continue</p>
 
     <label class="form-label">Staff name</label>
@@ -201,7 +201,7 @@
   <header class="topbar">
     <div class="d-flex justify-content-between align-items-center" style="max-width:880px;margin:0 auto">
       <div>
-        <div class="title fs-5"><i class="bi bi-tools me-2"></i>Our Activities are our performances</div>
+        <div class="title fs-5"><i class="bi bi-tools me-2"></i>Installations</div>
         <span class="chip mt-2"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span></span>
       </div>
       <div class="d-flex gap-2">
@@ -294,13 +294,6 @@
 
     <!-- USERS (admin) -->
     <section id="pane-users" class="hidden">
-       <div class="card-x">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="fw-bold"><i class="bi bi-people me-1"></i>Staff</div>
-          <button class="btn btn-brand btn-sm px-3" id="addUserBtn"><i class="bi bi-person-plus me-1"></i>Add</button>
-        </div>
-        <div id="userList"></div>
-      </div>
       <div class="card-x" id="catCard">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="fw-bold"><i class="bi bi-diagram-3 me-1"></i>Categories &amp; activities</div>
@@ -357,14 +350,21 @@
           </div>
         </form>
       </div>
-     
+
+      <div class="card-x">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-people me-1"></i>Staff</div>
+          <button class="btn btn-brand btn-sm px-3" id="addUserBtn"><i class="bi bi-person-plus me-1"></i>Add</button>
+        </div>
+        <div id="userList"></div>
+      </div>
     </section>
   </main>
 
   <nav class="bottom-nav">
     <button data-tab="new" class="active"><i class="bi bi-plus-circle-fill"></i>New</button>
     <button data-tab="records"><i class="bi bi-table"></i>Records</button>
-    <button data-tab="users" id="navUsers" class="hidden"><i class="bi bi-people-fill"></i>Administator</button>
+    <button data-tab="users" id="navUsers" class="hidden"><i class="bi bi-people-fill"></i>Staff</button>
   </nav>
 </div>
 
@@ -648,7 +648,7 @@ const typeDef = n => CATALOG.find(t => t.name === n) || null;
 const actDef = (t, a) => { const d = typeDef(t); return d ? (d.acts.find(x => x.n === a) || null) : null; };
 const isInstall = (t, a) => { const d = actDef(t, a); return d ? !!d.inst : (a === 'Installation' || a === 'New Install'); };
 const dateLabel = (a, t) => !a ? 'Installed / action date' : (isInstall(t || curType, a) ? 'Installed date' : 'Action date');
-const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart','Groccery store','Health and Fitness','Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
+const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
 const TAB_ICONS = { 'QR': 'bi-qr-code', 'POS': 'bi-credit-card-2-front', 'SB': 'bi-speaker', 'Payway Inspection': 'bi-clipboard2-check' };
 const shortName = n => n === 'Payway Inspection' ? 'Payway' : n;
 let curType = (function () { try { return localStorage.getItem('it_type') || 'QR'; } catch (e) { return 'QR'; } })();
@@ -673,7 +673,23 @@ function fillActivities(card) {
   const list = ACTIVITIES[curType] || [], keep = $('.f-act', card.el).value, single = list.length === 1;
   $('.act-chips', card.el).innerHTML = list.map(a => '<button type="button" class="chip" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('');
   show($('.act-wrap', card.el), !single);
-  setAct(card, list.includes(keep) ? keep : (single ? list[0] : ''));
+  setAct(card, list.includes(keep) ? keep : (single ? list[0] : startAct(card, list)));
+}
+/* Merchants 2-10 start on merchant 1's activity and follow it until you pick their own; the first card starts on the activity used last time. */
+const lastActs = (() => { try { return JSON.parse(localStorage.getItem('it_last_act') || '{}') || {}; } catch (e) { return {}; } })();
+function startAct(card, list) {
+  const first = S.cards[0];
+  if (first && first !== card) { if (card.own) return ''; const v = $('.f-act', first.el).value; return list.includes(v) ? v : ''; }
+  return list.includes(lastActs[curType]) ? lastActs[curType] : '';
+}
+function followFirst() {
+  const first = S.cards[0]; if (!first) return;
+  const v = $('.f-act', first.el).value, list = ACTIVITIES[curType] || [];
+  S.cards.slice(1).forEach(c => { if (!c.own && list.includes(v) && $('.f-act', c.el).value !== v) setAct(c, v); });
+}
+function rememberAct(a) {
+  lastActs[curType] = a;
+  try { localStorage.setItem('it_last_act', JSON.stringify(lastActs)); } catch (e) {}
 }
 /** Product type buttons come from the category names (QR, POS, SB ...). */
 function fillPtypeChips(card) {
@@ -773,7 +789,7 @@ function setType(t) {
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbyoDWRf7bGWfedw0Pug7D9aHMI4S-Y_oJb2xZ4dJAedG_UB0xT1syRmdM3PNFYSbBo0/exec';
+const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
 
 async function api(fn, ...args) {
   let json;
@@ -1101,7 +1117,11 @@ function addMerchant() {
     const c = geo.place && geo.place.commune, i = $('.f-commune', el);
     if (c) { i.value = c; delete i.dataset.touched; } else toast('No commune found for this location. Type it.', 'warning');
   };
-  $('.act-chips', el).addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) setAct(card, b.dataset.a); });
+  $('.act-chips', el).addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    setAct(card, b.dataset.a);
+    if (card === S.cards[0]) followFirst(); else card.own = true;     // changing a later merchant by hand stops it following merchant 1
+  });
 
   $('.btn-scan', el).onclick = () => { S.scanTarget = card; S.snInput = null; scanMode(false); scanModal.show(); };
   $('.btn-upload', el).onclick = () => $('.qr-file', el).click();
@@ -1122,7 +1142,8 @@ function addMerchant() {
   return card;
 }
 function renumber() {
-  S.cards.forEach((c, i) => { $('.n', c.el).textContent = i + 1; show($('.btn-remove', c.el), S.cards.length > 1); });
+  S.cards.forEach((c, i) => { $('.n', c.el).textContent = i + 1; show($('.btn-remove', c.el), S.cards.length > 1);
+    $('.act-wrap', c.el).style.display = i ? 'none' : ''; $('.act-hint', c.el).style.display = i ? 'none' : ''; });  // merchants 2+ always use merchant 1's activity
   if (typeof updateAddBtn === 'function') updateAddBtn();
   $$('.ty').forEach(el => { el.textContent = curType; });
   if (typeof updateLocCard === 'function') updateLocCard();
@@ -1509,6 +1530,7 @@ $('#submitBtn').addEventListener('click', async () => {
     items.forEach(it => { if (loc && it.locLv > 0) it.location = loc; delete it.locLv; });
     const r = await api('submitInstallations', S.token, items);
     toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + '). Telegram: ' + r.telegram, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
+    if (items[0] && items[0].activity) rememberAct(items[0].activity);
     $('#merchantList').innerHTML = ''; S.cards = []; addMerchant();
     if (!loc && needLoc) toast('Location was not available, so it was not added to Telegram.', 'warning');
     window.scrollTo({ top: 0, behavior: 'smooth' });
