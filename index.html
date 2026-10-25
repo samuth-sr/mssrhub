@@ -1,0 +1,2064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Installs">
+  <meta name="theme-color" content="#4f46e5">
+  <title>Installation Tracker</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <script>
+    (function () { try { var t = localStorage.getItem('it_theme'); if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); } catch (e) {} })();
+  </script>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+
+  <style>
+    :root {
+      --brand: #4f46e5;
+      --brand-2: #7c3aed;
+      --bg: #f4f5fb;
+      --card: #ffffff;
+      --ink: #1e1b4b;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --ok: #10b981;
+      --radius: 18px;
+      --shadow: 0 6px 24px rgba(79, 70, 229, .08);
+    }
+    * { -webkit-tap-highlight-color: transparent; }
+    html, body { background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+
+    /* Header */
+    .topbar {
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      color: #fff;
+      padding: calc(14px + env(safe-area-inset-top)) 18px 74px;
+      border-radius: 0 0 28px 28px;
+    }
+    .topbar .title { font-weight: 700; letter-spacing: .2px; }
+    .chip {
+      background: rgba(255,255,255,.18); border-radius: 999px; padding: 6px 12px;
+      font-size: .85rem; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .icon-btn { background: rgba(255,255,255,.18); border: 0; color: #fff; width: 36px; height: 36px; border-radius: 50%; }
+
+    .wrap { max-width: 880px; margin: -58px auto 0; padding: 0 14px; }
+
+    /* Cards */
+    .card-x { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin-bottom: 14px; border: 1px solid rgba(79,70,229,.06); }
+    .summary { display: flex; align-items: center; gap: 14px; }
+    .summary .num { font-size: 2.4rem; font-weight: 800; line-height: 1; color: var(--brand); }
+    .summary .ico { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: #eef2ff; color: var(--brand); font-size: 1.5rem; }
+    .summary small { color: var(--muted); }
+    .sum-break { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .78rem; color: var(--muted); }
+    .sum-cat b { font-weight: 700; color: inherit; }
+    .sum-cat.on { color: var(--brand); }
+    .fl-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: .82rem; }
+    .fl-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; flex: none; }
+    .fl-seg button { border: 0; background: transparent; color: var(--muted); font-size: .72rem; font-weight: 700; padding: 3px 9px; }
+    .fl-seg button.active[data-v="0"] { background: #94a3b8; color: #fff; }
+    .fl-seg button.active[data-v="1"] { background: var(--brand); color: #fff; }
+    .fl-seg button.active[data-v="2"] { background: #dc2626; color: #fff; }
+    .rq { color: #dc2626; font-weight: 700; }
+
+    /* Form */
+    .form-label { font-size: .78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .form-control, .form-select { border-radius: 12px; padding: 11px 13px; border-color: var(--line); background: #fafafe; }
+    .form-control:focus, .form-select:focus { border-color: var(--brand); box-shadow: 0 0 0 .2rem rgba(79,70,229,.15); background: #fff; }
+    .btn { border-radius: 12px; font-weight: 600; }
+    .btn-brand { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; border: 0; padding: 13px; }
+    .btn-brand:hover, .btn-brand:active { color: #fff; filter: brightness(1.06); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: .78rem; font-weight: 600; padding: 5px 11px; border-radius: 999px; line-height: 1.25; }
+    .chip.active { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; border-color: transparent; }
+    .seg.scroll { overflow-x: auto; } .seg.scroll button { flex: 0 0 auto; padding: 10px 14px; }
+    .btn-soft { background: #eef2ff; color: var(--brand); border: 0; }
+    .btn-soft:hover { background: #e0e7ff; color: var(--brand); }
+
+    .merchant-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .badge-num { background: #eef2ff; color: var(--brand); border-radius: 10px; padding: 4px 10px; font-weight: 700; font-size: .82rem; }
+    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; margin-top: 10px; }
+    .photo-grid .ph { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: #eee; }
+    .photo-grid img, .photo-grid video { width: 100%; height: 100%; object-fit: cover; }
+    .photo-grid .vbadge { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.6); color: #fff; border-radius: 8px; padding: 0 6px; font-size: .8rem; }
+    .photo-grid button { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: .7rem; line-height: 1; padding: 0; }
+    .prog { height: 6px; border-radius: 6px; display: none; }
+
+    /* Activity type tabs */
+    .seg { display: flex; gap: 6px; background: var(--card); border-radius: 16px; padding: 5px; box-shadow: var(--shadow); margin-bottom: 14px; border: 1px solid rgba(79,70,229,.06); }
+    .seg button { flex: 1; font-size: .92rem; min-width: 0; border: 0; background: transparent; color: var(--muted); font-weight: 700; padding: 10px 4px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .seg.fit { overflow: hidden; gap: 3px; }
+    .seg.fit button { font-size: var(--tf, .92rem); }
+    .seg.fit.stack { padding: 4px; }
+    .seg.fit.stack button { flex-direction: column; gap: 2px; padding: 8px 2px; line-height: 1.15; text-align: center; }
+    .seg.fit.stack button i { font-size: 1.1em; }
+    .seg.fit .tl { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+    .seg button.active { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; box-shadow: 0 4px 12px rgba(79,70,229,.3); }
+
+    /* Bottom nav */
+    .bottom-nav {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030;
+      background: rgba(255,255,255,.94); backdrop-filter: blur(12px);
+      border-top: 1px solid var(--line);
+      display: flex; justify-content: space-around;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    }
+    .bottom-nav button {
+      flex: 1; background: none; border: 0; color: var(--muted); font-size: .72rem; font-weight: 600;
+      display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; border-radius: 12px;
+    }
+    .bottom-nav button i { font-size: 1.35rem; }
+    .bottom-nav button.active { color: var(--brand); }
+
+    /* Records */
+    .table > :not(caption) > * > * { padding: .7rem .75rem; }
+    .table thead th { font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); border-bottom-width: 1px; white-space: nowrap; }
+    .table td { font-size: .88rem; vertical-align: middle; }
+    .pill { background: #eef2ff; color: var(--brand); border-radius: 999px; padding: 2px 10px; font-size: .75rem; font-weight: 600; }
+    .empty { text-align: center; color: var(--muted); padding: 34px 10px; }
+    .empty i { font-size: 2.2rem; display: block; margin-bottom: 6px; opacity: .6; }
+
+    /* User cards */
+    .user-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .user-row:last-child { border-bottom: 0; }
+    .avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-2)); flex: none; }
+
+    /* Login */
+    #loginView { min-height: 100vh; display: grid; place-items: center; padding: 20px;
+      background: linear-gradient(160deg, var(--brand) 0%, var(--brand-2) 100%); }
+    .login-card { position: relative; width: 100%; max-width: 380px; background: #fff; border-radius: 24px; padding: 28px 24px; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+    .logo { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; font-size: 1.9rem; color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-2)); margin: 0 auto 14px; }
+
+    /* Scan modal */
+    #scanVideo { width: 100%; border-radius: 16px; background: #000; max-height: 60vh; object-fit: cover; }
+
+    .toast-container { z-index: 2000; }
+    .hidden { display: none !important; }
+    .min-w-0 { min-width: 0; }
+    .flex-none { flex: none; }
+    .fade-in { animation: fade .25s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"] { color-scheme: dark; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) { color-scheme: dark; }
+      :root:not([data-theme="light"]) { --bg: #0f1020; --card: #181a31; --ink: #eceefd; --muted: #9aa0c0; --line: #2a2d4d; --shadow: 0 6px 24px rgba(0,0,0,.35); }
+      :root:not([data-theme="light"]) .form-control, :root:not([data-theme="light"]) .form-select { background: #12142a; color: var(--ink); }
+      :root:not([data-theme="light"]) .form-control:focus, :root:not([data-theme="light"]) .form-select:focus { background: #12142a; color: var(--ink); }
+      :root:not([data-theme="light"]) .btn-soft, :root:not([data-theme="light"]) .badge-num, :root:not([data-theme="light"]) .pill, :root:not([data-theme="light"]) .summary .ico { background: #25274a; color: #a5b4fc; }
+      :root:not([data-theme="light"]) .bottom-nav { background: rgba(24,26,49,.94); }
+      :root:not([data-theme="light"]) .table { --bs-table-color: var(--ink); --bs-table-bg: transparent; --bs-table-border-color: var(--line); }
+      :root:not([data-theme="light"]) .login-card, :root:not([data-theme="light"]) .modal-content { background: var(--card); color: var(--ink); }
+      :root:not([data-theme="light"]) .btn-close { filter: invert(1); }
+    }
+    :root[data-theme="dark"] { --bg: #0f1020; --card: #181a31; --ink: #eceefd; --muted: #9aa0c0; --line: #2a2d4d; --shadow: 0 6px 24px rgba(0,0,0,.35); }
+    :root[data-theme="dark"] .form-control, :root[data-theme="dark"] .form-select { background: #12142a; color: var(--ink); }
+    :root[data-theme="dark"] .form-control:focus, :root[data-theme="dark"] .form-select:focus { background: #12142a; color: var(--ink); }
+    :root[data-theme="dark"] .btn-soft, :root[data-theme="dark"] .badge-num, :root[data-theme="dark"] .pill, :root[data-theme="dark"] .summary .ico { background: #25274a; color: #a5b4fc; }
+    :root[data-theme="dark"] .bottom-nav { background: rgba(24,26,49,.94); }
+    :root[data-theme="dark"] .table { --bs-table-color: var(--ink); --bs-table-bg: transparent; --bs-table-border-color: var(--line); }
+    :root[data-theme="dark"] .login-card, :root[data-theme="dark"] .modal-content { background: var(--card); color: var(--ink); }
+    :root[data-theme="dark"] .btn-close { filter: invert(1); }
+    .theme-btn { background: rgba(255,255,255,.18); border: 0; color: #fff; width: 36px; height: 36px; border-radius: 50%; }
+    .login-theme { position: absolute; top: 14px; right: 14px; }
+  </style>
+</head>
+<body>
+
+<!-- ============================ LOGIN ============================ -->
+<div id="loginView" class="hidden">
+  <form class="login-card fade-in" id="loginForm" autocomplete="on">
+    <button class="theme-btn login-theme theme-toggle" type="button" title="Light / dark mode" style="background:#eef2ff;color:#4f46e5"><i class="bi bi-moon-stars-fill"></i></button>
+    <div class="logo"><i class="bi bi-tools"></i></div>
+    <h4 class="text-center fw-bold mb-1">Installation Tracker</h4>
+    <p class="text-center text-muted mb-4">Sign in to continue</p>
+
+    <label class="form-label">Staff name</label>
+    <input id="loginUser" class="form-control mb-3" autocomplete="username" autocapitalize="none" required>
+
+    <label class="form-label">PIN</label>
+    <input id="loginPin" class="form-control mb-3" type="password" inputmode="numeric" autocomplete="current-password" required>
+
+    <div id="loginError" class="text-danger small mb-3 hidden"></div>
+    <button class="btn btn-brand w-100" id="loginBtn" type="submit">Sign in</button>
+    <button type="button" class="btn btn-link w-100 mt-2 text-decoration-none" id="installLink"><i class="bi bi-download me-1"></i>Install app on home screen</button>
+  </form>
+</div>
+
+<!-- ============================ APP ============================ -->
+<div id="appView" class="hidden">
+  <header class="topbar">
+    <div class="d-flex justify-content-between align-items-center" style="max-width:880px;margin:0 auto">
+      <div>
+        <div class="title fs-5"><i class="bi bi-tools me-2"></i>Installations</div>
+        <span class="chip mt-2"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span></span>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="icon-btn theme-toggle" type="button" title="Light / dark mode"><i class="bi bi-moon-stars-fill"></i></button>
+        <div class="d-flex gap-2">
+        <button class="icon-btn" id="installBtn" title="Install app" type="button"><i class="bi bi-download"></i></button>
+        <button class="icon-btn" id="logoutBtn" title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
+      </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Summary -->
+    <div class="card-x">
+      <div class="summary">
+        <div class="ico"><i class="bi bi-calendar-check"></i></div>
+        <div class="flex-grow-1">
+          <small id="sumLabel">Your activities today</small>
+          <div class="num" id="sumNum">–</div>
+        </div>
+        <div class="text-end"><small class="d-block">All time</small><strong id="sumTotal">–</strong></div>
+      </div>
+      <div id="sumBreak" class="sum-break hidden"></div>
+    </div>
+
+    <!-- NEW -->
+    <section id="pane-new" class="fade-in">
+      <div class="seg" id="typeTabs" role="tablist"></div>
+      <div id="merchantList"></div>
+
+      <div class="card-x" id="locCard">
+        <div class="d-flex gap-3 align-items-center">
+          <img id="locMap" class="hidden" alt="Map" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex:none">
+          <div class="flex-grow-1" style="min-width:0">
+            <div class="fw-semibold small"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Current location <span class="rq hidden" id="locStar">*</span> <span class="text-muted fw-normal">(sent to Telegram)</span> <span class="pill hidden" id="locTag">Chosen on map</span></div>
+            <div class="small text-muted" id="locAddr">Finding your location…</div>
+            <div class="small text-muted" id="locCoords"></div>
+          </div>
+          <div class="d-flex flex-column gap-1 flex-none">
+            <button type="button" class="btn btn-soft btn-sm" id="locRefresh" aria-label="Use my GPS location" title="Use my GPS location"><i class="bi bi-arrow-repeat"></i></button>
+            <button type="button" class="btn btn-soft btn-sm" id="locPick" aria-label="Choose on map" title="Choose on map"><i class="bi bi-pin-map"></i></button>
+            <a id="locOpen" class="btn btn-soft btn-sm hidden" target="_blank" rel="noopener" aria-label="Open in Maps"><i class="bi bi-box-arrow-up-right"></i></a>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-soft w-100 mb-3" id="addMerchantBtn"><i class="bi bi-plus-lg me-1"></i>Add another merchant</button>
+      <button class="btn btn-brand w-100" id="submitBtn"><i class="bi bi-send me-1"></i>Submit activities</button>
+      <div class="card-x hidden mt-3" id="lastCard">
+        <div class="small text-muted mb-2">Today's records <span class="text-muted">· edit up to 3 times, same day only</span></div>
+        <div id="todayList" style="max-height:230px;overflow:auto"></div>
+      </div>
+    </section>
+
+    <!-- RECORDS -->
+    <section id="pane-records" class="hidden">
+      <div class="card-x">
+        <div class="mb-3" id="userFilterWrap"><div class="form-label">Staff</div><div class="chips" id="slUser"></div><input type="hidden" id="fUser" value=""></div>
+        <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="slPeriod"></div><input type="hidden" id="fPeriod" value="today"></div>
+        <div class="row g-2 hidden mb-3" id="fCustomWrap">
+          <div class="col-6" id="fFromWrap"><label class="form-label">From</label><input type="date" id="fFrom" class="form-control"></div>
+          <div class="col-6" id="fToWrap"><label class="form-label">To</label><input type="date" id="fTo" class="form-control"></div>
+        </div>
+        <div class="mb-3"><div class="form-label">Category</div><div class="chips" id="slType"></div><input type="hidden" id="fType" value=""></div>
+        <div class="mb-3"><div class="form-label">Activity</div><div class="chips" id="slActivity"></div><input type="hidden" id="fActivity" value=""></div>
+        <input id="fSearch" class="form-control" placeholder="Search merchant, MID, TID, phone, remarks…">
+      </div>
+
+      <div class="card-x hidden" id="chartCard">
+        <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+          <div class="fw-bold"><i class="bi bi-bar-chart-line me-1"></i><span id="chartTitleTxt">Activities by staff</span></div>
+          <button class="btn btn-soft btn-sm flex-none" id="chartSaveBtn" type="button"><i class="bi bi-image me-1"></i>Save picture</button>
+        </div>
+        <div style="overflow-x:auto"><div id="chartInner" style="height:300px"><canvas id="chart" role="img" aria-label="Activities grouped by category"></canvas></div></div>
+      </div>
+
+      <div class="card-x p-0 overflow-hidden">
+        <div class="d-flex justify-content-between align-items-center p-3 pb-2">
+          <div><span class="fw-bold">Records</span> <span class="pill ms-1" id="recCount">0</span></div>
+          <div class="d-flex gap-2"><button class="btn btn-soft btn-sm" id="copyBtn"><i class="bi bi-clipboard me-1"></i>Copy</button><button class="btn btn-soft btn-sm" id="csvBtn"><i class="bi bi-download me-1"></i>CSV</button></div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Category</th><th>Activity</th><th>Stamp</th><th>Date</th><th>Staff</th><th>Merchant</th><th>MID</th><th>TID</th><th>Business</th><th>Type</th><th>Hours</th><th>Group</th><th>Product type</th><th>Commune</th><th>Extra</th><th>Phone</th><th>Tag</th><th>Serial No</th><th>Old S/N</th><th>New S/N</th><th>Remarks</th><th>Location</th><th>📷</th></tr></thead>
+            <tbody id="recBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- USERS (admin) -->
+    <section id="pane-users" class="hidden">
+      <div class="card-x" id="catCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-diagram-3 me-1"></i>Categories &amp; activities</div>
+          <button type="button" class="btn btn-soft btn-sm" id="catEditBtn"><i class="bi bi-pencil me-1"></i>Edit</button>
+        </div>
+        <div id="catSummary" class="small text-muted"></div>
+      </div>
+
+      <div class="card-x" id="tplCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-chat-text me-1"></i>Telegram alert message</div>
+          <span class="pill" id="tplStatus">…</span>
+        </div>
+        <div class="small text-muted mb-2">One line per row. Tap a name to add it where the cursor is. A line is left out when everything in it is empty.</div>
+        <div class="chips mb-2" id="tplChips"></div>
+        <textarea id="tplText" class="form-control" rows="12" spellcheck="false" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem"></textarea>
+        <div class="small text-muted mt-1">You can use &lt;b&gt;, &lt;i&gt;, &lt;u&gt; and &lt;code&gt;; close them on the same line.</div>
+        <div class="row g-2 mt-2">
+          <div class="col-6"><button type="button" class="btn btn-soft w-100" id="tplPreviewBtn"><i class="bi bi-eye me-1"></i>Preview</button></div>
+          <div class="col-6"><button type="button" class="btn btn-brand w-100" id="tplSave">Save</button></div>
+          <div class="col-6"><button type="button" class="btn btn-soft w-100" id="tplReset">Reset to default</button></div>
+          <div class="col-6"><button type="button" class="btn btn-soft w-100" id="tplSend"><i class="bi bi-send me-1"></i>Send sample</button></div>
+        </div>
+        <div class="border rounded-3 p-3 mt-3 small" id="tplPreview" style="white-space:pre-wrap;word-break:break-word"></div>
+        <div id="tplMsg" class="small mt-2 hidden"></div>
+      </div>
+
+      <div class="card-x" id="tgCard">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="fw-bold"><i class="bi bi-telegram me-1"></i>Telegram settings</div>
+          <span class="pill" id="tgStatus">Checking…</span>
+        </div>
+        <form id="tgForm" autocomplete="off">
+          <label class="form-label">Bot token</label>
+          <input id="tgToken" type="password" class="form-control mb-1" placeholder="123456789:AA…" autocomplete="new-password">
+          <div class="small text-muted mb-3" id="tgTokenHint">Not saved yet.</div>
+          <label class="form-label">Group ID</label>
+          <input id="tgChat" class="form-control mb-3" inputmode="text" placeholder="-1001234567890">
+          <div id="tgMsg" class="small mb-3 hidden"></div>
+          <div class="row g-2">
+            <div class="col-6"><button type="submit" class="btn btn-brand w-100" id="tgSave">Save</button></div>
+            <div class="col-6"><button type="button" class="btn btn-soft w-100" id="tgTest"><i class="bi bi-send me-1"></i>Send test</button></div>
+          </div>
+        </form>
+      </div>
+
+      <div class="card-x">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-people me-1"></i>Staff</div>
+          <button class="btn btn-brand btn-sm px-3" id="addUserBtn"><i class="bi bi-person-plus me-1"></i>Add</button>
+        </div>
+        <div id="userList"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button data-tab="new" class="active"><i class="bi bi-plus-circle-fill"></i>New</button>
+    <button data-tab="records"><i class="bi bi-table"></i>Records</button>
+    <button data-tab="users" id="navUsers" class="hidden"><i class="bi bi-people-fill"></i>Staff</button>
+  </nav>
+</div>
+
+<!-- Scan modal -->
+<div class="modal fade" id="scanModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold" id="scanTitle">Scan KHQR</h6>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <video id="scanVideo" playsinline muted></video>
+        <div id="scanError" class="alert alert-warning small mt-3 mb-0 hidden"></div>
+        <p class="text-muted small mt-2 mb-0" id="scanHelp">Point the camera at the merchant QR. If the camera is blocked, close this and use <b>Upload</b>.</p>
+        <label class="btn btn-soft btn-sm mt-2 mb-0 hidden" id="snFileWrap"><i class="bi bi-image me-1"></i>Read from a photo<input type="file" accept="image/*" id="snFile" hidden></label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- User modal -->
+<div class="modal fade" id="userModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="userForm" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold" id="userModalTitle">Add staff</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="uOriginal">
+        <label class="form-label">Staff name</label>
+        <input id="uName" class="form-control mb-3" autocapitalize="none" required>
+        <label class="form-label">PIN <span class="text-muted text-lowercase" id="uPinHint">(4–12 digits)</span></label>
+        <input id="uPin" class="form-control mb-3" inputmode="numeric" autocomplete="off">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label">Role</label>
+            <select id="uRole" class="form-select"><option>User</option><option>Admin</option></select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Telegram Topic ID</label>
+            <input id="uTopic" class="form-control" inputmode="numeric" placeholder="optional">
+          </div>
+        </div>
+        <label class="form-label mt-3">Telegram Group ID <span class="text-muted text-lowercase">(optional)</span></label>
+        <input id="uGroup" class="form-control" inputmode="text" autocomplete="off" placeholder="-1001234567890">
+        <div class="small text-muted mt-1">Leave empty to use the default group. If set, this staff member's alerts go to this group instead (the bot must be a member). A Topic ID, if given, is used inside that group.</div>
+        <div id="userError" class="text-danger small mt-3 hidden"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-soft" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-brand px-4" id="userSaveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Choose location on map -->
+<div class="modal fade" id="mapModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-pin-map me-1"></i>Choose location on map</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-2"><input id="pickQ" class="form-control" placeholder="Search a place or address" autocomplete="off"><button type="button" class="btn btn-soft" id="pickGo" aria-label="Search"><i class="bi bi-search"></i></button></div>
+        <div id="pickMap" style="height:46vh;min-height:260px;border-radius:14px;overflow:hidden"></div>
+        <div class="small text-muted mt-2">Tap the map or drag the pin to the merchant's exact spot. <span id="pickCoords" class="fw-semibold"></span></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-soft me-auto" id="pickGps"><i class="bi bi-crosshair me-1"></i>My GPS</button>
+        <button type="button" class="btn btn-brand px-4" id="pickUse" disabled>Use this location</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit last record -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <form class="modal-content" id="editForm" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold">Edit last record <span class="pill ms-1" id="eCat"></span></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="eStamp">
+        <div class="small text-muted mb-3" id="eStampTxt"></div>
+        <div class="mb-3" id="eActWrap"><label class="form-label">Activity <span class="rq">*</span></label><select id="eAct" class="form-select"></select></div>
+        <div class="mb-3"><label class="form-label"><span id="eDateLbl">Date</span> <span class="rq">*</span></label><input type="date" id="eDate" class="form-control"></div>
+        <div class="mb-3 hidden" data-fk="merchant"><label class="form-label">Merchant name <span class="rq hidden">*</span></label><input id="eName" class="form-control"></div>
+        <div class="mb-3 hidden" data-fk="mid"><label class="form-label">MID <span class="rq hidden">*</span></label><input id="eMid" class="form-control"></div>
+        <div class="mb-3 hidden" data-fk="tid"><label class="form-label">TID <span class="rq hidden">*</span></label><input id="eTid" class="form-control" autocapitalize="characters" autocomplete="off"></div>
+        <div class="mb-3 hidden" data-fk="business"><label class="form-label">Business name <span class="rq hidden">*</span></label><input id="eBiz" class="form-control" placeholder="N/A"></div>
+        <div class="mb-3 hidden" data-fk="serial"><label class="form-label">Serial number <span class="rq hidden">*</span></label><div class="input-group"><input id="eSerial" class="form-control" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>
+        <div class="mb-3 hidden" data-fk="oldSn"><label class="form-label">Old S/N <span class="rq hidden">*</span></label><div class="input-group"><input id="eOldSn" class="form-control" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>
+        <div class="mb-3 hidden" data-fk="newSn"><label class="form-label">New S/N <span class="rq hidden">*</span></label><div class="input-group"><input id="eNewSn" class="form-control" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>
+        <div class="mb-3 hidden" data-fk="btype"><label class="form-label">Business type <span class="rq hidden">*</span></label><input id="eBType" class="form-control" maxlength="60" list="bizTypeList"><datalist id="bizTypeList"></datalist></div>
+        <div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input id="eProd" class="form-control" maxlength="60" list="prodTypeList"><datalist id="prodTypeList"></datalist></div>
+        <div class="mb-3 hidden" data-fk="commune"><label class="form-label">Commune <span class="rq hidden">*</span></label><input id="eCommune" class="form-control" maxlength="80"></div>
+        <div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="row g-2 align-items-center"><div class="col"><input type="time" id="eOpen" class="form-control"></div><div class="col-auto small text-muted">to</div><div class="col"><input type="time" id="eClose" class="form-control"></div></div></div>
+        <div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input id="eGroup" class="form-control" maxlength="100"></div>
+        <div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input id="ePhone" class="form-control" type="tel" inputmode="tel"></div>
+        <div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input id="eTag" class="form-control" maxlength="200"></div>
+        <div id="eCustom" class="hidden"></div>
+        <div class="mb-1 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea id="eRem" class="form-control" rows="2"></textarea></div>
+        <div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Saving also updates the message in Telegram. Each record can be edited 3 times, on the day it was submitted. Photos can't be changed after submitting.</div>
+        <div id="eError" class="text-danger small mt-3 hidden"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-soft" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-brand px-4" id="eSave">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Categories editor (admin) -->
+<div class="modal fade" id="catModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-diagram-3 me-1"></i>Categories &amp; activities</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="small text-muted mb-3">Each category becomes a tab. For every activity choose what it needs. Renaming or removing does not change records already saved.</div>
+        <div id="catList"></div>
+        <button type="button" class="btn btn-soft w-100 mt-2" id="catAdd"><i class="bi bi-plus-lg me-1"></i>Add category</button>
+        <div id="catError" class="text-danger small mt-3 hidden"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-soft" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-brand px-4" id="catSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Photo stamp settings -->
+<div class="modal fade" id="stampModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-geo-alt me-1"></i>Photo stamp</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <canvas id="stampPrev" width="480" height="640" style="width:100%;max-width:300px;margin:0 auto;border-radius:12px;display:block" aria-label="Stamp preview"></canvas>
+        <div class="fw-semibold small mt-3 mb-1">Show on photo</div>
+        <div class="row g-1">
+          <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stLogo" data-k="logo"><label class="form-check-label" for="stLogo">Logo</label></div></div>
+          <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stMap" data-k="map"><label class="form-check-label" for="stMap">Map view</label></div></div>
+          <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stTitleOn" data-k="title"><label class="form-check-label" for="stTitleOn">Title</label></div></div>
+          <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stTime" data-k="time"><label class="form-check-label" for="stTime">Date &amp; time</label></div></div>
+          <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stCoords" data-k="coords"><label class="form-check-label" for="stCoords">GPS numbers</label></div></div>
+          <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stAddr" data-k="addr"><label class="form-check-label" for="stAddr">Address</label></div></div>
+        </div>
+        <div class="small text-muted mt-1 mb-3">Map, GPS and address need location permission and internet.</div>
+        <div class="fw-semibold small mb-1">Sizes</div>
+        <label class="form-label mb-0">Text size <span id="stFontVal"></span></label>
+        <input type="range" class="form-range st-size" id="stFont" min="60" max="160" step="5" data-k="fontScale">
+        <label class="form-label mb-0">Map size <span id="stMapVal"></span></label>
+        <input type="range" class="form-range st-size" id="stMapSz" min="10" max="40" step="1" data-k="mapScale">
+        <label class="form-label mb-0">Logo size <span id="stLogoVal"></span></label>
+        <input type="range" class="form-range st-size mb-3" id="stLogoSz" min="50" max="300" step="5" data-k="logoScale">
+        <label class="form-label">Title text <span class="text-muted">(shown as #title)</span></label>
+        <input id="stTitle" class="form-control" maxlength="40" placeholder="e.g. Merchant Support SR">
+        <label class="form-label mt-3">Logo (top-right)</label>
+        <div class="d-flex gap-2 align-items-center">
+          <label class="btn btn-soft btn-sm mb-0"><i class="bi bi-image me-1"></i>Choose logo<input id="stLogoFile" type="file" accept="image/*" hidden></label>
+          <button type="button" class="btn btn-soft btn-sm" id="stLogoClear">Remove</button>
+        </div>
+        <div class="small text-muted mt-1" id="stLogoNote"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-soft" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-brand px-4" id="stSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Install help -->
+<div class="modal fade" id="installModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-phone me-1"></i>Install on your home screen</h6>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="installIOS">
+          <ol class="ps-3 mb-0">
+            <li class="mb-2">Open this page in <b>Safari</b>.</li>
+            <li class="mb-2">Tap the <b>Share</b> button <i class="bi bi-box-arrow-up"></i>.</li>
+            <li class="mb-2">Scroll down and tap <b>Add to Home Screen</b>.</li>
+            <li>Tap <b>Add</b>. The app icon appears on your home screen.</li>
+          </ol>
+        </div>
+        <div id="installOther">
+          <ol class="ps-3 mb-0">
+            <li class="mb-2">Open this page in <b>Chrome</b>.</li>
+            <li class="mb-2">Tap the <b>⋮ menu</b> (top right).</li>
+            <li class="mb-2">Tap <b>Install app</b> (or <b>Add to Home screen</b>).</li>
+            <li>Confirm. The app icon appears on your home screen.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" id="toasts" style="margin-top: env(safe-area-inset-top)"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+<script>
+/* ============================ Helpers ============================ */
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const show = (el, on = true) => el.classList.toggle('hidden', !on);
+
+const S = { token: null, user: null, cards: [], seq: 0, rows: [], chart: null, scanTarget: null, reader: null };
+const MAX_PHOTOS = 10;
+const MAX_VIDEOS = 2, MAX_VIDEO_MB = 15;
+const MAX_MERCHANTS = 10;
+/* Categories and activities come from the server (admin can edit them); this is the starting set / offline fallback. */
+const DEFAULT_CATALOG = [
+  { name: 'QR', code: 'QR', tid: false, acts: [{ n: 'Refreshment' }, { n: 'Installation', inst: true }] },
+  { name: 'POS', code: 'POS', tid: true, acts: [
+    { n: 'Maintenance', contact: true }, { n: 'Fixed Issue', contact: true }, { n: 'New Install', inst: true, contact: true, bizinfo: true },
+    { n: 'Paper Roll' }, { n: 'Battery Replacement', contact: true }, { n: 'Replace', contact: true, replace: true },
+    { n: 'Item Removal' }, { n: 'Deployment' }, { n: 'Refreshment Training' }] },
+  { name: 'SB', code: 'SB', tid: true, acts: [
+    { n: 'Maintenance', contact: true }, { n: 'Fixed Issue', contact: true }, { n: 'Battery Replacement', contact: true },
+    { n: 'New Install', inst: true, contact: true }, { n: 'Replace', contact: true, replace: true }] },
+  { name: 'Payway Inspection', code: 'PAYWAY', tid: false, acts: [{ n: 'Inspection' }, { n: 'Merchant Inquiries' }] }
+];
+/* Box levels per activity: 0 = hidden, 1 = optional, 2 = must fill (red *). Same rules as the server. */
+const FIELD_KEYS = ['merchant', 'mid', 'tid', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune'];
+const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'Commune' };
+function legacyLevel(cat, a, k) {
+  const rq = a.req && typeof a.req === 'object' ? a.req : {};
+  const lv = (on, d) => !on ? 0 : (typeof rq[k] === 'boolean' ? (rq[k] ? 2 : 1) : d);
+  if (k === 'merchant' || k === 'mid' || k === 'photo') return 2;
+  if (k === 'tid') return cat && cat.tid ? 2 : 0;
+  if (k === 'business') return /^pos$/i.test(String(cat && cat.name)) ? 0 : 1;
+  if (k === 'remarks' || k === 'location') return 1;
+  if (k === 'phone' || k === 'tag') return lv(a.contact, 1);
+  if (k === 'btype' || k === 'hours' || k === 'group') return lv(a.bizinfo, 1);
+  if (k === 'oldSn' || k === 'newSn') return lv(a.replace, 2);
+  return 0;
+}
+function normAct(cat, a) {
+  const o = { n: a.n }; if (a.inst) o.inst = true;
+  o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); });
+  if (Array.isArray(a.custom) && a.custom.length) o.custom = a.custom;
+  return o;
+}
+const normCat = list => list.map(t => ({ name: t.name, code: t.code, acts: (t.acts || []).map(a => normAct(t, a)) }));
+const lvl = (d, k) => (d && d.f && d.f[k]) || 0;
+const isReq = (d, k) => lvl(d, k) === 2;
+let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
+const typeDef = n => CATALOG.find(t => t.name === n) || null;
+const actDef = (t, a) => { const d = typeDef(t); return d ? (d.acts.find(x => x.n === a) || null) : null; };
+const isInstall = (t, a) => { const d = actDef(t, a); return d ? !!d.inst : (a === 'Installation' || a === 'New Install'); };
+const dateLabel = (a, t) => !a ? 'Installed / action date' : (isInstall(t || curType, a) ? 'Installed date' : 'Action date');
+const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
+const TAB_ICONS = { 'QR': 'bi-qr-code', 'POS': 'bi-credit-card-2-front', 'SB': 'bi-speaker', 'Payway Inspection': 'bi-clipboard2-check' };
+const shortName = n => n === 'Payway Inspection' ? 'Payway' : n;
+let curType = (function () { try { return localStorage.getItem('it_type') || 'QR'; } catch (e) { return 'QR'; } })();
+function setCatalog(c) {
+  if (!Array.isArray(c) || !c.length) c = DEFAULT_CATALOG;
+  c = normCat(c);
+  CATALOG = c; TYPES = c.map(t => t.name); ACTIVITIES = {};
+  c.forEach(t => { ACTIVITIES[t.name] = t.acts.map(a => a.n); });
+  if (!TYPES.includes(curType)) curType = TYPES[0];
+  const tabs = $('#typeTabs');
+  tabs.classList.remove('scroll'); tabs.classList.add('fit'); tabs.classList.toggle('stack', TYPES.length > 4);
+  tabs.style.setProperty('--tf', TYPES.length <= 4 ? '.92rem' : TYPES.length <= 5 ? '.76rem' : TYPES.length <= 7 ? '.68rem' : '.6rem');
+  tabs.innerHTML = TYPES.map(t => '<button type="button" data-type="' + esc(t) + '"><i class="bi ' + (TAB_ICONS[t] || 'bi-grid') + '"></i><span class="tl">' + esc(shortName(t)) + '</span></button>').join('');
+  $$('#typeTabs button').forEach(b => b.classList.toggle('active', b.dataset.type === curType));
+  if (typeof fillTypeSlicer === 'function') { fillTypeSlicer(); fillActivityFilter(); }
+  try { localStorage.setItem('it_catalog', JSON.stringify(c)); } catch (e) {}
+}
+(function () { let c = null; try { c = JSON.parse(localStorage.getItem('it_catalog')); } catch (e) {} setCatalog(c); })();
+
+/** Rebuilds a card's activity buttons for the current tab (keeps the choice if still valid). */
+function fillActivities(card) {
+  const list = ACTIVITIES[curType] || [], keep = $('.f-act', card.el).value, single = list.length === 1;
+  $('.act-chips', card.el).innerHTML = list.map(a => '<button type="button" class="chip" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('');
+  show($('.act-wrap', card.el), !single);
+  setAct(card, list.includes(keep) ? keep : (single ? list[0] : ''));
+}
+/** Product type buttons come from the category names (QR, POS, SB ...). */
+function fillPtypeChips(card) {
+  $('.ptype-chips', card.el).innerHTML = TYPES.map(t => '<button type="button" class="chip" data-t="' + esc(t) + '">' + esc(t) + '</button>').join('');
+  syncPtype(card.el);
+}
+function syncPtype(el) {
+  const v = $('.f-ptype', el).value.trim().toLowerCase();
+  $$('.ptype-chips .chip', el).forEach(b => b.classList.toggle('active', b.dataset.t.toLowerCase() === v));
+}
+/** Commune from the current location (the address lookup), unless the staff typed their own. */
+function fillCommuneAll(force) {
+  const c = geo.place && geo.place.commune; if (!c) return;
+  S.cards.forEach(card => { const i = $('.f-commune', card.el); if (force || !i.dataset.touched) i.value = c; });
+}
+function syncBtype(el) {
+  const v = $('.f-btype', el).value.trim().toLowerCase();
+  $$('.btype-chips .chip', el).forEach(b => b.classList.toggle('active', b.dataset.t.toLowerCase() === v));
+}
+const PHONE_RE = /^[0-9+\-\s()]{6,20}$/;
+/** HTML of one admin-added box: text / number / phone / date / serial (with scan) / drop-down / tick boxes. */
+function customFieldHtml(f) {
+  const lab = '<label class="form-label">' + esc(f.label) + (f.req ? ' <span class="rq">*</span>' : '') + '</label>';
+  if (f.kind === 'select') return '<div class="mb-3">' + lab + '<select class="form-select" data-fid="' + esc(f.id) + '" data-kind="select"><option value="">Select…</option>' +
+    (f.opts || []).map(o => '<option value="' + esc(o) + '">' + esc(o) + '</option>').join('') + '</select></div>';
+  if (f.kind === 'radio') return '<div class="mb-3">' + lab + '<div class="chips" data-fid="' + esc(f.id) + '" data-kind="radio">' +
+    (f.opts || []).map(o => '<button type="button" class="chip rc-chip" data-v="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div></div>';
+  if (f.kind === 'check') return '<div class="mb-3">' + lab + '<div data-fid="' + esc(f.id) + '" data-kind="check">' +
+    (f.opts || []).map(o => '<div class="form-check"><label class="form-check-label"><input class="form-check-input" type="checkbox" value="' + esc(o) + '"> ' + esc(o) + '</label></div>').join('') + '</div></div>';
+  const t = f.kind === 'date' ? 'date' : (f.kind === 'phone' ? 'tel' : 'text'), im = f.kind === 'number' ? 'decimal' : (f.kind === 'phone' ? 'tel' : 'text');
+  const inp = '<input class="form-control" data-fid="' + esc(f.id) + '" data-kind="' + f.kind + '" type="' + t + '" inputmode="' + im + '" autocomplete="off"' + (f.kind === 'serial' ? ' autocapitalize="characters"' : '') + '>';
+  return '<div class="mb-3">' + lab + (f.kind === 'serial' ? '<div class="input-group">' + inp + '<button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div>' : inp) + '</div>';
+}
+document.addEventListener('click', e => {      // option buttons: pick one, tap again to clear
+  const b = e.target.closest('.rc-chip'); if (!b) return;
+  const on = !b.classList.contains('active'); $$('.rc-chip', b.parentNode).forEach(x => x.classList.remove('active')); b.classList.toggle('active', on);
+});
+/** Value of an extra box: text, or an array of ticked values for tick boxes. */
+function customVal(el) {
+  if (el.dataset.kind === 'radio') { const a = $('.rc-chip.active', el); return a ? a.dataset.v : ''; }
+  return el.dataset.kind === 'check' ? $$('input:checked', el).map(i => i.value) : String(el.value || '').trim();
+}
+function setCustomVal(el, v) {
+  if (el.dataset.kind === 'radio') { $$('.rc-chip', el).forEach(b => b.classList.toggle('active', b.dataset.v === (Array.isArray(v) ? v[0] : v))); return; }
+  if (el.dataset.kind === 'check') { const set = Array.isArray(v) ? v : String(v || '').split(', '); $$('input', el).forEach(i => { i.checked = set.includes(i.value); }); }
+  else el.value = Array.isArray(v) ? v[0] || '' : (v == null ? '' : v);
+}
+/** (Re)draws the admin-added boxes inside box, keeping what was typed. */
+function renderCustom(box, d) {
+  const old = {}; $$('[data-fid]', box).forEach(i => { old[i.dataset.fid] = customVal(i); });
+  const list = (d && d.custom) || [];
+  box.innerHTML = list.map(customFieldHtml).join('');
+  $$('[data-fid]', box).forEach(i => { if (old[i.dataset.fid] != null) setCustomVal(i, old[i.dataset.fid]); });
+  show(box, list.length > 0);
+}
+/** Shows only the boxes the activity needs (data-fk="key") and puts the red * on the must-fill ones. */
+function applyLevels(root, d) {
+  FIELD_KEYS.forEach(k => $$('[data-fk="' + k + '"]', root).forEach(w => { show(w, lvl(d, k) > 0); $$('.rq', w).forEach(x => show(x, lvl(d, k) === 2)); }));
+}
+/** Selects an activity: highlights it and shows the extra boxes it needs (phone/tag, old/new S/N). */
+function setAct(card, a) {
+  $('.f-act', card.el).value = a;
+  $$('.act-chips .chip', card.el).forEach(b => b.classList.toggle('active', b.dataset.a === a));
+  const d = actDef(curType, a);
+  applyLevels(card.el, d);
+  show($('.qr-row', card.el), ['merchant', 'mid', 'tid'].some(k => lvl(d, k) > 0));
+  show($('.act-hint', card.el), !d);
+  renderCustom($('.custom-wrap', card.el), d);
+  updateDateLabel(card); updateLocCard(); fillCommuneAll();
+}
+/** The location card is shown while some merchant card still needs a location (admin: Location box = optional or must). */
+function updateLocCard() {
+  const ds = S.cards.map(c => { const a = $('.f-act', c.el).value; return a ? actDef(curType, a) : null; });
+  show($('#locCard'), ds.some(d => !d || lvl(d, 'location') > 0));
+  show($('#locStar'), ds.some(d => d && lvl(d, 'location') === 2));
+}
+function updateDateLabel(card) {
+  $('.date-lbl', card.el).textContent = dateLabel($('.f-act', card.el).value);
+}
+/** Applies the current tab to one card: its activity list (the boxes follow the chosen activity). */
+function applyType(card) {
+  fillActivities(card); fillPtypeChips(card);
+}
+function setType(t) {
+  if (!TYPES.includes(t)) t = TYPES[0];
+  curType = t;
+  try { localStorage.setItem('it_type', t); } catch (e) {}
+  $$('#typeTabs button').forEach(b => b.classList.toggle('active', b.dataset.type === t));
+  $$('.ty').forEach(el => { el.textContent = t; });
+  S.cards.forEach(applyType);
+  const sb = $('#submitBtn');
+  if (sb && !sb.disabled) sb.innerHTML = '<i class="bi bi-send me-1"></i>Submit ' + t + ' records';
+}
+
+// Paste your Apps Script Web app URL (ends with /exec) here:
+const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+
+async function api(fn, ...args) {
+  let json;
+  try {
+    // No Content-Type header on purpose: keeps it a "simple" request, so no CORS preflight.
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ fn, args }), redirect: 'follow' });
+    json = await res.json();
+  } catch (e) {
+    throw new Error('Cannot reach the server. Check your connection and API_URL.');
+  }
+  if (!json.ok) {
+    const msg = String(json.error || 'Unknown error');
+    if (msg.includes('SESSION_EXPIRED')) { logout(true); throw new Error('Session expired. Please sign in again.'); }
+    throw new Error(msg.replace(/^Error:\s*/, ''));
+  }
+  return json.data;
+}
+
+function toast(msg, type = 'dark') {
+  const el = document.createElement('div');
+  el.className = 'toast align-items-center text-bg-' + type + ' border-0';
+  el.innerHTML = '<div class="d-flex"><div class="toast-body">' + esc(msg) + '</div><button class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  $('#toasts').appendChild(el);
+  const t = new bootstrap.Toast(el, { delay: 3200 });
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+  t.show();
+}
+
+function busy(btn, on, label) {
+  if (on) { btn.dataset.html = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + (label || 'Please wait…'); }
+  else { btn.disabled = false; btn.innerHTML = btn.dataset.html || btn.innerHTML; }
+}
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+/* ============================ Theme (light / dark) ============================ */
+const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+function isDark() {
+  const t = document.documentElement.getAttribute('data-theme');
+  return t ? t === 'dark' : !!(darkQuery && darkQuery.matches);
+}
+function applyTheme() {
+  const dark = isDark();
+  $$('.theme-toggle i').forEach(i => { i.className = 'bi ' + (dark ? 'bi-sun-fill' : 'bi-moon-stars-fill'); });
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0f1020' : '#4f46e5');
+  if (window.Chart && S.chart) drawChart();
+}
+$$('.theme-toggle').forEach(b => b.addEventListener('click', () => {
+  const next = isDark() ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  store.set('it_theme', next);
+  applyTheme();
+}));
+if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change', applyTheme);
+
+/* ============================ Auth ============================ */
+function showLogin() { show($('#appView'), false); show($('#loginView'), true); $('#loginUser').focus(); }
+
+async function showApp() {
+  show($('#loginView'), false); show($('#appView'), true);
+  try { setCatalog(await api('getCatalog', S.token)); } catch (e) {}
+  const admin = S.user.role === 'Admin';
+  $('#whoName').textContent = S.user.username;
+  $('#whoRole').textContent = ' · ' + S.user.role;
+  show($('#navUsers'), admin);
+  show($('#userFilterWrap'), admin);
+  show($('#chartCard'), false);
+  show($('#catCard'), admin);
+  if (!S.cards.length) addMerchant();
+  setType(curType);
+  switchTab('new');
+  loadSummary(); loadLast();
+  refreshLocation();
+}
+
+function logout(silent) {
+  if (S.token) api('logout', S.token).catch(() => {});
+  S.token = null; S.user = null;
+  store.del('it_token');
+  $('#loginPin').value = '';
+  showLogin();
+  if (!silent) toast('Signed out');
+}
+
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#loginBtn'), err = $('#loginError');
+  show(err, false); busy(btn, true, 'Signing in…');
+  try {
+    const r = await api('login', $('#loginUser').value, $('#loginPin').value);
+    S.token = r.token; S.user = r.user; store.set('it_token', r.token);
+    showApp();
+  } catch (ex) { err.textContent = ex.message; show(err, true); }
+  busy(btn, false);
+});
+$('#logoutBtn').addEventListener('click', () => logout(false));
+
+/* ============================ Tabs ============================ */
+function switchTab(name) {
+  ['new', 'records', 'users'].forEach(t => show($('#pane-' + t), t === name));
+  $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (name === 'records') loadRecords();
+  if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); }
+}
+$$('.bottom-nav button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+/* ============================ Summary ============================ */
+async function loadSummary() {
+  try {
+    const s = await api('getSummary', S.token);
+    $('#sumLabel').textContent = s.isAdmin ? 'Total activities today' : 'Your activities today';
+    $('#sumNum').textContent = s.today;
+    $('#sumTotal').textContent = s.total;
+    const bt = s.byType || [];
+    $('#sumBreak').innerHTML = bt.map(t => '<span class="sum-cat' + (t.count ? ' on' : '') + '">' + esc(shortName(t.type)) + ' <b>' + t.count + '</b></span>').join('');
+    show($('#sumBreak'), bt.length > 0);
+  } catch (e) { /* non-fatal */ }
+}
+
+/* ============================ KHQR parsing ============================ */
+function parseTLV(str) {
+  const out = {}; let i = 0;
+  while (i + 4 <= str.length) {
+    const tag = str.substr(i, 2), len = parseInt(str.substr(i + 2, 2), 10);
+    if (isNaN(len) || i + 4 + len > str.length) break;
+    out[tag] = str.substr(i + 4, len);
+    i += 4 + len;
+  }
+  return out;
+}
+function parseKHQR(text) {
+  const top = parseTLV(text.trim());
+  if (!top['00'] && !top['59']) return null;
+  const name = (top['59'] || '').trim();
+  let mid = '';
+  if (top['30']) { const s = parseTLV(top['30']); mid = s['01'] || s['00'] || ''; }
+  if (!mid && top['29']) { const s = parseTLV(top['29']); mid = s['01'] || s['00'] || ''; }
+  let tid = '';
+  if (top['62']) { const s = parseTLV(top['62']); tid = (s['07'] || '').trim(); }   // Additional data > Terminal label
+  return { name, mid, tid };
+}
+const NOQR = 'No QR found';
+function setQRFields(card, name, mid, tid) {
+  const n = $('.f-name', card.el), m = $('.f-mid', card.el);
+  if (tid) $('.f-tid', card.el).value = tid.toUpperCase();
+  // Overwrite with new values; clear an old "No QR found" marker; leave manual text alone otherwise.
+  if (name) n.value = name; else if (n.value === NOQR) n.value = '';
+  if (mid) m.value = mid; else if (m.value === NOQR) m.value = '';
+}
+function markNoQR(card) {
+  $('.f-name', card.el).value = NOQR;
+  $('.f-mid', card.el).value = NOQR;
+}
+function applyQR(card, text) {
+  const r = parseKHQR(text);
+  if (!r || (!r.name && !r.mid && !r.tid)) { markNoQR(card); toast('QR read, but it is not a KHQR code.', 'warning'); return false; }
+  setQRFields(card, r.name, r.mid, r.tid);
+  toast('QR filled: ' + (r.name || r.mid || '') + (r.tid ? ' · TID ' + r.tid : ''), 'success');
+  return true;
+}
+
+/* ---- camera ---- */
+const scanModal = new bootstrap.Modal($('#scanModal'));
+function scanMode(sn) {
+  $('#scanTitle').textContent = sn ? 'Scan barcode / serial number' : 'Scan KHQR';
+  $('#scanHelp').innerHTML = sn ? 'Point the camera at the barcode or QR on the sticker. If the camera is blocked, use <b>Read from a photo</b> or type it.' : 'Point the camera at the merchant QR. If the camera is blocked, close this and use <b>Upload</b>.';
+  show($('#snFileWrap'), !!sn);
+}
+/** Opens the scanner to fill one serial-number box. ret = a modal to come back to afterwards. */
+function openSnScan(inp, ret) {
+  S.scanTarget = null; S.snInput = inp; S.scanReturn = ret || null; scanMode(true);
+  if (ret) { ret.hide(); setTimeout(() => scanModal.show(), 350); } else scanModal.show();
+}
+function applySn(text) {
+  const inp = S.snInput; if (!inp) return;
+  inp.value = String(text || '').trim().toUpperCase().slice(0, 60);
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+  scanModal.hide();
+}
+async function startScan() {
+  show($('#scanError'), false);
+  try {
+    S.reader = S.snInput ? new ZXing.BrowserMultiFormatReader() : new ZXing.BrowserQRCodeReader();
+    await S.reader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, 'scanVideo', result => {
+      if (!result) return;
+      if (S.snInput) applySn(result.getText());
+      else if (S.scanTarget) { const t = S.scanTarget; scanModal.hide(); applyQR(t, result.getText()); }
+    });
+  } catch (e) {
+    $('#scanError').textContent = S.snInput ? 'Camera is not available here. Close this and type the number instead.' : 'Camera is not available here. Close this and tap Upload instead.';
+    show($('#scanError'), true);
+  }
+}
+function stopScan() {
+  try { S.reader && S.reader.reset(); } catch (e) {} S.reader = null;
+  S.snInput = null;
+  if (S.scanReturn) { const r = S.scanReturn; S.scanReturn = null; setTimeout(() => r.show(), 200); }
+}
+$('#scanModal').addEventListener('shown.bs.modal', startScan);
+$('#scanModal').addEventListener('hidden.bs.modal', stopScan);
+$('#snFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  let text = null, loaded = null;
+  try {
+    loaded = await loadImage(f);
+    const rd = new ZXing.BrowserMultiFormatReader();
+    for (const src of [loaded.url, () => scaledDataUrl(loaded.img, 1000), () => scaledDataUrl(loaded.img, 1600), () => scaledDataUrl(loaded.img, 600)]) {
+      try { text = (await rd.decodeFromImageUrl(typeof src === 'function' ? src() : src)).getText(); break; } catch (er) { /* next */ }
+    }
+  } catch (er) {}
+  if (loaded) URL.revokeObjectURL(loaded.url);
+  if (text) applySn(text); else toast('No barcode found in that photo.', 'warning');
+});
+// every scan button next to a serial-number box (form cards and the edit window)
+document.addEventListener('click', e => {
+  const b = e.target.closest('.btn-sn'); if (!b) return;
+  const inp = $('input', b.parentElement); if (!inp) return;
+  openSnScan(inp, b.closest('#editModal') ? editModal : null);
+});
+
+/* ---- upload screenshot ---- */
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Unreadable image')); };
+    img.src = url;
+  });
+}
+function scaledDataUrl(img, maxSide) {
+  const r = maxSide / Math.max(img.naturalWidth, img.naturalHeight);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.naturalWidth * r));
+  c.height = Math.max(1, Math.round(img.naturalHeight * r));
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/png');
+}
+async function decodeFile(card, file) {
+  if (!file) return;
+  const btn = $('.btn-upload', card.el);
+  busy(btn, true, 'Reading…');
+  let text = null, loaded = null;
+  try {
+    loaded = await loadImage(file);
+    const reader = new ZXing.BrowserQRCodeReader();
+    // 1) original image, 2+) resized copies (helps with huge or tiny screenshots)
+    const sources = [loaded.url, () => scaledDataUrl(loaded.img, 1000), () => scaledDataUrl(loaded.img, 600), () => scaledDataUrl(loaded.img, 1600)];
+    for (const src of sources) {
+      try { text = (await reader.decodeFromImageUrl(typeof src === 'function' ? src() : src)).getText(); break; }
+      catch (e) { /* try next */ }
+    }
+  } catch (e) { /* unreadable image */ }
+  if (loaded) URL.revokeObjectURL(loaded.url);
+  busy(btn, false);
+
+  if (text) applyQR(card, text);
+  else { markNoQR(card); toast('No QR code found in that image.', 'warning'); }
+}
+
+/* ============================ Merchant cards ============================ */
+function addMerchant() {
+  const id = ++S.seq;
+  const el = document.createElement('div');
+  el.className = 'card-x fade-in';
+  el.innerHTML =
+    '<div class="merchant-head"><span class="badge-num">Merchant <span class="n"></span></span><span class="flex-grow-1 ms-2"><span class="pill ty"></span></span>' +
+    '<button class="btn btn-sm btn-outline-danger border-0 btn-remove" type="button"><i class="bi bi-trash3"></i></button></div>' +
+    '<div class="mb-3 act-wrap"><label class="form-label">Activity <span class="rq">*</span></label><div class="chips act-chips"></div></div><input type="hidden" class="f-act">' +
+    '<div class="small text-muted mb-3 act-hint hidden">Choose an activity to see the boxes it needs.</div>' +
+    '<div class="mb-3"><label class="form-label"><span class="date-lbl">Installed / action date</span> <span class="rq">*</span></label><input type="date" class="form-control f-date"></div>' +
+    '<div class="row g-2 mb-3 qr-row">' +
+      '<div class="col-6"><button type="button" class="btn btn-soft w-100 btn-scan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button></div>' +
+      '<div class="col-6"><button type="button" class="btn btn-soft w-100 btn-upload"><i class="bi bi-image me-1"></i>Upload QR</button></div>' +
+    '</div>' +
+    '<input type="file" accept="image/*" class="qr-file hidden">' +
+    '<div class="mb-3 hidden" data-fk="merchant"><label class="form-label">Merchant name <span class="rq hidden">*</span></label><input class="form-control f-name" placeholder="Auto-filled from KHQR"></div>' +
+    '<div class="mb-3 hidden" data-fk="mid"><label class="form-label">MID <span class="rq hidden">*</span></label><input class="form-control f-mid" inputmode="text" placeholder="Auto-filled from KHQR"></div>' +
+    '<div class="mb-3 hidden" data-fk="tid"><label class="form-label">TID <span class="text-lowercase fw-normal">(terminal ID)</span> <span class="rq hidden">*</span></label><input class="form-control f-tid" autocapitalize="characters" autocomplete="off" placeholder="Auto-filled from KHQR, or type it"></div>' +
+    '<div class="mb-3 hidden" data-fk="business"><label class="form-label">Business name <span class="rq hidden">*</span></label><input class="form-control f-biz" placeholder="N/A"></div>' +
+    '<div class="mb-3 hidden" data-fk="serial"><label class="form-label">Serial number <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-serial" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
+    '<div class="mb-3 hidden" data-fk="oldSn"><label class="form-label">Old S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-old" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
+    '<div class="mb-3 hidden" data-fk="newSn"><label class="form-label">New S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-new" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
+    '<div class="mb-3 hidden" data-fk="btype"><label class="form-label">Business type <span class="rq hidden">*</span></label><input class="form-control f-btype mb-2" maxlength="60" autocomplete="off" placeholder="Type, or tap one below">' +
+      '<div class="chips btype-chips">' + BIZ_TYPES.map(t => '<button type="button" class="chip" data-t="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div></div>' +
+    '<div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input class="form-control f-ptype mb-2" maxlength="60" autocomplete="off" placeholder="Type, or tap one below"><div class="chips ptype-chips"></div></div>' +
+    '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="row g-2 align-items-center"><div class="col"><input type="time" class="form-control f-open" aria-label="Opens"></div><div class="col-auto small text-muted">to</div><div class="col"><input type="time" class="form-control f-close" aria-label="Closes"></div></div></div>' +
+    '<div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input class="form-control f-group" maxlength="100" autocomplete="off" placeholder="e.g. owner / chain / group name"></div>' +
+    '<div class="mb-3 hidden" data-fk="commune"><label class="form-label">Commune <span class="rq hidden">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label><div class="input-group"><input class="form-control f-commune" maxlength="80" autocomplete="off" placeholder="Filled from your location"><button type="button" class="btn btn-soft btn-commune" aria-label="Fill from my location" title="Fill from my location"><i class="bi bi-geo-alt"></i></button></div></div>' +
+    '<div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input class="form-control f-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="e.g. 012 345 678"></div>' +
+    '<div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input class="form-control f-tag" maxlength="200" autocomplete="off" placeholder="Extra remark / tag"></div>' +
+    '<div class="custom-wrap hidden"></div>' +
+    '<div class="mb-3 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea class="form-control f-rem" rows="2"></textarea></div>' +
+    '<div class="hidden" data-fk="photo"><label class="form-label">Photos / videos <span class="rq hidden">*</span> <span class="text-lowercase fw-normal">(max ' + MAX_PHOTOS + ', videos ≤ ' + MAX_VIDEOS + ' × ' + MAX_VIDEO_MB + ' MB)</span></label>' +
+    '<div class="row g-2">' +
+      '<div class="col-6"><button type="button" class="btn btn-soft w-100 btn-cam"><i class="bi bi-camera me-1"></i>Take photo</button></div>' +
+      '<div class="col-6"><button type="button" class="btn btn-soft w-100 btn-photo"><i class="bi bi-images me-1"></i>Photos or Videos</button></div>' +
+    '</div>' +
+    '<input type="file" accept="image/*" capture="environment" class="cam-file hidden">' +
+    '<input type="file" accept="image/*,video/*" multiple class="photo-file hidden">' +
+    '<div class="form-check form-switch mt-2"><input class="form-check-input stamp-sw" type="checkbox" role="switch"><label class="form-check-label small">Stamp date, GPS &amp; name on photos from <b>Take photo</b></label></div>' +
+    '<div class="small text-muted mt-1"><button type="button" class="btn btn-link btn-sm p-0 align-baseline stamp-link">Stamp settings</button> · Prefer another camera app? Take the photos there, then tap <b>Choose photos</b>.</div>' +
+    '<div class="progress prog mt-2"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div></div>' +
+    '<div class="photo-grid"></div></div>';
+  $('#merchantList').appendChild(el);
+
+  const dt = $('.f-date', el); dt.value = ymd(new Date()); dt.max = ymd(new Date());
+  const card = { id, el, photos: [] };
+  S.cards.push(card);
+  applyType(card);
+  $('.btype-chips', el).addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const inp = $('.f-btype', el); inp.value = b.dataset.t; syncBtype(el);
+  });
+  $('.f-btype', el).addEventListener('input', () => syncBtype(el));
+  $('.ptype-chips', el).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; $('.f-ptype', el).value = b.dataset.t; syncPtype(el); });
+  $('.f-ptype', el).addEventListener('input', () => syncPtype(el));
+  $('.f-commune', el).addEventListener('input', e => { e.target.dataset.touched = '1'; });
+  $('.btn-commune', el).onclick = async () => {
+    if (!geo.pos) await refreshGeo(8000);
+    try { await geo.lookup; } catch (e) {}
+    const c = geo.place && geo.place.commune, i = $('.f-commune', el);
+    if (c) { i.value = c; delete i.dataset.touched; } else toast('No commune found for this location. Type it.', 'warning');
+  };
+  $('.act-chips', el).addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) setAct(card, b.dataset.a); });
+
+  $('.btn-scan', el).onclick = () => { S.scanTarget = card; S.snInput = null; scanMode(false); scanModal.show(); };
+  $('.btn-upload', el).onclick = () => $('.qr-file', el).click();
+  $('.qr-file', el).onchange = async e => { await decodeFile(card, e.target.files[0]); e.target.value = ''; };
+  $('.btn-photo', el).onclick = () => $('.photo-file', el).click();
+  $('.photo-file', el).onchange = async e => { await addPhotos(card, Array.from(e.target.files), false); e.target.value = ''; };
+  $('.btn-cam', el).onclick = () => $('.cam-file', el).click();
+  $('.cam-file', el).onchange = async e => { await addPhotos(card, Array.from(e.target.files), true); e.target.value = ''; };
+  $('.stamp-link', el).onclick = openStampSettings;
+  const sw = $('.stamp-sw', el); sw.checked = stampOn;
+  $('.btn-cam', el).addEventListener('click', () => { if (stampOn && needGeo()) refreshGeo(10000); });   // warm up GPS while the camera opens
+  sw.addEventListener('change', () => { stampOn = sw.checked; store.set('it_stamp', stampOn ? '1' : '0'); $$('.stamp-sw').forEach(x => { x.checked = stampOn; }); });
+  $('.btn-remove', el).onclick = () => {
+    if (S.cards.length === 1) { toast('At least one merchant is required.', 'warning'); return; }
+    S.cards = S.cards.filter(c => c !== card); el.remove(); renumber();
+  };
+  renumber();
+  return card;
+}
+function renumber() {
+  S.cards.forEach((c, i) => { $('.n', c.el).textContent = i + 1; show($('.btn-remove', c.el), S.cards.length > 1); });
+  if (typeof updateAddBtn === 'function') updateAddBtn();
+  $$('.ty').forEach(el => { el.textContent = curType; });
+  if (typeof updateLocCard === 'function') updateLocCard();
+}
+function updateAddBtn() {
+  const btn = $('#addMerchantBtn'), full = S.cards.length >= MAX_MERCHANTS;
+  btn.disabled = full;
+  btn.innerHTML = full
+    ? '<i class="bi bi-check2-circle me-1"></i>Maximum ' + MAX_MERCHANTS + ' merchants reached'
+    : '<i class="bi bi-plus-lg me-1"></i>Add another merchant (' + S.cards.length + '/' + MAX_MERCHANTS + ')';
+}
+$('#typeTabs').addEventListener('click', e => { const b = e.target.closest('button[data-type]'); if (b) setType(b.dataset.type); });
+$('#addMerchantBtn').addEventListener('click', () => {
+  if (S.cards.length >= MAX_MERCHANTS) { toast('You can add up to ' + MAX_MERCHANTS + ' merchants per submission.', 'warning'); return; }
+  const c = addMerchant();
+  c.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+/* ---- photos ---- */
+/* ---- photo stamp: settings (all remembered on this phone) ---- */
+const STAMP_DEF = { logo: true, map: true, title: true, time: true, coords: true, addr: true, titleText: 'Merchant Support', logoData: '', fontScale: 100, mapScale: 20, logoScale: 100 };
+let stampOn = store.get('it_stamp') !== '0';          // on by default; remembered
+let stampCfg = (() => {
+  let c = {}; try { c = JSON.parse(store.get('it_stamp_cfg') || '{}') || {}; } catch (e) {}
+  const old = store.get('it_stamp_title'); if (c.titleText === undefined && old !== null) c.titleText = old;
+  if (c.coords === undefined && store.get('it_stamp_geo') === '0') { c.coords = false; c.addr = false; c.map = false; }
+  return Object.assign({}, STAMP_DEF, c);
+})();
+const saveStampCfg = () => store.set('it_stamp_cfg', JSON.stringify(stampCfg));
+const needGeo = () => stampCfg.coords || stampCfg.addr || stampCfg.map;
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const p2 = n => String(n).padStart(2, '0');
+/** "Oct 21, 2026 8:14:34 PM" */
+function stampDateTime(ms) {
+  const d = new Date(ms || Date.now()), h12 = d.getHours() % 12 || 12;
+  return MON[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' ' + h12 + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()) + ' ' + (d.getHours() < 12 ? 'AM' : 'PM');
+}
+/** "13.36813 103.83870666666665" – plain decimals, like the sample */
+const coordText = p => +p.lat.toFixed(6) + ' ' + +p.lon.toFixed(6);
+/** Open Location (Plus) Code, 11 digits, first 4 dropped ("9R9Q+6M2") */
+function plusCode(lat, lon) {
+  const A = '23456789CFGHJMPQRVWX';
+  let la = Math.floor((Math.min(90, Math.max(-90, lat)) + 90) * 40000 + 1e-7), lo = Math.floor((((lon + 180) % 360 + 360) % 360) * 32000 + 1e-7);
+  let out = A[(la % 5) * 4 + (lo % 4)]; la = Math.floor(la / 5); lo = Math.floor(lo / 4);
+  const pairs = [];
+  for (let i = 0; i < 5; i++) { pairs.unshift(A[lo % 20]); pairs.unshift(A[la % 20]); la = Math.floor(la / 20); lo = Math.floor(lo / 20); }
+  const full = pairs.join('');                       // 10 digits
+  return full.slice(4, 8) + '+' + full.slice(8) + out;
+}
+
+/* ---- GPS + address + map tile, cached while you stay in the same spot ---- */
+const geo = { manual: false, pos: null, place: null, key: '', lookup: null, map: null, mapKey: '', mapLookup: null };
+function readPosition(timeout) {
+  return new Promise(res => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p => res({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy || 0, t: Date.now() }),
+      () => res(null), { enableHighAccuracy: true, timeout: timeout || 10000, maximumAge: 30000 });
+  });
+}
+function lookupPlace(p) {
+  const key = p.lat.toFixed(3) + ',' + p.lon.toFixed(3);                 // ~100 m
+  if (key === geo.key) return geo.lookup;
+  geo.key = key; geo.place = null;
+  const ctl = window.AbortController ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), 6000) : null;
+  geo.lookup = fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=en&lat=' + p.lat + '&lon=' + p.lon, ctl ? { signal: ctl.signal } : {})
+    .then(r => r.json()).then(j => {
+      const a = j.address || {};
+      const street = a.road || a.pedestrian || a.amenity || a.suburb || a.neighbourhood || a.village || '';
+      const city = a.city || a.town || a.municipality || a.county || String(a.state || '').replace(/ Province$/i, '');
+      geo.place = { street, city, country: a.country || '', commune: a.suburb || a.quarter || a.village || a.neighbourhood || a.hamlet || '' };
+      fillCommuneAll();
+    }).catch(() => { geo.place = null; geo.key = ''; }).then(() => { if (timer) clearTimeout(timer); });
+  return geo.lookup;
+}
+/** Small square street-map picture around the point with a red pin (OpenStreetMap tiles). null if offline. */
+function loadMap(p) {
+  const key = p.lat.toFixed(4) + ',' + p.lon.toFixed(4);
+  if (key === geo.mapKey) return geo.mapLookup;
+  geo.mapKey = key; geo.map = null;
+  const Z = 17, n = Math.pow(2, Z);
+  const fx = (p.lon + 180) / 360 * n, lr = p.lat * Math.PI / 180;
+  const fy = (1 - Math.log(Math.tan(lr) + 1 / Math.cos(lr)) / Math.PI) / 2 * n;
+  const tx = Math.floor(fx), ty = Math.floor(fy), T = 256;
+  const tile = (dx, dy) => new Promise(res => {
+    const im = new Image(); im.crossOrigin = 'anonymous';
+    const t = setTimeout(() => res(null), 6000);
+    im.onload = () => { clearTimeout(t); res(im); }; im.onerror = () => { clearTimeout(t); res(null); };
+    im.src = 'https://tile.openstreetmap.org/' + Z + '/' + (tx + dx) + '/' + (ty + dy) + '.png';
+  });
+  const jobs = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) jobs.push(tile(dx, dy).then(im => ({ dx, dy, im })));
+  geo.mapLookup = Promise.all(jobs).then(list => {
+    if (!list.some(o => o.im)) { geo.mapKey = ''; return null; }
+    const S3 = T * 3, cv = document.createElement('canvas'); cv.width = cv.height = 256;
+    const x = cv.getContext('2d'); x.fillStyle = '#e8e4dc'; x.fillRect(0, 0, 256, 256);
+    const cx = (fx - tx + 1) * T, cy = (fy - ty + 1) * T;       // point inside the 3x3 mosaic
+    list.forEach(o => { if (o.im) x.drawImage(o.im, (o.dx + 1) * T - cx + 128, (o.dy + 1) * T - cy + 128); });
+    // red pin
+    x.fillStyle = '#ea4335'; x.strokeStyle = '#a52714'; x.lineWidth = 3;
+    x.beginPath(); x.arc(128, 112, 20, Math.PI * 0.8, Math.PI * 0.2, false); x.lineTo(128, 150); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = '#7b1a10'; x.beginPath(); x.arc(128, 112, 7, 0, 7); x.fill();
+    geo.map = cv; return cv;
+  }).catch(() => { geo.mapKey = ''; return null; });
+  return geo.mapLookup;
+}
+async function refreshGeo(timeout, force) {
+  if (geo.manual && !force && geo.pos) return geo.pos;       // a place picked on the map stays until you tap "use my GPS"
+  const p = await readPosition(timeout);
+  if (p) { geo.pos = p; lookupPlace(p); loadMap(p); }
+  return geo.pos;
+}
+const addrText = p => [plusCode(p.lat, p.lon), geo.place && geo.place.street, geo.place && geo.place.city, geo.place && geo.place.country].filter(Boolean).join(', ');
+/** { lat, lon, addr } for the Telegram message, or null when the phone gives no position. */
+async function currentLocation() {
+  let p = geo.pos && Date.now() - geo.pos.t < 120000 ? geo.pos : await refreshGeo(8000);
+  p = p || geo.pos;
+  if (!p) return null;
+  try { await geo.lookup; } catch (e) {}
+  return { lat: p.lat, lon: p.lon, addr: addrText(p) };
+}
+/* ---- "Current location" card on the form ---- */
+function paintLoc() {
+  const p = geo.pos;
+  if (!p) return;
+  $('#locAddr').textContent = addrText(p);
+  $('#locCoords').textContent = coordText(p);
+  show($('#locTag'), !!geo.manual);
+  const o = $('#locOpen'); o.href = 'https://maps.google.com/?q=' + p.lat + ',' + p.lon; show(o, true);
+  if (geo.map) { try { $('#locMap').src = geo.map.toDataURL('image/png'); show($('#locMap'), true); } catch (e) {} }
+}
+async function refreshLocation() {
+  geo.manual = false; show($('#locTag'), false);
+  $('#locAddr').textContent = 'Finding your location…'; $('#locCoords').textContent = '';
+  const p = await refreshGeo(10000, true);
+  if (!p) { $('#locAddr').textContent = 'Location unavailable. Allow location access in your browser, then tap refresh.'; return; }
+  paintLoc();
+  try { await geo.lookup; } catch (e) {} paintLoc();
+  try { await geo.mapLookup; } catch (e) {} paintLoc();
+}
+$('#locRefresh').addEventListener('click', refreshLocation);
+
+/* ---- choose the location on a map ---- */
+const mapModal = new bootstrap.Modal($('#mapModal'));
+const pick = { map: null, marker: null, pt: null };
+function setPick(lat, lon, pan) {
+  pick.pt = { lat, lon };
+  pick.marker.setLatLng([lat, lon]);
+  if (pan) pick.map.setView([lat, lon], Math.max(pick.map.getZoom(), 17));
+  $('#pickCoords').textContent = +lat.toFixed(6) + ', ' + +lon.toFixed(6);
+  $('#pickUse').disabled = false;
+}
+function openPick() {
+  if (!window.L) { toast('The map could not load. Check your internet connection.', 'warning'); return; }
+  mapModal.show();
+  setTimeout(() => {
+    const start = geo.pos ? [geo.pos.lat, geo.pos.lon] : [11.5564, 104.9282];
+    if (!pick.map) {
+      pick.map = L.map('pickMap').setView(start, geo.pos ? 17 : 12);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(pick.map);
+      pick.marker = L.marker(start, { draggable: true, icon: L.divIcon({ className: '', html: '<div style="font-size:30px;line-height:30px;margin:-28px 0 0 -9px">📍</div>', iconSize: [0, 0] }) }).addTo(pick.map);
+      pick.map.on('click', e => setPick(e.latlng.lat, e.latlng.lng, false));
+      pick.marker.on('dragend', () => { const l = pick.marker.getLatLng(); setPick(l.lat, l.lng, false); });
+    } else pick.map.setView(start, geo.pos ? 17 : pick.map.getZoom());
+    pick.marker.setLatLng(start);
+    pick.pt = geo.pos ? { lat: geo.pos.lat, lon: geo.pos.lon } : null;
+    $('#pickCoords').textContent = geo.pos ? +geo.pos.lat.toFixed(6) + ', ' + +geo.pos.lon.toFixed(6) : '';
+    $('#pickUse').disabled = !geo.pos;
+    pick.map.invalidateSize();
+  }, 300);
+}
+$('#locPick').addEventListener('click', openPick);
+async function pickSearch() {
+  const q = $('#pickQ').value.trim(); if (!q || !pick.map) return;
+  try {
+    const r = await (await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=en&q=' + encodeURIComponent(q))).json();
+    if (!r.length) { toast('Place not found. Try a different name.', 'warning'); return; }
+    setPick(+r[0].lat, +r[0].lon, true);
+  } catch (e) { toast('Search failed. Check your internet connection.', 'warning'); }
+}
+$('#pickGo').addEventListener('click', pickSearch);
+$('#pickQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pickSearch(); } });
+$('#pickGps').addEventListener('click', async () => {
+  const p = await readPosition(8000);
+  if (p) setPick(p.lat, p.lon, true); else toast('Could not read your GPS. Allow location access.', 'warning');
+});
+$('#pickUse').addEventListener('click', async () => {
+  if (!pick.pt) return;
+  geo.manual = true; geo.key = ''; geo.mapKey = '';
+  geo.pos = { lat: pick.pt.lat, lon: pick.pt.lon, acc: 0, t: Date.now() };
+  mapModal.hide();
+  lookupPlace(geo.pos); loadMap(geo.pos);
+  $('#locAddr').textContent = 'Finding the address…'; paintLoc();
+  try { await geo.lookup; } catch (e) {} paintLoc();
+  try { await geo.mapLookup; } catch (e) {} paintLoc();
+  toast('Location set from the map. Telegram and photo stamps will use it.', 'success');
+});
+const logoImg = { src: '', img: null };
+function getLogo() {
+  if (!stampCfg.logoData) return Promise.resolve(null);
+  if (logoImg.src === stampCfg.logoData && logoImg.img) return Promise.resolve(logoImg.img);
+  return new Promise(res => { const im = new Image(); im.onload = () => { logoImg.src = stampCfg.logoData; logoImg.img = im; res(im); }; im.onerror = () => res(null); im.src = stampCfg.logoData; });
+}
+/** Everything one stamp needs (the time is filled in per photo). */
+async function stampData() {
+  const d = { title: '', time: stampCfg.time, coords: '', addr: '', map: null, logo: null, fontScale: stampCfg.fontScale, mapScale: stampCfg.mapScale, logoScale: stampCfg.logoScale };
+  if (stampCfg.title && stampCfg.titleText) d.title = '#' + stampCfg.titleText;
+  if (stampCfg.logo) d.logo = await getLogo();
+  if (needGeo()) {
+    let p = geo.pos && Date.now() - geo.pos.t < 120000 ? geo.pos : await refreshGeo(8000);
+    p = p || geo.pos;
+    if (p) {
+      if (stampCfg.coords) d.coords = coordText(p);
+      if (stampCfg.addr) {
+        try { await geo.lookup; } catch (e) {}
+        const pl = geo.place;
+        d.addr = [plusCode(p.lat, p.lon), pl && pl.street, pl && pl.city, pl && pl.country].filter(Boolean).join(', ');
+      }
+      if (stampCfg.map) { try { d.map = await geo.mapLookup; } catch (e) {} }
+    }
+  }
+  return d;
+}
+
+/** Sample layout: logo top-right, map bottom-left, white right-aligned text bottom-right. Wraps long lines. */
+function drawStamp(ctx, w, h, d, ms) {
+  const base = Math.min(w, h);
+  let fs = Math.max(10, Math.round(base * 0.034 * (d.fontScale || 100) / 100));
+  const font = s => '600 ' + s + 'px -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  const mx = Math.round(w * 0.035), my = Math.round(base * 0.03);
+  const mapS = d.map ? Math.round(base * (d.mapScale || 20) / 100) : 0, gap = d.map ? Math.round(base * 0.02) : 0;
+  const maxW = w - mx * 2 - mapS - gap;
+  const raw = [];
+  if (d.title) raw.push(d.title);
+  if (d.time) raw.push(stampDateTime(ms));
+  if (d.coords) raw.push(d.coords);
+  if (d.addr) raw.push(d.addr);
+  ctx.save();
+  ctx.font = font(fs);
+  const wrap = t => {                       // break on spaces so nothing runs off the photo
+    const words = t.split(' '), out = []; let cur = '';
+    words.forEach(wd => { const t2 = cur ? cur + ' ' + wd : wd; if (cur && ctx.measureText(t2).width > maxW) { out.push(cur); cur = wd; } else cur = t2; });
+    if (cur) out.push(cur); return out;
+  };
+  const lines = []; raw.forEach(t => wrap(t).forEach(x => lines.push(x)));
+  const lh = Math.round(fs * 1.25);
+  // logo, top-right, in a white rounded box
+  if (d.logo) {
+    // the white box hugs the logo, so the logo itself grows with the Logo size slider
+    const sc = (d.logoScale || 100) / 100, asp = d.logo.width / d.logo.height, pad = Math.max(3, Math.round(base * 0.012 * sc));
+    let ih = base * 0.07 * sc, iw = ih * asp;
+    const maxW = w * 0.7 - 2 * pad, maxH = h * 0.4 - 2 * pad;
+    if (iw > maxW) { iw = maxW; ih = iw / asp; }
+    if (ih > maxH) { ih = maxH; iw = ih * asp; }
+    iw = Math.round(iw); ih = Math.round(ih);
+    const bw = iw + pad * 2, bh = ih + pad * 2, x0 = w - mx - bw, y0 = my;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, bw, bh, pad) : ctx.rect(x0, y0, bw, bh)); ctx.fill();
+    ctx.drawImage(d.logo, x0 + pad, y0 + pad, iw, ih);
+  }
+  // map thumbnail, bottom-left
+  if (d.map) {
+    const x0 = mx, y0 = h - my - mapS;
+    ctx.save(); ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.clip();
+    ctx.drawImage(d.map, x0, y0, mapS, mapS); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = Math.max(1.5, base * 0.003);
+    ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.stroke();
+  }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+  ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = Math.max(2, fs * 0.16); ctx.shadowOffsetY = Math.max(1, fs * 0.04);
+  ctx.fillStyle = '#ffffff';
+  lines.forEach((t, i) => ctx.fillText(t, w - mx, h - my - fs * 0.2 - (lines.length - 1 - i) * lh));
+  ctx.restore();
+}
+function compress(file, opts) {
+  opts = opts || {};
+  const max = opts.max || 1280, q = opts.q || 0.72;
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const r = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.round(img.width * r), h = Math.round(img.height * r);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      if (opts.stamp && opts.data) drawStamp(ctx, w, h, opts.data, file.lastModified || Date.now());
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Unreadable image')); };
+    img.src = url;
+  });
+}
+const isVideoSrc = src => /^data:video\//i.test(src);
+const isVideoFile = f => /^video\//i.test(f.type) || /\.(mp4|mov|m4v|webm|3gp)$/i.test(f.name || '');
+function readVideo(f) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).replace(/^data:[^;,]*/, m => /^data:video\//i.test(m) ? m : 'data:video/mp4'));
+    r.onerror = () => rej(new Error('Unreadable video')); r.readAsDataURL(f);
+  });
+}
+async function addPhotos(card, files, fromCamera) {
+  const room = MAX_PHOTOS - card.photos.length;
+  if (room <= 0) { toast('Photo limit reached (' + MAX_PHOTOS + ').', 'warning'); return; }
+  if (files.length > room) toast('Only ' + room + ' more photo(s) allowed.', 'warning');
+  files = files.slice(0, room);
+
+  const doStamp = !!(fromCamera && stampOn);
+  const prog = $('.prog', card.el), bar = $('.progress-bar', card.el);
+  show(prog, true); prog.style.display = 'flex'; bar.style.width = '5%';
+  const sd = doStamp ? await stampData() : null;       // GPS can take a few seconds the first time
+  for (let i = 0; i < files.length; i++) {
+    try {
+      const f = files[i];
+      if (isVideoFile(f)) {
+        if (card.photos.filter(isVideoSrc).length >= MAX_VIDEOS) { toast('At most ' + MAX_VIDEOS + ' videos per merchant.', 'warning'); continue; }
+        if (f.size > MAX_VIDEO_MB * 1048576) { toast('Video is ' + Math.round(f.size / 1048576) + ' MB; the limit is ' + MAX_VIDEO_MB + ' MB. Record a shorter clip or lower the video quality.', 'warning'); continue; }
+        card.photos.push(await readVideo(f));
+      } else card.photos.push(await compress(f, { stamp: doStamp, data: sd }));   // each photo keeps its own time
+    } catch (e) { toast('Skipped an unreadable file.', 'warning'); }
+    bar.style.width = Math.round(((i + 1) / files.length) * 100) + '%';
+  }
+  setTimeout(() => { prog.style.display = 'none'; }, 350);
+  renderPhotos(card);
+}
+function renderPhotos(card) {
+  const grid = $('.photo-grid', card.el);
+  grid.innerHTML = '';
+  card.photos.forEach((src, i) => {
+    const d = document.createElement('div'); d.className = 'ph';
+    d.innerHTML = (isVideoSrc(src) ? '<video src="' + src + '" muted playsinline preload="metadata"></video><span class="vbadge"><i class="bi bi-play-fill"></i></span>' : '<img src="' + src + '" alt="">') + '<button type="button" aria-label="Remove">✕</button>';
+    $('button', d).onclick = () => { card.photos.splice(i, 1); renderPhotos(card); };
+    grid.appendChild(d);
+  });
+}
+
+/* ---- submit ---- */
+$('#submitBtn').addEventListener('click', async () => {
+  const items = [];
+  for (let i = 0; i < S.cards.length; i++) {
+    const c = S.cards[i], g = s => $(s, c.el).value.trim();
+    const bad = (m, sel) => { toast('Merchant ' + (i + 1) + ': ' + m, 'danger'); if (sel) $(sel, c.el).focus(); c.el.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    if (!g('.f-act')) { bad('select an activity.'); return; }
+    const ad = actDef(curType, g('.f-act')), L = k => lvl(ad, k);
+    if (!g('.f-date')) { bad('pick the date.', '.f-date'); return; }
+    const must = [['merchant', '.f-name', 'the merchant name'], ['mid', '.f-mid', 'the MID'], ['tid', '.f-tid', 'the TID'], ['business', '.f-biz', 'the business name'],
+      ['serial', '.f-serial', 'the serial number'], ['oldSn', '.f-old', 'the Old S/N'], ['newSn', '.f-new', 'the New S/N'], ['btype', '.f-btype', 'the business type'],
+      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['commune', '.f-commune', 'the commune'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
+    for (const [k, sel, txt] of must) if (L(k) === 2 && !g(sel)) { bad('enter ' + txt + '.', sel); return; }
+    if (L('hours') && ((L('hours') === 2 && !g('.f-open')) || (!!g('.f-open') !== !!g('.f-close')))) { bad('enter both opening and closing time.', g('.f-open') ? '.f-close' : '.f-open'); return; }
+    if (L('phone') && g('.f-phone') && !PHONE_RE.test(g('.f-phone'))) { bad('the phone number looks wrong.', '.f-phone'); return; }
+    const extra = {};
+    for (const f of ((ad && ad.custom) || [])) {
+      const inp = $('[data-fid="' + f.id + '"]', c.el), v = inp ? customVal(inp) : '';
+      if (!v.length) { if (f.req) { bad((f.kind === 'select' || f.kind === 'radio' ? 'choose ' : f.kind === 'check' ? 'tick at least one ' : 'enter ') + f.label + '.'); if (inp && inp.focus) inp.focus(); return; } continue; }
+      if (f.kind === 'number' && !/^-?\d+(\.\d+)?$/.test(v)) { bad(f.label + ' must be a number.'); return; }
+      if (f.kind === 'phone' && !PHONE_RE.test(v)) { bad(f.label + ' looks wrong.'); return; }
+      extra[f.id] = v;
+    }
+    if (L('photo') === 2 && !c.photos.length) { bad('attach at least one photo.'); return; }
+    const v = (k, sel) => L(k) ? g(sel) : '';
+    items.push({ type: curType, activity: g('.f-act'), date: g('.f-date'), extra, locLv: L('location'),
+      merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
+      serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
+      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: v('commune', '.f-commune'), group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [] });
+  }
+  const bytes = items.reduce((t, it) => t + it.photos.reduce((u, p) => u + p.length, 0), 0);
+  if (bytes > 32e6) { toast('Photos and videos are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
+  const btn = $('#submitBtn');
+  busy(btn, true, 'Submitting…');
+  try {
+    const needLoc = items.some(it => it.locLv > 0);
+    const loc = needLoc ? await currentLocation() : null;
+    if (!loc && items.some(it => it.locLv === 2)) { toast('The location is required. Allow GPS (tap the refresh arrow) or choose the spot with the pin button.', 'danger'); busy(btn, false); return; }
+    items.forEach(it => { if (loc && it.locLv > 0) it.location = loc; delete it.locLv; });
+    const r = await api('submitInstallations', S.token, items);
+    toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + '). Telegram: ' + r.telegram, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
+    $('#merchantList').innerHTML = ''; S.cards = []; addMerchant();
+    if (!loc && needLoc) toast('Location was not available, so it was not added to Telegram.', 'warning');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadSummary(); loadLast();
+  } catch (e) { toast(e.message, 'danger'); }
+  busy(btn, false);
+});
+
+/* ============================ Records ============================ */
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function range() {
+  const p = $('#fPeriod').value, now = new Date();
+  if (p === 'today') return { from: ymd(now), to: ymd(now) };
+  if (p === 'week') { const d = new Date(now); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return { from: ymd(d), to: ymd(now) }; }
+  if (p === 'month') return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: ymd(now) };
+  if (p === 'custom') return { from: $('#fFrom').value, to: $('#fTo').value };
+  return { from: '', to: '' };
+}
+
+let recTimer;
+const PERIODS = [{ v: 'today', l: 'Today' }, { v: 'week', l: 'This week' }, { v: 'month', l: 'This month' }, { v: 'all', l: 'All time' }, { v: 'custom', l: 'Custom…' }];
+/** A slicer: a row of buttons that drives a hidden input (so the rest of the code just reads the input). */
+function slicer(boxId, inputId, options) {
+  const box = $('#' + boxId), inp = $('#' + inputId);
+  if (!options.some(o => o.v === inp.value)) inp.value = options.length ? options[0].v : '';
+  box.innerHTML = options.map(o => '<button type="button" class="chip' + (o.v === inp.value ? ' active' : '') + '" data-v="' + esc(o.v) + '">' + esc(o.l) + '</button>').join('');
+}
+function bindSlicer(boxId, inputId, after) {
+  $('#' + boxId).addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    $('#' + inputId).value = b.dataset.v;
+    $$('.chip', $('#' + boxId)).forEach(x => x.classList.toggle('active', x === b));
+    if (after) after();
+  });
+}
+function fillTypeSlicer() { slicer('slType', 'fType', [{ v: '', l: 'All' }].concat(TYPES.map(t => ({ v: t, l: shortName(t) })))); }
+function fillActivityFilter() {
+  const cat = $('#fType').value;
+  const list = cat ? (ACTIVITIES[cat] || []) : Array.from(new Set([].concat(...TYPES.map(t => ACTIVITIES[t]))));
+  slicer('slActivity', 'fActivity', [{ v: '', l: 'All' }].concat(list.map(a => ({ v: a, l: a }))));
+}
+async function loadRecords() {
+  const r = range();
+  $('#recBody').innerHTML = '<tr><td colspan="23" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+  try {
+    const data = await api('getRecords', S.token, { user: $('#fUser').value, type: $('#fType').value, activity: $('#fActivity').value, from: r.from, to: r.to });
+    S.rows = data.rows;
+    if (S.user.role === 'Admin') slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }].concat(data.users.map(u => ({ v: u, l: u }))));
+    S.byUserCat = data.byUserCat || {};
+    drawChart();
+    renderRows();
+  } catch (e) { toast(e.message, 'danger'); }
+}
+function filtered() {
+  const q = $('#fSearch').value.trim().toLowerCase();
+  if (!q) return S.rows;
+  return S.rows.filter(r => [r.stamp, r.type, r.activity, r.tid, r.user, r.business, r.merchant, r.mid, r.remarks, r.phone, r.tag, r.serial, r.oldSn, r.newSn, r.btype, r.ptype, r.commune, r.group, r.extra].join(' ').toLowerCase().includes(q));
+}
+function locLink(t) {
+  const m = /(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(String(t || ''));
+  return m ? '<a href="https://maps.google.com/?q=' + m[1] + ',' + m[2] + '" target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i></a>' : '';
+}
+function renderRows() {
+  const rows = filtered();
+  $('#recCount').textContent = rows.length;
+  $('#recBody').innerHTML = rows.length ? rows.map(r =>
+    '<tr><td><span class="pill">' + esc(r.type) + '</span></td><td>' + esc(r.activity) + '</td><td class="text-nowrap small">' + esc(r.stamp) +
+    '</td><td class="text-nowrap">' + esc(r.date || r.ts.slice(0, 10)) + '</td><td><span class="pill">' + esc(r.user) + '</span></td><td class="fw-semibold">' + esc(r.merchant) +
+    '</td><td class="text-nowrap">' + esc(r.mid) + '</td><td class="text-nowrap">' + esc(r.tid) + '</td><td>' + esc(r.business) + '</td><td>' + esc(r.btype) + '</td><td class="text-nowrap">' + esc(r.hours) + '</td><td>' + esc(r.group) + '</td><td>' + esc(r.ptype) + '</td><td>' + esc(r.commune) + '</td><td>' + esc(r.extra) + '</td><td class="text-nowrap">' + esc(r.phone) + '</td><td>' + esc(r.tag) + '</td><td class="text-nowrap">' + esc(r.serial) + '</td><td class="text-nowrap">' + esc(r.oldSn) + '</td><td class="text-nowrap">' + esc(r.newSn) + '</td><td>' + esc(r.remarks) + '</td><td>' + locLink(r.loc) + '</td><td>' + (r.photos || '') + '</td></tr>'
+  ).join('') : '<tr><td colspan="23"><div class="empty"><i class="bi bi-inbox"></i>No records for this filter</div></td></tr>';
+}
+/* ---- Admin chart: one cluster per staff member, one column per category ---- */
+// Colour by position in the category list (first four are the validated slots; the rest are extras).
+const SLOT_LIGHT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#8a5cd0', '#d6458a', '#14a3b8', '#7a8190', '#a3b21a', '#c0392b', '#34495e', '#e67ebf'];
+const SLOT_DARK = ['#3987e5', '#d95926', '#199e70', '#c98500', '#9b73dd', '#e0579a', '#25b4c9', '#8d94a3', '#b4c32b', '#d4493a', '#5d7a96', '#ee8fcb'];
+const catColor = (t, dark) => (dark ? SLOT_DARK : SLOT_LIGHT)[Math.max(0, TYPES.indexOf(t)) % 12];
+function chartModel(byUserCat) {
+  const sum = s => TYPES.reduce((n, t) => n + (byUserCat[s][t] || 0), 0);
+  const staff = Object.keys(byUserCat).sort((a, b) => sum(b) - sum(a) || a.localeCompare(b));
+  const cats = TYPES.filter(t => staff.some(s => byUserCat[s][t]));
+  return { staff, cats, byUserCat };
+}
+function buildChart(canvas, m, o) {
+  const dark = !!o.dark, ink = dark ? '#eceefd' : '#1e1b4b', muted = dark ? '#9aa0c0' : '#6b7280';
+  const grid = dark ? '#2a2d4d' : '#e5e7eb', surface = o.exporting ? '#ffffff' : (dark ? '#181a31' : '#ffffff');
+  const valueLabels = { id: 'valueLabels', afterDatasetsDraw(chart) {       // counts above the columns (also covers the low-contrast colours)
+    const c = chart.ctx; c.save(); c.fillStyle = ink; c.textAlign = 'center'; c.textBaseline = 'bottom';
+    c.font = '600 ' + (o.exporting ? 14 : 11) + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
+    chart.data.datasets.forEach((ds, di) => chart.getDatasetMeta(di).data.forEach((bar, i) => { if (ds.data[i]) c.fillText(String(ds.data[i]), bar.x, bar.y - 3); }));
+    c.restore(); } };
+  const background = { id: 'bg', beforeDraw(chart) {
+    if (!o.exporting) return;
+    const c = chart.ctx; c.save(); c.globalCompositeOperation = 'destination-over'; c.fillStyle = '#ffffff'; c.fillRect(0, 0, chart.width, chart.height); c.restore(); } };
+  return new Chart(canvas, {
+    type: 'bar',
+    data: { labels: m.staff, datasets: m.cats.map(t => ({
+      label: shortName(t), backgroundColor: catColor(t, dark), borderColor: surface, borderWidth: 2,
+      borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 34,
+      data: m.staff.map(s => m.byUserCat[s][t] || 0) })) },
+    options: {
+      responsive: !o.exporting, maintainAspectRatio: false, devicePixelRatio: o.exporting ? 2 : undefined,
+      animation: o.exporting ? false : { duration: 250 },
+      layout: { padding: { top: 20 } },
+      plugins: {
+        legend: { position: 'top', labels: { color: ink, usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10 } },
+        title: { display: !!o.title, text: o.title || '', color: ink, align: 'start', font: { size: 16, weight: '600' }, padding: { bottom: 10 } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0, color: muted }, grid: { color: grid } },
+        x: { ticks: { color: muted }, grid: { display: false } }
+      }
+    },
+    plugins: [valueLabels, background]
+  });
+}
+function drawChart() {
+  const m = S.chartModel = chartModel(S.byUserCat || {});
+  show($('#chartCard'), m.staff.length > 0);
+  $('#chartTitleTxt').textContent = S.user && S.user.role === 'Admin' ? 'Activities by staff' : 'My activities by category';
+  if (S.chart) { S.chart.destroy(); S.chart = null; }
+  if (!m.staff.length) return;
+  $('#chartInner').style.minWidth = Math.max(0, m.staff.length * Math.max(1, m.cats.length) * 34 + 80) + 'px';   // scrolls sideways with many staff
+  S.chart = buildChart($('#chart'), m, { dark: isDark() });
+}
+function chartTitle() {
+  const r = range(), p = $('#fPeriod'), parts = [];
+  let when = (PERIODS.find(x => x.v === p.value) || PERIODS[0]).l;
+  if (r.from) when += ' (' + r.from + (r.to && r.to !== r.from ? ' to ' + r.to : '') + ')';
+  parts.push(when);
+  if ($('#fType').value) parts.push($('#fType').value);
+  if ($('#fActivity').value) parts.push($('#fActivity').value);
+  return (S.user && S.user.role === 'Admin' ? 'Activities by staff' : 'My activities') + ' — ' + parts.join(' · ');
+}
+async function saveChartPng() {
+  const m = S.chartModel;
+  if (!m || !m.staff.length) { toast('Nothing to save.', 'warning'); return; }
+  const btn = $('#chartSaveBtn'); busy(btn, true, 'Saving…');
+  try {
+    const cv = document.createElement('canvas');          // always light, with a white background, so it reads anywhere
+    cv.width = Math.max(900, m.staff.length * Math.max(1, m.cats.length) * 40 + 140); cv.height = 560;
+    const ch = buildChart(cv, m, { dark: false, exporting: true, title: chartTitle() });
+    await new Promise(res => requestAnimationFrame(res));
+    const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+    ch.destroy();
+    const name = 'activities_' + ymd(new Date()) + '.png';
+    const file = new File([blob], name, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {      // phones: share sheet -> "Save Image"
+      try { await navigator.share({ files: [file], title: 'Activities' }); busy(btn, false); return; }
+      catch (e) { if (e && e.name === 'AbortError') { busy(btn, false); return; } }
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    toast('Picture saved.', 'success');
+  } catch (e) { toast('Could not save the picture.', 'danger'); }
+  busy(btn, false);
+}
+$('#chartSaveBtn').addEventListener('click', saveChartPng);
+
+['#fFrom', '#fTo'].forEach(x => $(x).addEventListener('change', loadRecords));
+slicer('slPeriod', 'fPeriod', PERIODS); fillTypeSlicer(); fillActivityFilter();
+bindSlicer('slUser', 'fUser', loadRecords);
+bindSlicer('slPeriod', 'fPeriod', () => { const c = $('#fPeriod').value === 'custom'; show($('#fCustomWrap'), c); if (!c) loadRecords(); });
+bindSlicer('slType', 'fType', () => { fillActivityFilter(); loadRecords(); });
+bindSlicer('slActivity', 'fActivity', loadRecords);
+$('#fSearch').addEventListener('input', () => { clearTimeout(recTimer); recTimer = setTimeout(renderRows, 150); });
+
+/** Header + rows of the records currently shown (same for CSV and Copy). */
+function exportTable() {
+  const head = ['Timestamp', 'Staff', 'Merchant Name', 'MID', 'TID', 'Business Name', 'Remarks', 'Installed/Action Date', 'Photos', 'Category', 'Activity', 'Stamp', 'Phone', 'Tag', 'Old S/N', 'New S/N', 'Location', 'Business Hours', 'Group Name', 'Business Type', 'Extra Fields', 'Serial No', 'Product Type', 'Commune'];
+  return [head].concat(filtered().map(r => [r.ts, r.user, r.merchant, r.mid, r.tid, r.business, r.remarks, r.date || r.ts.slice(0, 10), r.photos, r.type, r.activity, r.stamp, r.phone, r.tag, r.oldSn, r.newSn, r.loc, r.hours, r.group, r.btype, r.extra, r.serial, r.ptype, r.commune]));
+}
+$('#csvBtn').addEventListener('click', () => {
+  const lines = exportTable();
+  if (lines.length < 2) { toast('Nothing to export.', 'warning'); return; }
+  const cell = v => { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+  const csv = '﻿' + lines.map(l => l.map(cell).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'activities_' + ymd(new Date()) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+/** Copy: tab-separated, so it pastes straight into Google Sheets / Excel as columns. */
+async function copyText(text) {
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch (e) {}
+  const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+  let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+  ta.remove(); return ok;
+}
+$('#copyBtn').addEventListener('click', async () => {
+  const lines = exportTable();
+  if (lines.length < 2) { toast('Nothing to copy.', 'warning'); return; }
+  const cell = v => { v = String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim(); return /^[=+\-@]/.test(v) ? "'" + v : v; };
+  const ok = await copyText(lines.map(l => l.map(cell).join('\t')).join('\n'));
+  toast(ok ? 'Copied ' + (lines.length - 1) + ' record(s). Paste into Google Sheets or Excel.' : 'Could not copy. Use the CSV button instead.', ok ? 'success' : 'warning');
+});
+
+/* ============================ Users (admin) ============================ */
+const userModal = new bootstrap.Modal($('#userModal'));
+
+async function loadUsers() {
+  $('#userList').innerHTML = '<div class="empty"><span class="spinner-border spinner-border-sm"></span></div>';
+  loadTelegram();
+  try { renderUsers(await api('listUsers', S.token)); } catch (e) { toast(e.message, 'danger'); }
+}
+function renderUsers(list) {
+  S.users = list;
+  $('#userList').innerHTML = list.map((u, i) =>
+    '<div class="user-row"><div class="avatar">' + esc(u.username.charAt(0).toUpperCase()) + '</div>' +
+    '<div class="flex-grow-1"><div class="fw-semibold">' + esc(u.username) + '</div>' +
+    '<small class="text-muted">' + esc(u.role) + (u.groupId ? ' · Group ' + esc(u.groupId) : '') + (u.topicId ? ' · Topic ' + esc(u.topicId) : '') + '</small></div>' +
+    '<button class="btn btn-soft btn-sm" data-edit="' + i + '"><i class="bi bi-pencil"></i></button>' +
+    '<button class="btn btn-outline-danger btn-sm border-0" data-del="' + i + '"><i class="bi bi-trash3"></i></button></div>'
+  ).join('') || '<div class="empty">No users</div>';
+}
+$('#userList').addEventListener('click', async e => {
+  const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
+  if (ed) openUser(S.users[+ed.dataset.edit]);
+  if (del) {
+    const u = S.users[+del.dataset.del];
+    if (!confirm('Delete staff "' + u.username + '"?')) return;
+    try { renderUsers(await api('deleteUser', S.token, u.username)); toast('Staff deleted', 'success'); }
+    catch (ex) { toast(ex.message, 'danger'); }
+  }
+});
+function openUser(u) {
+  show($('#userError'), false);
+  $('#userModalTitle').textContent = u ? 'Edit staff' : 'Add staff';
+  $('#uOriginal').value = u ? u.username : '';
+  $('#uName').value = u ? u.username : '';
+  $('#uPin').value = '';
+  $('#uPinHint').textContent = u ? '(leave blank to keep current)' : '(4–12 digits)';
+  $('#uRole').value = u ? u.role : 'User';
+  $('#uTopic').value = u ? u.topicId : '';
+  $('#uGroup').value = u ? (u.groupId || '') : '';
+  userModal.show();
+}
+$('#addUserBtn').addEventListener('click', () => openUser(null));
+$('#userForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#userSaveBtn'), err = $('#userError');
+  show(err, false); busy(btn, true, 'Saving…');
+  try {
+    const list = await api('saveUser', S.token, {
+      original: $('#uOriginal').value, username: $('#uName').value, pin: $('#uPin').value,
+      role: $('#uRole').value, topicId: $('#uTopic').value, groupId: $('#uGroup').value.trim()
+    });
+    renderUsers(list); userModal.hide(); toast('Staff saved', 'success');
+  } catch (ex) { err.textContent = ex.message; show(err, true); }
+  busy(btn, false);
+});
+
+
+/* ============================ Telegram settings (admin) ============================ */
+function tgMsg(text, ok) {
+  const el = $('#tgMsg'); el.textContent = text; el.className = 'small mb-3 ' + (ok ? 'text-success' : 'text-danger');
+}
+function renderTg(st) {
+  $('#tgStatus').textContent = st.configured ? 'Connected' : 'Not configured';
+  $('#tgTokenHint').textContent = st.tokenHint ? 'Saved: ' + st.tokenHint + ' (leave blank to keep)' : 'Not saved yet.';
+  $('#tgChat').value = st.chatId || '';
+  $('#tgToken').value = '';
+}
+async function loadTelegram() {
+  try { renderTg(await api('getTelegramStatus', S.token)); } catch (e) { $('#tgStatus').textContent = 'Error'; }
+}
+$('#tgForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#tgSave'); busy(btn, true, 'Saving…');
+  try {
+    renderTg(await api('saveTelegramConfig', S.token, { botToken: $('#tgToken').value, chatId: $('#tgChat').value }));
+    tgMsg('Saved. Tap "Send test" to check it.', true);
+  } catch (ex) { tgMsg(ex.message, false); }
+  busy(btn, false);
+});
+$('#tgTest').addEventListener('click', async () => {
+  const btn = $('#tgTest'); busy(btn, true, 'Sending…');
+  try { await api('sendTelegramTest', S.token); tgMsg('Test message sent. Check your Telegram group.', true); }
+  catch (ex) { tgMsg(ex.message, false); }
+  busy(btn, false);
+});
+
+/* ============================ Telegram alert message (admin) ============================ */
+let tplDefault = '';
+function tplNote(text, ok) { const m = $('#tplMsg'); m.textContent = text; m.className = 'small mt-2 ' + (ok ? 'text-success' : 'text-danger'); }
+async function tplPreview() {
+  try { $('#tplPreview').innerHTML = await api('previewTelegramTemplate', S.token, $('#tplText').value); show($('#tplMsg'), false); }
+  catch (e) { tplNote(e.message, false); }
+}
+async function loadTemplate() {
+  try {
+    const t = await api('getTelegramTemplate', S.token);
+    tplDefault = t.defaultTemplate; $('#tplText').value = t.template;
+    $('#tplStatus').textContent = t.isDefault ? 'Default' : 'Custom';
+    $('#tplChips').innerHTML = t.placeholders.map(k => '<button type="button" class="chip" data-k="' + esc(k) + '">{' + esc(k) + '}</button>').join('');
+    tplPreview();
+  } catch (e) { tplNote(e.message, false); }
+}
+$('#tplChips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  const ta = $('#tplText'), at = ta.selectionStart == null ? ta.value.length : ta.selectionStart, txt = '{' + b.dataset.k + '}';
+  ta.value = ta.value.slice(0, at) + txt + ta.value.slice(ta.selectionEnd == null ? at : ta.selectionEnd);
+  ta.focus(); ta.selectionStart = ta.selectionEnd = at + txt.length; tplPreview();
+});
+let tplTimer; $('#tplText').addEventListener('input', () => { clearTimeout(tplTimer); tplTimer = setTimeout(tplPreview, 400); });
+$('#tplPreviewBtn').addEventListener('click', tplPreview);
+async function tplSaveWith(text, okMsg) {
+  const btn = $('#tplSave'); busy(btn, true, 'Saving…');
+  try { const t = await api('saveTelegramTemplate', S.token, text); $('#tplText').value = t.template; $('#tplStatus').textContent = t.isDefault ? 'Default' : 'Custom'; tplNote(okMsg, true); tplPreview(); }
+  catch (e) { tplNote(e.message, false); }
+  busy(btn, false);
+}
+$('#tplSave').addEventListener('click', () => tplSaveWith($('#tplText').value, 'Saved. New alerts use this layout.'));
+$('#tplReset').addEventListener('click', () => tplSaveWith('', 'Back to the default layout.'));
+$('#tplSend').addEventListener('click', async () => {
+  const btn = $('#tplSend'); busy(btn, true, 'Sending…');
+  try { await api('sendTelegramSample', S.token); tplNote('Sample sent to the group (using the saved layout).', true); }
+  catch (e) { tplNote(e.message, false); }
+  busy(btn, false);
+});
+
+/* ============================ Categories editor (admin) ============================ */
+const catModal = new bootstrap.Modal($('#catModal'));
+let catDraft = [], catSeq = 0;
+const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes']];
+/** One row per box: Off / Optional / Must (red). */
+function fieldRows(a) {
+  return '<details class="mt-2 a-fields"><summary class="small fw-semibold" style="cursor:pointer">Boxes to fill <span class="text-muted fw-normal">(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')</span></summary>' +
+    FIELD_KEYS.map(k => '<div class="fl-row" data-k="' + k + '"><span>' + FIELD_NAMES[k] + '</span><span class="fl-seg">' +
+      [[0, 'Off'], [1, 'Optional'], [2, 'Must']].map(p => '<button type="button" class="a-lv' + (lvl(a, k) === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('') + '</details>';
+}
+function renderCatSummary() {
+  $('#catSummary').innerHTML = CATALOG.map(t => '<div class="mb-1"><b>' + esc(t.name) + '</b> <span class="text-muted">(' + esc(t.code) + ')</span>: ' + t.acts.map(a => esc(a.n) + (a.custom && a.custom.length ? ' <span class="text-muted">(+' + a.custom.length + ')</span>' : '')).join(', ') + '</div>').join('');
+}
+function renderCatEditor() {
+  $('#catList').innerHTML = catDraft.map((t, ti) =>
+    '<div class="border rounded-3 p-2 mb-3" data-ti="' + ti + '">' +
+      '<div class="d-flex gap-2 mb-2"><input class="form-control form-control-sm c-name" maxlength="30" placeholder="Category name" value="' + esc(t.name) + '">' +
+      '<input class="form-control form-control-sm c-code" maxlength="8" placeholder="Code" style="max-width:90px" value="' + esc(t.code) + '">' +
+      '<button type="button" class="btn btn-sm btn-outline-danger border-0 c-del" aria-label="Remove category"><i class="bi bi-trash3"></i></button></div>' +
+      t.acts.map((a, ai) =>
+        '<div class="mb-3 pb-2 border-bottom" data-ai="' + ai + '"><div class="d-flex gap-2 mb-1"><input class="form-control form-control-sm a-name" maxlength="40" placeholder="Activity" value="' + esc(a.n) + '">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-del" aria-label="Remove activity"><i class="bi bi-x-lg"></i></button></div>' +
+        '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button></div>' +
+        fieldRows(a) +
+        '<div class="small text-muted mt-2">Extra boxes</div>' +
+        (a.custom || []).map((f, ci) =>
+          '<div class="d-flex gap-1 mb-1 align-items-center" data-ci="' + ci + '"><input class="form-control form-control-sm cf-label" maxlength="30" placeholder="Box name" value="' + esc(f.label) + '">' +
+          '<select class="form-select form-select-sm cf-kind" style="max-width:112px">' + CF_KINDS.map(k => '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + k[1] + '</option>').join('') + '</select>' +
+          '<button type="button" class="chip cf-req' + (f.req ? ' active' : '') + '">Must</button>' +
+          '<button type="button" class="btn btn-sm btn-outline-danger border-0 cf-del" aria-label="Remove box"><i class="bi bi-x"></i></button></div>' +
+          (f.kind === 'select' || f.kind === 'check' || f.kind === 'radio' ? '<input class="form-control form-control-sm cf-opts mb-2" data-ci="' + ci + '" placeholder="Values, separated by commas (e.g. Small, Medium, Large)" value="' + esc((f.opts || []).join(', ')) + '">' : '')).join('') +
+        '<button type="button" class="btn btn-soft btn-sm cf-add mt-1"><i class="bi bi-plus-lg me-1"></i>Box</button></div>').join('') +
+      '<button type="button" class="btn btn-soft btn-sm c-addact"><i class="bi bi-plus-lg me-1"></i>Activity</button></div>').join('');
+}
+$('#catEditBtn').addEventListener('click', () => {
+  catDraft = JSON.parse(JSON.stringify(CATALOG)); show($('#catError'), false); renderCatEditor(); catModal.show();
+});
+$('#catAdd').addEventListener('click', () => { catDraft.push({ name: '', code: '', acts: [normAct({}, { n: '' })] }); renderCatEditor(); });
+$('#catList').addEventListener('input', e => {
+  const box = e.target.closest('[data-ti]'); if (!box) return; const t = catDraft[+box.dataset.ti];
+  if (e.target.classList.contains('c-name')) t.name = e.target.value;
+  else if (e.target.classList.contains('c-code')) t.code = e.target.value.toUpperCase();
+  else if (e.target.classList.contains('a-name')) t.acts[+e.target.closest('[data-ai]').dataset.ai].n = e.target.value;
+  else if (e.target.classList.contains('cf-opts')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.dataset.ci].opts = e.target.value.split(',').map(x => x.trim()).filter(Boolean);
+  else if (e.target.classList.contains('cf-label')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].label = e.target.value;
+});
+$('#catList').addEventListener('change', e => {
+  if (e.target.classList.contains('cf-kind')) { catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].kind = e.target.value; renderCatEditor(); }
+});
+$('#catList').addEventListener('click', e => {
+  const box = e.target.closest('[data-ti]'); if (!box) return; const ti = +box.dataset.ti, t = catDraft[ti];
+  const ab = e.target.closest('[data-ai]'), ai = ab ? +ab.dataset.ai : -1;
+  if (e.target.closest('.c-del')) { catDraft.splice(ti, 1); renderCatEditor(); }
+  else if (e.target.closest('.c-addact')) { t.acts.push(normAct({}, { n: '' })); renderCatEditor(); }
+  else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); renderCatEditor(); }
+  else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
+  else if (e.target.closest('.a-lv')) {
+    const row = e.target.closest('.fl-row'), a = t.acts[ai]; a.f[row.dataset.k] = +e.target.closest('.a-lv').dataset.v;
+    $$('.a-lv', row).forEach(b => b.classList.toggle('active', +b.dataset.v === a.f[row.dataset.k]));
+    $('summary span', e.target.closest('.a-fields')).textContent = '(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')';
+  }
+  else if (e.target.closest('.cf-add')) { const a = t.acts[ai]; a.custom = a.custom || []; if (a.custom.length >= 20) { toast('At most 20 extra boxes per activity.', 'warning'); return; } a.custom.push({ id: 'f' + (++catSeq).toString(36) + Math.random().toString(36).slice(2, 6), label: '', kind: 'text', req: false }); renderCatEditor(); }
+  else if (e.target.closest('.cf-del')) { t.acts[ai].custom.splice(+e.target.closest('[data-ci]').dataset.ci, 1); renderCatEditor(); }
+  else if (e.target.closest('.cf-req')) { const f = t.acts[ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.req = !f.req; e.target.closest('.cf-req').classList.toggle('active', f.req); }
+});
+$('#catSave').addEventListener('click', async () => {
+  const btn = $('#catSave'), err = $('#catError'); show(err, false); busy(btn, true, 'Saving…');
+  try {
+    const out = await api('saveCatalog', S.token, catDraft);
+    setCatalog(out); setType(curType); S.cards.forEach(applyType); renderCatSummary(); catModal.hide(); toast('Categories saved.', 'success');
+  } catch (ex) { err.textContent = ex.message; show(err, true); }
+  busy(btn, false);
+});
+
+/* ============================ Photo stamp settings ============================ */
+const stampModal = new bootstrap.Modal($('#stampModal'));
+let stDraft = null;
+function previewMap() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = '#ece8df'; x.fillRect(0, 0, 256, 256);
+  x.fillStyle = '#fff'; x.fillRect(0, 110, 256, 22); x.fillRect(120, 0, 18, 256);
+  x.fillStyle = '#cfe3c6'; x.fillRect(10, 150, 90, 80);
+  x.fillStyle = '#ea4335'; x.beginPath(); x.arc(128, 112, 20, Math.PI * 0.8, Math.PI * 0.2, false); x.lineTo(128, 150); x.closePath(); x.fill();
+  x.fillStyle = '#7b1a10'; x.beginPath(); x.arc(128, 112, 7, 0, 7); x.fill();
+  return c;
+}
+async function drawStampPreview() {
+  const cv = $('#stampPrev'), x = cv.getContext('2d'), w = cv.width, hh = cv.height, c = stDraft;
+  const g = x.createLinearGradient(0, 0, w, hh); g.addColorStop(0, '#8a97a8'); g.addColorStop(1, '#3a4658');
+  x.fillStyle = g; x.fillRect(0, 0, w, hh);
+  let logo = null;
+  if (c.logo) {
+    if (c.logoData) { logo = await new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = c.logoData; }); }
+    else { const lc = document.createElement('canvas'); lc.width = 200; lc.height = 80; const lx = lc.getContext('2d'); lx.fillStyle = '#9aa5b4'; lx.font = '700 40px sans-serif'; lx.textAlign = 'center'; lx.textBaseline = 'middle'; lx.fillText('LOGO', 100, 42); logo = lc; }
+  }
+  const lat = 13.36813, lon = 103.838707;
+  drawStamp(x, w, hh, {
+    title: c.title && c.titleText ? '#' + c.titleText : '', time: c.time,
+    coords: c.coords ? coordText({ lat, lon }) : '',
+    addr: c.addr ? plusCode(lat, lon) + ', Ring Road, Krong Siem Reap, Cambodia' : '',
+    map: c.map ? previewMap() : null, logo, fontScale: c.fontScale, mapScale: c.mapScale, logoScale: c.logoScale
+  }, Date.now());
+}
+function readStampForm() {
+  $$('.st-opt').forEach(el => { stDraft[el.dataset.k] = el.checked; });
+  $$('.st-size').forEach(el => { stDraft[el.dataset.k] = +el.value; });
+  $('#stFontVal').textContent = stDraft.fontScale + '%'; $('#stMapVal').textContent = stDraft.mapScale + '%'; $('#stLogoVal').textContent = stDraft.logoScale + '%';
+  stDraft.titleText = $('#stTitle').value.trim().slice(0, 40);
+}
+function openStampSettings() {
+  stDraft = Object.assign({}, stampCfg);
+  $$('.st-opt').forEach(el => { el.checked = !!stDraft[el.dataset.k]; });
+  $('#stTitle').value = stDraft.titleText;
+  $$('.st-size').forEach(el => { el.value = stDraft[el.dataset.k]; });
+  $('#stFontVal').textContent = stDraft.fontScale + '%'; $('#stMapVal').textContent = stDraft.mapScale + '%'; $('#stLogoVal').textContent = stDraft.logoScale + '%';
+  $('#stLogoNote').textContent = stDraft.logoData ? 'Your logo is set.' : 'No logo chosen yet. Pick an image (PNG with a transparent background works best).';
+  drawStampPreview(); stampModal.show();
+}
+$$('.st-opt').forEach(el => el.addEventListener('change', () => { readStampForm(); drawStampPreview(); }));
+$$('.st-size').forEach(el => el.addEventListener('input', () => { readStampForm(); drawStampPreview(); }));
+$('#stTitle').addEventListener('input', () => { readStampForm(); drawStampPreview(); });
+/** Cuts empty margins off a logo (transparent edges, or white edges when the picture has no transparency) so it fills its box. */
+function trimLogo(c) {
+  try {
+    const w = c.width, h = c.height, d = c.getContext('2d').getImageData(0, 0, w, h).data;
+    let hasAlpha = false; for (let i = 3; i < d.length; i += 4) if (d[i] < 250) { hasAlpha = true; break; }
+    const empty = i => hasAlpha ? d[i + 3] < 12 : (d[i] > 245 && d[i + 1] > 245 && d[i + 2] > 245);
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!empty((y * w + x) * 4)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0 || (x0 === 0 && y0 === 0 && x1 === w - 1 && y1 === h - 1)) return c;
+    const o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1;
+    o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+    return o;
+  } catch (e) { return c; }
+}
+$('#stLogoFile').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const url = URL.createObjectURL(f), im = new Image();
+  im.onload = () => {
+    const r = Math.min(1, 400 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+    c.width = Math.round(im.width * r); c.height = Math.round(im.height * r);
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+    stDraft.logoData = trimLogo(c).toDataURL('image/png'); stDraft.logo = true; $('#stLogo').checked = true;
+    $('#stLogoNote').textContent = 'Logo ready. Press Save to keep it.'; drawStampPreview();
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); toast('That image could not be read.', 'warning'); };
+  im.src = url;
+});
+$('#stLogoClear').addEventListener('click', () => { stDraft.logoData = ''; $('#stLogoNote').textContent = 'Logo removed. Press Save to keep this.'; drawStampPreview(); });
+$('#stSave').addEventListener('click', () => {
+  readStampForm(); stampCfg = Object.assign({}, STAMP_DEF, stDraft); saveStampCfg();
+  stampModal.hide(); toast('Photo stamp saved.', 'success');
+  if (stampOn && needGeo()) refreshGeo(10000);
+});
+
+/* ============================ Last record + edit ============================ */
+const MAX_EDITS = 3;
+async function loadLast() {
+  try { S.today = await api('getTodayRecords', S.token); } catch (e) { S.today = []; }
+  renderLast();
+}
+function renderLast() {
+  const list = S.today || [];
+  show($('#lastCard'), list.length > 0);
+  $('#todayList').innerHTML = list.map(r =>
+    '<div class="d-flex align-items-center gap-2 py-1 border-top" data-stamp="' + esc(r.stamp) + '"><div class="flex-grow-1 min-w-0">' +
+    '<div class="fw-semibold small text-truncate">' + esc(r.type + (r.activity && r.activity !== r.type ? ' · ' + r.activity : '') + ' — ' + (r.merchant || r.mid || r.stamp)) + '</div>' +
+    '<div class="small text-muted text-truncate">' + esc(r.stamp) + ' · ' + (r.editsLeft > 0 ? r.editsLeft + ' of ' + MAX_EDITS + ' edits left' : 'edit limit reached') + '</div></div>' +
+    '<button class="btn btn-soft btn-sm flex-none t-edit" type="button"' + (r.editsLeft > 0 ? '' : ' disabled') + '><i class="bi bi-pencil me-1"></i>Edit</button></div>').join('');
+}
+$('#todayList').addEventListener('click', e => {
+  const b = e.target.closest('.t-edit'); if (!b) return;
+  const r = (S.today || []).find(x => x.stamp === b.closest('[data-stamp]').dataset.stamp);
+  if (r) { S.last = r; openEdit(); }
+});
+const editModal = new bootstrap.Modal($('#editModal'));
+function updateEditDateLabel() {
+  const t = S.last ? S.last.type : curType, a = $('#eAct').value, d = actDef(t, a);
+  $('#eDateLbl').textContent = dateLabel(a, t).replace('Installed / action date', 'Date');
+  applyLevels($('#editModal'), d); renderCustom($('#eCustom'), d);
+}
+function openEdit() {
+  const r = S.last; if (!r) return;
+  show($('#eError'), false);
+  $('#eCat').textContent = r.type;
+  $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + ' · edit ' + ((r.edits || 0) + 1) + ' of ' + MAX_EDITS;
+  const list = ACTIVITIES[r.type] || [r.activity], single = list.length === 1;
+  $('#eAct').innerHTML = (single ? '' : '<option value="">Select activity…</option>') + list.map(a => '<option>' + esc(a) + '</option>').join('');
+  $('#eAct').value = list.includes(r.activity) ? r.activity : (single ? list[0] : '');
+  show($('#eActWrap'), !single);
+  $('#eDate').value = r.date || r.ts.slice(0, 10); $('#eDate').max = ymd(new Date());
+  $('#eName').value = r.merchant; $('#eMid').value = r.mid; $('#eTid').value = r.tid;
+  $('#eBiz').value = r.business; $('#eRem').value = r.remarks;
+  $('#bizTypeList').innerHTML = BIZ_TYPES.map(t => '<option value="' + esc(t) + '">').join('');
+  const hm = /(\d{2}:\d{2}) ?- ?(\d{2}:\d{2})/.exec(r.hours || ''); $('#eOpen').value = hm ? hm[1] : ''; $('#eClose').value = hm ? hm[2] : '';
+  $('#prodTypeList').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">').join(''); $('#eProd').value = r.ptype || ''; $('#eCommune').value = r.commune || '';
+  $('#eBType').value = r.btype || ''; $('#eGroup').value = r.group || '';
+  { const d0 = actDef(r.type, r.activity); renderCustom($('#eCustom'), d0); const mp = {}; String(r.extra || '').split(' | ').forEach(x => { const i = x.indexOf(': '); if (i > 0) mp[x.slice(0, i)] = x.slice(i + 2); }); ((d0 && d0.custom) || []).forEach(f => { const el = $('[data-fid="' + f.id + '"]', $('#eCustom')); if (el && mp[f.label] != null) setCustomVal(el, mp[f.label]); }); }
+  $('#ePhone').value = r.phone || ''; $('#eTag').value = r.tag || ''; $('#eSerial').value = r.serial || ''; $('#eOldSn').value = r.oldSn || ''; $('#eNewSn').value = r.newSn || '';
+  updateEditDateLabel();
+  editModal.show();
+}
+$('#eAct').addEventListener('change', updateEditDateLabel);
+$('#editForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#eSave'), err = $('#eError');
+  show(err, false); busy(btn, true, 'Saving…');
+  try {
+    const r = await api('updateRecord', S.token, {
+      stamp: $('#eStamp').value, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
+      mid: $('#eMid').value.trim(), tid: $('#eTid').value.trim(), business: $('#eBiz').value.trim(), remarks: $('#eRem').value.trim(),
+      extra: Object.fromEntries($$('#eCustom [data-fid]').map(i => [i.dataset.fid, customVal(i)])), btype: $('#eBType').value.trim(), group: $('#eGroup').value.trim(), hours: $('#eOpen').value && $('#eClose').value ? $('#eOpen').value + ' - ' + $('#eClose').value : '',
+      ptype: $('#eProd').value.trim(), commune: $('#eCommune').value.trim(), serial: $('#eSerial').value.trim(), phone: $('#ePhone').value.trim(), tag: $('#eTag').value.trim(), oldSn: $('#eOldSn').value.trim(), newSn: $('#eNewSn').value.trim()
+    });
+    S.today = (S.today || []).map(x => x.stamp === r.record.stamp ? r.record : x); renderLast(); editModal.hide();
+    toast('Saved. Telegram: ' + r.telegram, r.telegram === 'updated' ? 'success' : 'warning');
+    loadSummary();
+    if (!$('#pane-records').classList.contains('hidden')) loadRecords();
+  } catch (ex) { err.textContent = ex.message; show(err, true); }
+  busy(btn, false);
+});
+
+/* ============================ Install as app (PWA) ============================ */
+let deferredPrompt = null;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function refreshInstallUI() {
+  const can = !isStandalone();
+  show($('#installBtn'), can); show($('#installLink'), can);
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; refreshInstallUI(); });
+window.addEventListener('appinstalled', () => { deferredPrompt = null; refreshInstallUI(); toast('App installed on your home screen', 'success'); });
+async function doInstall() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch (e) {}
+    deferredPrompt = null; refreshInstallUI();
+    return;
+  }
+  show($('#installIOS'), isIOS); show($('#installOther'), !isIOS);
+  new bootstrap.Modal($('#installModal')).show();
+}
+$('#installBtn').addEventListener('click', doInstall);
+$('#installLink').addEventListener('click', doInstall);
+refreshInstallUI();
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
+/* ============================ Boot ============================ */
+applyTheme();
+(async function init() {
+  const t = store.get('it_token');
+  if (!t) { showLogin(); return; }
+  try {
+    const r = await api('checkSession', t);
+    S.token = t; S.user = r.user; showApp();
+  } catch (e) { showLogin(); }
+})();
+</script>
+</body>
+</html>
