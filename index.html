@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Installs">
   <meta name="theme-color" content="#4f46e5">
-  <title>Merchant Support HUB Activities</title>
+  <title>Installation Tracker</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -69,6 +69,7 @@
     .fl-seg button.active[data-v="1"] { background: var(--brand); color: #fff; }
     .fl-seg button.active[data-v="2"] { background: #dc2626; color: #fff; }
     .rq { color: #dc2626; font-weight: 700; }
+    .btn-xs { font-size: .72rem; font-weight: 600; padding: 3px 9px; border-radius: 10px; line-height: 1.3; white-space: nowrap; }
 
     /* Form */
     .form-label { font-size: .78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
@@ -180,7 +181,7 @@
   <form class="login-card fade-in" id="loginForm" autocomplete="on">
     <button class="theme-btn login-theme theme-toggle" type="button" title="Light / dark mode" style="background:#eef2ff;color:#4f46e5"><i class="bi bi-moon-stars-fill"></i></button>
     <div class="logo"><i class="bi bi-tools"></i></div>
-    <h4 class="text-center fw-bold mb-1">Merchant Support SR HUB Activities Records</h4>
+    <h4 class="text-center fw-bold mb-1">Installation Tracker</h4>
     <p class="text-center text-muted mb-4">Sign in to continue</p>
 
     <label class="form-label">Staff name</label>
@@ -200,7 +201,7 @@
   <header class="topbar">
     <div class="d-flex justify-content-between align-items-center" style="max-width:880px;margin:0 auto">
       <div>
-        <div class="title fs-5"><i class="bi bi-tools me-2"></i>Our activities are our performance, we will grow together</div>
+        <div class="title fs-5"><i class="bi bi-tools me-2"></i>Installations</div>
         <span class="chip mt-2"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span></span>
       </div>
       <div class="d-flex gap-2">
@@ -250,7 +251,7 @@
       <button class="btn btn-soft w-100 mb-3" id="addMerchantBtn"><i class="bi bi-plus-lg me-1"></i>Add another merchant</button>
       <button class="btn btn-brand w-100" id="submitBtn"><i class="bi bi-send me-1"></i>Submit activities</button>
       <div class="card-x hidden mt-3" id="lastCard">
-        <div class="small text-muted mb-2">Today's records <span class="text-muted">· edit up to 3 times, same day only</span></div>
+        <div class="small text-muted mb-2" id="todayTitle">Today's records</div>
         <div id="todayList" style="max-height:230px;overflow:auto"></div>
       </div>
     </section>
@@ -280,7 +281,7 @@
       <div class="card-x p-0 overflow-hidden">
         <div class="d-flex justify-content-between align-items-center p-3 pb-2">
           <div><span class="fw-bold">Records</span> <span class="pill ms-1" id="recCount">0</span></div>
-          <div class="d-flex gap-2"><button class="btn btn-soft btn-sm" id="copyBtn"><i class="bi bi-clipboard me-1"></i>Copy</button><button class="btn btn-soft btn-sm" id="csvBtn"><i class="bi bi-download me-1"></i>CSV</button></div>
+          <div class="d-flex gap-2"><button class="btn btn-soft btn-sm" id="copyKpiBtn" title="Copy only the important columns, in activity order, for a KPI update"><i class="bi bi-clipboard-data me-1"></i>Copy KPI</button><button class="btn btn-soft btn-sm" id="copyBtn" title="Copy every column"><i class="bi bi-clipboard me-1"></i>Copy all</button><button class="btn btn-soft btn-sm" id="csvBtn"><i class="bi bi-download me-1"></i>CSV</button></div>
         </div>
         <div class="table-responsive">
           <table class="table table-hover mb-0">
@@ -299,6 +300,17 @@
           <button type="button" class="btn btn-soft btn-sm" id="catEditBtn"><i class="bi bi-pencil me-1"></i>Edit</button>
         </div>
         <div id="catSummary" class="small text-muted"></div>
+      </div>
+
+      <div class="card-x" id="rulesCard">
+        <div class="fw-bold mb-2"><i class="bi bi-pencil-square me-1"></i>Default edit rules</div>
+        <div class="small text-muted mb-2">Used for every staff member, unless you give someone their own number or days when you edit that staff (Users list).</div>
+        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ruleOn"><label class="form-check-label small" for="ruleOn">Staff can edit their own records (turns editing on / off for everyone)</label></div>
+        <div class="row g-2 mb-2">
+          <div class="col-6"><label class="form-label small mb-1">Edits per record</label><input type="number" min="1" max="20" class="form-control" id="ruleMax"></div>
+          <div class="col-6"><label class="form-label small mb-1">Days allowed <span class="text-muted">(1 = same day)</span></label><input type="number" min="1" max="60" class="form-control" id="ruleDays"></div>
+        </div>
+        <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="ruleSave">Save rules</button><span class="small" id="ruleMsg"></span></div>
       </div>
 
       <div class="card-x" id="tplCard">
@@ -401,6 +413,12 @@
         <label class="form-label mt-3">Telegram Group ID <span class="text-muted text-lowercase">(optional)</span></label>
         <input id="uGroup" class="form-control" inputmode="text" autocomplete="off" placeholder="-1001234567890">
         <div class="small text-muted mt-1">Leave empty to use the default group. If set, this staff member's alerts go to this group instead (the bot must be a member). A Topic ID, if given, is used inside that group.</div>
+        <div class="fw-semibold small mt-3 mb-1"><i class="bi bi-pencil-square me-1"></i>Editing records</div>
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label small mb-1">Edits per record</label><input id="uMaxEdits" type="number" min="0" max="20" class="form-control" placeholder="default"></div>
+          <div class="col-6"><label class="form-label small mb-1">Days allowed <span class="text-muted">(1 = same day)</span></label><input id="uEditDays" type="number" min="1" max="60" class="form-control" placeholder="default"></div>
+        </div>
+        <div class="small text-muted mt-1">Leave blank to use the default edit rules. Put 0 edits to stop this person from editing.</div>
         <div id="userError" class="text-danger small mt-3 hidden"></div>
       </div>
       <div class="modal-footer border-0 pt-0">
@@ -461,7 +479,7 @@
         <div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input id="eTag" class="form-control" maxlength="200"></div>
         <div id="eCustom" class="hidden"></div>
         <div class="mb-1 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea id="eRem" class="form-control" rows="2"></textarea></div>
-        <div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Saving also updates the message in Telegram. Each record can be edited 3 times, on the day it was submitted. Photos can't be changed after submitting.</div>
+        <div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Saving also updates the message in Telegram. Edit rules are set by the admin. Photos can't be changed after submitting.</div>
         <div id="eError" class="text-danger small mt-3 hidden"></div>
       </div>
       <div class="modal-footer border-0 pt-0">
@@ -509,6 +527,7 @@
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stLogo" data-k="logo"><label class="form-check-label" for="stLogo">Logo</label></div></div>
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stMap" data-k="map"><label class="form-check-label" for="stMap">Map view</label></div></div>
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stTitleOn" data-k="title"><label class="form-check-label" for="stTitleOn">Title</label></div></div>
+          <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stUser" data-k="user"><label class="form-check-label" for="stUser">User name <span class="text-muted">(under title)</span></label></div></div>
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stTime" data-k="time"><label class="form-check-label" for="stTime">Date &amp; time</label></div></div>
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stCoords" data-k="coords"><label class="form-check-label" for="stCoords">GPS numbers</label></div></div>
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stAddr" data-k="addr"><label class="form-check-label" for="stAddr">Address</label></div></div>
@@ -519,6 +538,8 @@
         <input type="range" class="form-range st-size" id="stFont" min="60" max="160" step="5" data-k="fontScale">
         <label class="form-label mb-0">Map size <span id="stMapVal"></span></label>
         <input type="range" class="form-range st-size" id="stMapSz" min="10" max="40" step="1" data-k="mapScale">
+        <label class="form-label mb-0">Map zoom <span id="stZoomVal"></span> <span class="text-muted small">(higher = closer, street level)</span></label>
+        <input type="range" class="form-range st-size" id="stMapZoom" min="13" max="19" step="1" data-k="mapZoom">
         <label class="form-label mb-0">Logo size <span id="stLogoVal"></span></label>
         <input type="range" class="form-range st-size mb-3" id="stLogoSz" min="50" max="300" step="5" data-k="logoScale">
         <label class="form-label">Title text <span class="text-muted">(shown as #title)</span></label>
@@ -664,9 +685,9 @@ function syncPtype(el) {
   $$('.ptype-chips .chip', el).forEach(b => b.classList.toggle('active', b.dataset.t.toLowerCase() === v));
 }
 /** Commune from the current location (the address lookup), unless the staff typed their own. */
-function fillCommuneAll(force) {
-  const c = geo.place && geo.place.commune; if (!c) return;
-  S.cards.forEach(card => { const i = $('.f-commune', card.el); if (force || !i.dataset.touched) i.value = c; });
+function fillCommuneAll(force, clear) {
+  const c = (geo.place && geo.place.commune) || ''; if (!c && !clear) return;
+  S.cards.forEach(card => { const i = $('.f-commune', card.el); if (force || !i.dataset.touched) i.value = c; });   // clear = the place changed: drop the old, now wrong, value
 }
 function syncBtype(el) {
   const v = $('.f-btype', el).value.trim().toLowerCase();
@@ -718,7 +739,11 @@ function setAct(card, a) {
   $$('.act-chips .chip', card.el).forEach(b => b.classList.toggle('active', b.dataset.a === a));
   const d = actDef(curType, a);
   applyLevels(card.el, d);
-  show($('.qr-row', card.el), ['merchant', 'mid', 'tid'].some(k => lvl(d, k) > 0));
+  { // the small Scan / Upload QR buttons sit beside the first QR-related box this activity shows (merchant name, else MID, else TID)
+    const first = ['merchant', 'mid', 'tid'].find(k => lvl(d, k) > 0), tools = $('.qr-tools', card.el);
+    if (first) { $('[data-fk="' + first + '"] .qr-slot', card.el).appendChild(tools); }
+    show(tools, !!first);
+  }
   show($('.act-hint', card.el), !d);
   renderCustom($('.custom-wrap', card.el), d);
   updateDateLabel(card); updateLocCard(); fillCommuneAll();
@@ -748,7 +773,7 @@ function setType(t) {
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbyoDWRf7bGWfedw0Pug7D9aHMI4S-Y_oJb2xZ4dJAedG_UB0xT1syRmdM3PNFYSbBo0/exec';
+const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
 
 async function api(fn, ...args) {
   let json;
@@ -821,7 +846,7 @@ async function showApp() {
   show($('#navUsers'), admin);
   show($('#userFilterWrap'), admin);
   show($('#chartCard'), false);
-  show($('#catCard'), admin);
+  show($('#catCard'), admin); show($('#rulesCard'), admin);
   if (!S.cards.length) addMerchant();
   setType(curType);
   switchTab('new');
@@ -857,7 +882,7 @@ function switchTab(name) {
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (name === 'records') loadRecords();
-  if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); }
+  if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
 }
 $$('.bottom-nav button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
@@ -1027,14 +1052,10 @@ function addMerchant() {
     '<div class="mb-3 act-wrap"><label class="form-label">Activity <span class="rq">*</span></label><div class="chips act-chips"></div></div><input type="hidden" class="f-act">' +
     '<div class="small text-muted mb-3 act-hint hidden">Choose an activity to see the boxes it needs.</div>' +
     '<div class="mb-3"><label class="form-label"><span class="date-lbl">Installed / action date</span> <span class="rq">*</span></label><input type="date" class="form-control f-date"></div>' +
-    '<div class="row g-2 mb-3 qr-row">' +
-      '<div class="col-6"><button type="button" class="btn btn-soft w-100 btn-scan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button></div>' +
-      '<div class="col-6"><button type="button" class="btn btn-soft w-100 btn-upload"><i class="bi bi-image me-1"></i>Upload QR</button></div>' +
-    '</div>' +
     '<input type="file" accept="image/*" class="qr-file hidden">' +
-    '<div class="mb-3 hidden" data-fk="merchant"><label class="form-label">Merchant name <span class="rq hidden">*</span></label><input class="form-control f-name" placeholder="Auto-filled from KHQR"></div>' +
-    '<div class="mb-3 hidden" data-fk="mid"><label class="form-label">MID <span class="rq hidden">*</span></label><input class="form-control f-mid" inputmode="text" placeholder="Auto-filled from KHQR"></div>' +
-    '<div class="mb-3 hidden" data-fk="tid"><label class="form-label">TID <span class="text-lowercase fw-normal">(terminal ID)</span> <span class="rq hidden">*</span></label><input class="form-control f-tid" autocapitalize="characters" autocomplete="off" placeholder="Auto-filled from KHQR, or type it"></div>' +
+    '<div class="mb-3 hidden" data-fk="merchant"><div class="d-flex justify-content-between align-items-end gap-2 mb-1 lbl-row"><label class="form-label mb-0">Merchant name <span class="rq hidden">*</span></label><span class="qr-slot"><span class="qr-tools d-inline-flex gap-1 flex-none"><button type="button" class="btn btn-soft btn-scan btn-xs"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button><button type="button" class="btn btn-soft btn-upload btn-xs"><i class="bi bi-image me-1"></i>Upload QR</button></span></span></div><input class="form-control f-name" placeholder="Auto-filled from KHQR"></div>' +
+    '<div class="mb-3 hidden" data-fk="mid"><div class="d-flex justify-content-between align-items-end gap-2 mb-1 lbl-row"><label class="form-label mb-0">MID <span class="rq hidden">*</span></label><span class="qr-slot"></span></div><input class="form-control f-mid" inputmode="text" placeholder="Auto-filled from KHQR"></div>' +
+    '<div class="mb-3 hidden" data-fk="tid"><div class="d-flex justify-content-between align-items-end gap-2 mb-1 lbl-row"><label class="form-label mb-0">TID <span class="text-lowercase fw-normal">(terminal ID)</span> <span class="rq hidden">*</span></label><span class="qr-slot"></span></div><input class="form-control f-tid" autocapitalize="characters" autocomplete="off" placeholder="Auto-filled from KHQR, or type it"></div>' +
     '<div class="mb-3 hidden" data-fk="business"><label class="form-label">Business name <span class="rq hidden">*</span></label><input class="form-control f-biz" placeholder="N/A"></div>' +
     '<div class="mb-3 hidden" data-fk="serial"><label class="form-label">Serial number <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-serial" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="oldSn"><label class="form-label">Old S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-old" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
@@ -1122,7 +1143,7 @@ $('#addMerchantBtn').addEventListener('click', () => {
 
 /* ---- photos ---- */
 /* ---- photo stamp: settings (all remembered on this phone) ---- */
-const STAMP_DEF = { logo: true, map: true, title: true, time: true, coords: true, addr: true, titleText: 'Merchant Support', logoData: '', fontScale: 100, mapScale: 20, logoScale: 100 };
+const STAMP_DEF = { logo: true, map: true, title: true, time: true, coords: true, addr: true, titleText: 'Merchant Support', user: true, logoData: '', fontScale: 100, mapScale: 20, mapZoom: 17, logoScale: 100 };
 let stampOn = store.get('it_stamp') !== '0';          // on by default; remembered
 let stampCfg = (() => {
   let c = {}; try { c = JSON.parse(store.get('it_stamp_cfg') || '{}') || {}; } catch (e) {}
@@ -1162,10 +1183,16 @@ function readPosition(timeout) {
       () => res(null), { enableHighAccuracy: true, timeout: timeout || 10000, maximumAge: 30000 });
   });
 }
+/** A commune sits above the village, so village / hamlet are never used. Prefer a name that says Sangkat / Khum / Commune, then the suburb or quarter. */
+function communeOf(a) {
+  const skip = /^(country|country_code|postcode|road|house_number|village|hamlet|isolated_dwelling|neighbourhood|amenity|ISO3166.*)$/i;
+  const named = Object.keys(a).filter(k => !skip.test(k)).map(k => String(a[k])).find(v => /\b(sangkat|khum|commune)\b/i.test(v));
+  return named || a.suburb || a.quarter || '';
+}
 function lookupPlace(p) {
   const key = p.lat.toFixed(3) + ',' + p.lon.toFixed(3);                 // ~100 m
   if (key === geo.key) return geo.lookup;
-  geo.key = key; geo.place = null;
+  geo.key = key; geo.place = null; fillCommuneAll(false, true);
   const ctl = window.AbortController ? new AbortController() : null;
   const timer = ctl ? setTimeout(() => ctl.abort(), 6000) : null;
   geo.lookup = fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=en&lat=' + p.lat + '&lon=' + p.lon, ctl ? { signal: ctl.signal } : {})
@@ -1173,17 +1200,18 @@ function lookupPlace(p) {
       const a = j.address || {};
       const street = a.road || a.pedestrian || a.amenity || a.suburb || a.neighbourhood || a.village || '';
       const city = a.city || a.town || a.municipality || a.county || String(a.state || '').replace(/ Province$/i, '');
-      geo.place = { street, city, country: a.country || '', commune: a.suburb || a.quarter || a.village || a.neighbourhood || a.hamlet || '' };
-      fillCommuneAll();
+      geo.place = { street, city, country: a.country || '', commune: communeOf(a) };
+      fillCommuneAll(false, true);
     }).catch(() => { geo.place = null; geo.key = ''; }).then(() => { if (timer) clearTimeout(timer); });
   return geo.lookup;
 }
 /** Small square street-map picture around the point with a red pin (OpenStreetMap tiles). null if offline. */
 function loadMap(p) {
-  const key = p.lat.toFixed(4) + ',' + p.lon.toFixed(4);
+  const Z = Math.min(19, Math.max(13, Math.round(Number(stampCfg.mapZoom) || 17)));
+  const key = p.lat.toFixed(4) + ',' + p.lon.toFixed(4) + ',' + Z;
   if (key === geo.mapKey) return geo.mapLookup;
   geo.mapKey = key; geo.map = null;
-  const Z = 17, n = Math.pow(2, Z);
+  const n = Math.pow(2, Z);
   const fx = (p.lon + 180) / 360 * n, lr = p.lat * Math.PI / 180;
   const fy = (1 - Math.log(Math.tan(lr) + 1 / Math.cos(lr)) / Math.PI) / 2 * n;
   const tx = Math.floor(fx), ty = Math.floor(fy), T = 256;
@@ -1307,8 +1335,9 @@ function getLogo() {
 }
 /** Everything one stamp needs (the time is filled in per photo). */
 async function stampData() {
-  const d = { title: '', time: stampCfg.time, coords: '', addr: '', map: null, logo: null, fontScale: stampCfg.fontScale, mapScale: stampCfg.mapScale, logoScale: stampCfg.logoScale };
-  if (stampCfg.title && stampCfg.titleText) d.title = '#' + stampCfg.titleText;
+  const d = { title: '', user: '', time: stampCfg.time, coords: '', addr: '', map: null, logo: null, fontScale: stampCfg.fontScale, mapScale: stampCfg.mapScale, logoScale: stampCfg.logoScale };
+  if (stampCfg.title && stampCfg.titleText) d.title = stampCfg.titleText;
+  if (stampCfg.user && S.user) d.user = S.user.username;
   if (stampCfg.logo) d.logo = await getLogo();
   if (needGeo()) {
     let p = geo.pos && Date.now() - geo.pos.t < 120000 ? geo.pos : await refreshGeo(8000);
@@ -1320,7 +1349,7 @@ async function stampData() {
         const pl = geo.place;
         d.addr = [plusCode(p.lat, p.lon), pl && pl.street, pl && pl.city, pl && pl.country].filter(Boolean).join(', ');
       }
-      if (stampCfg.map) { try { d.map = await geo.mapLookup; } catch (e) {} }
+      if (stampCfg.map) { try { loadMap(p); d.map = await geo.mapLookup; } catch (e) {} }   // loadMap is cached per spot + zoom
     }
   }
   return d;
@@ -1336,6 +1365,7 @@ function drawStamp(ctx, w, h, d, ms) {
   const maxW = w - mx * 2 - mapS - gap;
   const raw = [];
   if (d.title) raw.push(d.title);
+  if (d.user) raw.push(d.user);
   if (d.time) raw.push(stampDateTime(ms));
   if (d.coords) raw.push(d.coords);
   if (d.addr) raw.push(d.addr);
@@ -1646,9 +1676,34 @@ bindSlicer('slActivity', 'fActivity', loadRecords);
 $('#fSearch').addEventListener('input', () => { clearTimeout(recTimer); recTimer = setTimeout(renderRows, 150); });
 
 /** Header + rows of the records currently shown (same for CSV and Copy). */
-function exportTable() {
-  const head = ['Timestamp', 'Staff', 'Merchant Name', 'MID', 'TID', 'Business Name', 'Remarks', 'Installed/Action Date', 'Photos', 'Category', 'Activity', 'Stamp', 'Phone', 'Tag', 'Old S/N', 'New S/N', 'Location', 'Business Hours', 'Group Name', 'Business Type', 'Extra Fields', 'Serial No', 'Product Type', 'Commune'];
-  return [head].concat(filtered().map(r => [r.ts, r.user, r.merchant, r.mid, r.tid, r.business, r.remarks, r.date || r.ts.slice(0, 10), r.photos, r.type, r.activity, r.stamp, r.phone, r.tag, r.oldSn, r.newSn, r.loc, r.hours, r.group, r.btype, r.extra, r.serial, r.ptype, r.commune]));
+const EXPORT_COLS = [
+  ['Timestamp', r => r.ts], ['Staff', r => r.user], ['Merchant Name', r => r.merchant], ['MID', r => r.mid], ['TID', r => r.tid], ['Business Name', r => r.business],
+  ['Remarks', r => r.remarks], ['Installed/Action Date', r => r.date || r.ts.slice(0, 10)], ['Photos', r => r.photos], ['Category', r => r.type], ['Activity', r => r.activity],
+  ['Stamp', r => r.stamp], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Old S/N', r => r.oldSn], ['New S/N', r => r.newSn], ['Location', r => r.loc],
+  ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Business Type', r => r.btype], ['Extra Fields', r => r.extra], ['Serial No', r => r.serial],
+  ['Product Type', r => r.ptype], ['Commune', r => r.commune]
+];
+/** The important columns for a KPI update, in this order. */
+const KPI_COLS = ['Installed/Action Date', 'Staff', 'Category', 'Activity', 'Merchant Name', 'MID', 'TID', 'Serial No', 'Product Type', 'Commune', 'Stamp'];
+/** Position of a record's category + activity in the admin's list (unknown ones go last). */
+function activityRank(r) {
+  let n = 0;
+  for (const t of CATALOG) {
+    if (t.name === r.type) { const i = t.acts.findIndex(a => a.n === r.activity); return n + (i < 0 ? t.acts.length : i); }
+    n += t.acts.length + 1;
+  }
+  return 1e6;
+}
+/** KPI rows: the important columns only, in the admin's category / activity order, then by date and time within each activity. */
+function kpiTable() {
+  const use = KPI_COLS.map(n => EXPORT_COLS.find(c => c[0] === n));
+  const rows = filtered().slice().sort((a, b) => (activityRank(a) - activityRank(b)) || String(a.date || a.ts).localeCompare(String(b.date || b.ts)) || a.ts.localeCompare(b.ts));
+  return [use.map(c => c[0])].concat(rows.map(r => use.map(c => c[1](r))));
+}
+/** Header + rows of the records currently shown (same for CSV and Copy). cols = column names to keep (default: all). */
+function exportTable(cols) {
+  const use = cols ? cols.map(n => EXPORT_COLS.find(c => c[0] === n)).filter(Boolean) : EXPORT_COLS;
+  return [use.map(c => c[0])].concat(filtered().map(r => use.map(c => c[1](r))));
 }
 $('#csvBtn').addEventListener('click', () => {
   const lines = exportTable();
@@ -1668,13 +1723,15 @@ async function copyText(text) {
   let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
   ta.remove(); return ok;
 }
-$('#copyBtn').addEventListener('click', async () => {
-  const lines = exportTable();
+async function copyReport(cols, what, table) {
+  const lines = table || exportTable(cols);
   if (lines.length < 2) { toast('Nothing to copy.', 'warning'); return; }
   const cell = v => { v = String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim(); return /^[=+\-@]/.test(v) ? "'" + v : v; };
   const ok = await copyText(lines.map(l => l.map(cell).join('\t')).join('\n'));
-  toast(ok ? 'Copied ' + (lines.length - 1) + ' record(s). Paste into Google Sheets or Excel.' : 'Could not copy. Use the CSV button instead.', ok ? 'success' : 'warning');
-});
+  toast(ok ? 'Copied ' + (lines.length - 1) + ' record(s)' + (what ? ' (' + what + ')' : '') + '. Paste into Google Sheets or Excel.' : 'Could not copy. Use the CSV button instead.', ok ? 'success' : 'warning');
+}
+$('#copyBtn').addEventListener('click', () => copyReport(null, ''));
+$('#copyKpiBtn').addEventListener('click', () => copyReport(null, 'KPI columns, in activity order', kpiTable()));
 
 /* ============================ Users (admin) ============================ */
 const userModal = new bootstrap.Modal($('#userModal'));
@@ -1689,7 +1746,7 @@ function renderUsers(list) {
   $('#userList').innerHTML = list.map((u, i) =>
     '<div class="user-row"><div class="avatar">' + esc(u.username.charAt(0).toUpperCase()) + '</div>' +
     '<div class="flex-grow-1"><div class="fw-semibold">' + esc(u.username) + '</div>' +
-    '<small class="text-muted">' + esc(u.role) + (u.groupId ? ' · Group ' + esc(u.groupId) : '') + (u.topicId ? ' · Topic ' + esc(u.topicId) : '') + '</small></div>' +
+    '<small class="text-muted">' + esc(u.role) + (u.groupId ? ' · Group ' + esc(u.groupId) : '') + (u.topicId ? ' · Topic ' + esc(u.topicId) : '') + (u.maxEdits != null || u.editDays != null ? ' · Edits ' + (u.maxEdits != null ? (u.maxEdits === 0 ? 'off' : u.maxEdits + '×') : 'default') + (u.editDays != null ? ', ' + u.editDays + ' day' + (u.editDays === 1 ? '' : 's') : '') : '') + '</small></div>' +
     '<button class="btn btn-soft btn-sm" data-edit="' + i + '"><i class="bi bi-pencil"></i></button>' +
     '<button class="btn btn-outline-danger btn-sm border-0" data-del="' + i + '"><i class="bi bi-trash3"></i></button></div>'
   ).join('') || '<div class="empty">No users</div>';
@@ -1714,6 +1771,7 @@ function openUser(u) {
   $('#uRole').value = u ? u.role : 'User';
   $('#uTopic').value = u ? u.topicId : '';
   $('#uGroup').value = u ? (u.groupId || '') : '';
+  $('#uMaxEdits').value = u && u.maxEdits != null ? u.maxEdits : ''; $('#uEditDays').value = u && u.editDays != null ? u.editDays : '';
   userModal.show();
 }
 $('#addUserBtn').addEventListener('click', () => openUser(null));
@@ -1724,7 +1782,7 @@ $('#userForm').addEventListener('submit', async e => {
   try {
     const list = await api('saveUser', S.token, {
       original: $('#uOriginal').value, username: $('#uName').value, pin: $('#uPin').value,
-      role: $('#uRole').value, topicId: $('#uTopic').value, groupId: $('#uGroup').value.trim()
+      role: $('#uRole').value, topicId: $('#uTopic').value, groupId: $('#uGroup').value.trim(), maxEdits: $('#uMaxEdits').value.trim(), editDays: $('#uEditDays').value.trim()
     });
     renderUsers(list); userModal.hide(); toast('Staff saved', 'success');
   } catch (ex) { err.textContent = ex.message; show(err, true); }
@@ -1797,6 +1855,17 @@ $('#tplSend').addEventListener('click', async () => {
   const btn = $('#tplSend'); busy(btn, true, 'Sending…');
   try { await api('sendTelegramSample', S.token); tplNote('Sample sent to the group (using the saved layout).', true); }
   catch (e) { tplNote(e.message, false); }
+  busy(btn, false);
+});
+
+/* ============================ Edit rules (admin) ============================ */
+function paintRules() { const g = S.gRules || { enabled: true, max: 3, days: 1 }; $('#ruleOn').checked = !!g.enabled; $('#ruleMax').value = g.max; $('#ruleDays').value = g.days; }
+$('#ruleSave').addEventListener('click', async () => {
+  const btn = $('#ruleSave'), msg = $('#ruleMsg'); busy(btn, true, 'Saving…'); msg.textContent = '';
+  try {
+    S.gRules = await api('saveEditRules', S.token, { enabled: $('#ruleOn').checked, max: +$('#ruleMax').value, days: +$('#ruleDays').value });
+    paintRules(); msg.className = 'small text-success'; msg.textContent = 'Saved.'; loadLast();
+  } catch (e) { msg.className = 'small text-danger'; msg.textContent = e.message; }
   busy(btn, false);
 });
 
@@ -1897,7 +1966,7 @@ async function drawStampPreview() {
   }
   const lat = 13.36813, lon = 103.838707;
   drawStamp(x, w, hh, {
-    title: c.title && c.titleText ? '#' + c.titleText : '', time: c.time,
+    title: c.title && c.titleText ? c.titleText : '', user: c.user ? (S.user ? S.user.username : 'Sok Dara') : '', time: c.time,
     coords: c.coords ? coordText({ lat, lon }) : '',
     addr: c.addr ? plusCode(lat, lon) + ', Ring Road, Krong Siem Reap, Cambodia' : '',
     map: c.map ? previewMap() : null, logo, fontScale: c.fontScale, mapScale: c.mapScale, logoScale: c.logoScale
@@ -1906,7 +1975,7 @@ async function drawStampPreview() {
 function readStampForm() {
   $$('.st-opt').forEach(el => { stDraft[el.dataset.k] = el.checked; });
   $$('.st-size').forEach(el => { stDraft[el.dataset.k] = +el.value; });
-  $('#stFontVal').textContent = stDraft.fontScale + '%'; $('#stMapVal').textContent = stDraft.mapScale + '%'; $('#stLogoVal').textContent = stDraft.logoScale + '%';
+  $('#stFontVal').textContent = stDraft.fontScale + '%'; $('#stMapVal').textContent = stDraft.mapScale + '%'; $('#stZoomVal').textContent = stDraft.mapZoom; $('#stLogoVal').textContent = stDraft.logoScale + '%';
   stDraft.titleText = $('#stTitle').value.trim().slice(0, 40);
 }
 function openStampSettings() {
@@ -1914,7 +1983,7 @@ function openStampSettings() {
   $$('.st-opt').forEach(el => { el.checked = !!stDraft[el.dataset.k]; });
   $('#stTitle').value = stDraft.titleText;
   $$('.st-size').forEach(el => { el.value = stDraft[el.dataset.k]; });
-  $('#stFontVal').textContent = stDraft.fontScale + '%'; $('#stMapVal').textContent = stDraft.mapScale + '%'; $('#stLogoVal').textContent = stDraft.logoScale + '%';
+  $('#stFontVal').textContent = stDraft.fontScale + '%'; $('#stMapVal').textContent = stDraft.mapScale + '%'; $('#stZoomVal').textContent = stDraft.mapZoom; $('#stLogoVal').textContent = stDraft.logoScale + '%';
   $('#stLogoNote').textContent = stDraft.logoData ? 'Your logo is set.' : 'No logo chosen yet. Pick an image (PNG with a transparent background works best).';
   drawStampPreview(); stampModal.show();
 }
@@ -1952,22 +2021,26 @@ $('#stLogoClear').addEventListener('click', () => { stDraft.logoData = ''; $('#s
 $('#stSave').addEventListener('click', () => {
   readStampForm(); stampCfg = Object.assign({}, STAMP_DEF, stDraft); saveStampCfg();
   stampModal.hide(); toast('Photo stamp saved.', 'success');
+  if (geo.pos) { loadMap(geo.pos); try { geo.mapLookup.then(paintLoc); } catch (e) {} }   // new zoom: redraw the map picture
   if (stampOn && needGeo()) refreshGeo(10000);
 });
 
 /* ============================ Last record + edit ============================ */
-const MAX_EDITS = 3;
+S.rules = { enabled: true, max: 3, days: 1 };
+const ruleText = () => 'edit up to ' + S.rules.max + (S.rules.max === 1 ? ' time' : ' times') + (S.rules.days === 1 ? ', same day only' : ', within ' + S.rules.days + ' days');
 async function loadLast() {
-  try { S.today = await api('getTodayRecords', S.token); } catch (e) { S.today = []; }
+  try { S.rules = await api('getMyEditRules', S.token); } catch (e) {}
+  try { S.today = S.rules.enabled ? await api('getTodayRecords', S.token) : []; } catch (e) { S.today = []; }
   renderLast();
 }
 function renderLast() {
   const list = S.today || [];
   show($('#lastCard'), list.length > 0);
+  $('#todayTitle').innerHTML = (S.rules.days === 1 ? "Today's records" : 'Recent records') + ' <span class="text-muted">· ' + ruleText() + '</span>';
   $('#todayList').innerHTML = list.map(r =>
     '<div class="d-flex align-items-center gap-2 py-1 border-top" data-stamp="' + esc(r.stamp) + '"><div class="flex-grow-1 min-w-0">' +
     '<div class="fw-semibold small text-truncate">' + esc(r.type + (r.activity && r.activity !== r.type ? ' · ' + r.activity : '') + ' — ' + (r.merchant || r.mid || r.stamp)) + '</div>' +
-    '<div class="small text-muted text-truncate">' + esc(r.stamp) + ' · ' + (r.editsLeft > 0 ? r.editsLeft + ' of ' + MAX_EDITS + ' edits left' : 'edit limit reached') + '</div></div>' +
+    '<div class="small text-muted text-truncate">' + esc(r.stamp) + ' · ' + (r.editsLeft > 0 ? r.editsLeft + ' of ' + S.rules.max + ' edits left' : 'edit limit reached') + '</div></div>' +
     '<button class="btn btn-soft btn-sm flex-none t-edit" type="button"' + (r.editsLeft > 0 ? '' : ' disabled') + '><i class="bi bi-pencil me-1"></i>Edit</button></div>').join('');
 }
 $('#todayList').addEventListener('click', e => {
@@ -1985,7 +2058,7 @@ function openEdit() {
   const r = S.last; if (!r) return;
   show($('#eError'), false);
   $('#eCat').textContent = r.type;
-  $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + ' · edit ' + ((r.edits || 0) + 1) + ' of ' + MAX_EDITS;
+  $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + ' · edit ' + ((r.edits || 0) + 1) + ' of ' + S.rules.max;
   const list = ACTIVITIES[r.type] || [r.activity], single = list.length === 1;
   $('#eAct').innerHTML = (single ? '' : '<option value="">Select activity…</option>') + list.map(a => '<option>' + esc(a) + '</option>').join('');
   $('#eAct').value = list.includes(r.activity) ? r.activity : (single ? list[0] : '');
