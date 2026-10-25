@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Installs">
   <meta name="theme-color" content="#4f46e5">
- <title>Welcome to Merchant Support SR HUB</title>
+  <title>Welcome to Merchant Support SR HUB</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -80,6 +80,12 @@
     .btn-brand:hover, .btn-brand:active { color: #fff; filter: brightness(1.06); }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .chip { border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: .78rem; font-weight: 600; padding: 5px 11px; border-radius: 999px; line-height: 1.25; }
+    .kpi-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+    @media (min-width: 560px) { .kpi-row { grid-template-columns: repeat(4, 1fr); } }
+    .kpi { border: 1px solid var(--line); border-radius: 14px; padding: .55rem .75rem; background: var(--card); min-width: 0; }
+    .kpi .k-l { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .kpi .k-v { font-size: 1.35rem; font-weight: 700; line-height: 1.2; }
+    .kpi .k-s { font-size: .72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .chip.active { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; border-color: transparent; }
     .seg.scroll { overflow-x: auto; } .seg.scroll button { flex: 0 0 auto; padding: 10px 14px; }
     .btn-soft { background: #eef2ff; color: var(--brand); border: 0; }
@@ -181,11 +187,11 @@
   <form class="login-card fade-in" id="loginForm" autocomplete="on">
     <button class="theme-btn login-theme theme-toggle" type="button" title="Light / dark mode" style="background:#eef2ff;color:#4f46e5"><i class="bi bi-moon-stars-fill"></i></button>
     <div class="logo"><i class="bi bi-tools"></i></div>
-    <h4 class="text-center fw-bold mb-1">Merchant Support SR HUB Activities Records</h4>
+    <h4 class="text-center fw-bold mb-1">>Merchant Support SR HUB Activities Records</h4>
     <p class="text-center text-muted mb-4">Sign in to continue</p>
 
-    <label class="form-label">Staff name</label>
-    <input id="loginUser" class="form-control mb-3" autocomplete="username" autocapitalize="none" required>
+    <label class="form-label">Staff ID</label>
+    <input id="loginUser" class="form-control mb-3" autocomplete="username" autocapitalize="characters" placeholder="e.g. S100" required>
 
     <label class="form-label">PIN</label>
     <input id="loginPin" class="form-control mb-3" type="password" inputmode="numeric" autocomplete="current-password" required>
@@ -201,8 +207,8 @@
   <header class="topbar">
     <div class="d-flex justify-content-between align-items-center" style="max-width:880px;margin:0 auto">
       <div>
-        <div class="title fs-5"><i class="bi bi-tools me-2"></i>Installations</div>
-        <span class="chip mt-2"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span></span>
+        <div class="title fs-5"><i class="bi bi-tools me-2"></i>Activities</div>
+        <button type="button" class="chip mt-2" id="whoBtn" title="Change my PIN"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span><i class="bi bi-key ms-1"></i></button>
       </div>
       <div class="d-flex gap-2">
         <button class="icon-btn theme-toggle" type="button" title="Light / dark mode"><i class="bi bi-moon-stars-fill"></i></button>
@@ -231,6 +237,7 @@
     <!-- NEW -->
     <section id="pane-new" class="fade-in">
       <div class="seg" id="typeTabs" role="tablist"></div>
+      <div id="subWrap" class="card-x p-3 mb-3 hidden"><label class="form-label mb-2">Sub category <span class="rq">*</span></label><div class="chips" id="subChips"></div></div>
       <div id="merchantList"></div>
 
       <div class="card-x" id="locCard">
@@ -259,6 +266,7 @@
     <!-- RECORDS -->
     <section id="pane-records" class="hidden">
       <div class="card-x">
+        <div class="mb-3 hidden" id="branchWrap"><div class="form-label">Branch <span class="text-muted fw-normal small">(tap to leave one out, tap again to bring it back)</span></div><div class="chips" id="slBranch"></div></div>
         <div class="mb-3" id="userFilterWrap"><div class="form-label">Staff</div><div class="chips" id="slUser"></div><input type="hidden" id="fUser" value=""></div>
         <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="slPeriod"></div><input type="hidden" id="fPeriod" value="today"></div>
         <div class="row g-2 hidden mb-3" id="fCustomWrap">
@@ -271,11 +279,20 @@
       </div>
 
       <div class="card-x hidden" id="chartCard">
-        <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
-          <div class="fw-bold"><i class="bi bi-bar-chart-line me-1"></i><span id="chartTitleTxt">Activities by staff</span></div>
+        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+          <div><div class="fw-bold"><i class="bi bi-bar-chart-line me-1"></i><span id="chartTitleTxt">Dashboard</span></div>
+            <div class="small text-muted" id="periodTxt"></div></div>
           <button class="btn btn-soft btn-sm flex-none" id="chartSaveBtn" type="button"><i class="bi bi-image me-1"></i>Save picture</button>
         </div>
-        <div style="overflow-x:auto"><div id="chartInner" style="height:300px"><canvas id="chart" role="img" aria-label="Activities grouped by category"></canvas></div></div>
+        <div class="kpi-row mb-3" id="kpiRow"></div>
+        <div class="hidden" id="dashCtl">
+          <div class="d-flex flex-wrap gap-3 mb-3">
+            <div><div class="form-label mb-1">Group by</div><div class="chips" id="slGroup"></div></div>
+            <div><div class="form-label mb-1">View</div><div class="chips" id="slView"></div></div>
+          </div>
+        </div>
+        <div style="overflow-x:auto"><div id="chartInner" style="height:320px"><canvas id="chart" role="img" aria-label="Records grouped by activity, sub category or category"></canvas></div></div>
+        <div class="small text-muted mt-2 hidden" id="chartNote"></div>
       </div>
 
       <div class="card-x p-0 overflow-hidden">
@@ -285,7 +302,7 @@
         </div>
         <div class="table-responsive">
           <table class="table table-hover mb-0">
-            <thead><tr><th>Category</th><th>Activity</th><th>Stamp</th><th>Date</th><th>Staff</th><th>Merchant</th><th>MID</th><th>TID</th><th>Business</th><th>Type</th><th>Hours</th><th>Group</th><th>Product type</th><th>Commune</th><th>Extra</th><th>Phone</th><th>Tag</th><th>Serial No</th><th>Old S/N</th><th>New S/N</th><th>Remarks</th><th>Location</th><th>📷</th></tr></thead>
+            <thead><tr><th>Category</th><th>Activity</th><th>Stamp</th><th>Date</th><th>Staff</th><th>Merchant</th><th>MID</th><th>TID</th><th>Business</th><th>Type</th><th>Hours</th><th>Group</th><th>Product type</th><th>Commune</th><th>Zone</th><th>Sub category</th><th>Extra</th><th>Phone</th><th>Tag</th><th>Serial No</th><th>Old S/N</th><th>New S/N</th><th>Remarks</th><th>Location</th><th>📷</th></tr></thead>
             <tbody id="recBody"></tbody>
           </table>
         </div>
@@ -387,6 +404,30 @@
 </div>
 
 <!-- User modal -->
+<div class="modal fade" id="pinModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="pinForm" style="border-radius:20px" autocomplete="off">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-key me-1"></i>Change my PIN</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="small text-muted mb-3" id="pinWho"></div>
+        <label class="form-label">Current PIN</label>
+        <input id="pinCur" class="form-control mb-3" type="password" inputmode="numeric" autocomplete="current-password" required>
+        <label class="form-label">New PIN <span class="text-muted text-lowercase">(4–12 digits)</span></label>
+        <input id="pinNew" class="form-control mb-3" type="password" inputmode="numeric" autocomplete="new-password" required>
+        <label class="form-label">Confirm new PIN</label>
+        <input id="pinCfm" class="form-control mb-2" type="password" inputmode="numeric" autocomplete="new-password" required>
+        <div id="pinError" class="text-danger small mt-2 hidden"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-soft" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-brand" id="pinSave">Change PIN</button>
+      </div>
+    </form>
+  </div>
+</div>
 <div class="modal fade" id="userModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <form class="modal-content" id="userForm" style="border-radius:20px">
@@ -396,6 +437,10 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="uOriginal">
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label">Staff ID <span class="text-muted text-lowercase">(sign-in)</span></label><input id="uStaffId" class="form-control" autocapitalize="characters" autocomplete="off" placeholder="e.g. S100"></div>
+          <div class="col-6"><label class="form-label">Branch code</label><input id="uBranch" class="form-control" autocapitalize="characters" autocomplete="off" maxlength="10" placeholder="e.g. PP"></div>
+        </div>
         <label class="form-label">Staff name</label>
         <input id="uName" class="form-control mb-3" autocapitalize="none" required>
         <label class="form-label">PIN <span class="text-muted text-lowercase" id="uPinHint">(4–12 digits)</span></label>
@@ -476,6 +521,7 @@
         <div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="row g-2 align-items-center"><div class="col"><input type="time" id="eOpen" class="form-control"></div><div class="col-auto small text-muted">to</div><div class="col"><input type="time" id="eClose" class="form-control"></div></div></div>
         <div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input id="eGroup" class="form-control" maxlength="100"></div>
         <div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input id="ePhone" class="form-control" type="tel" inputmode="tel"></div>
+        <div class="mb-3 hidden" data-fk="zone"><label class="form-label">Zone / Area <span class="rq hidden">*</span></label><input id="eZone" class="form-control" maxlength="80"></div>
         <div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input id="eTag" class="form-control" maxlength="200"></div>
         <div id="eCustom" class="hidden"></div>
         <div class="mb-1 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea id="eRem" class="form-control" rows="2"></textarea></div>
@@ -609,7 +655,7 @@ const MAX_VIDEOS = 2, MAX_VIDEO_MB = 15;
 const MAX_MERCHANTS = 10;
 /* Categories and activities come from the server (admin can edit them); this is the starting set / offline fallback. */
 const DEFAULT_CATALOG = [
-  { name: 'QR', code: 'QR', tid: false, acts: [{ n: 'Refreshment' }, { n: 'Installation', inst: true }] },
+  { name: 'QR', code: 'QR', tid: false, subs: [{ n: 'Installation', code: 'I' }, { n: 'Refreshment', code: 'G' }, { n: 'Market Coverage', code: 'MC' }, { n: 'Night Business', code: 'NB' }, { n: 'Public Holiday', code: 'PH' }], acts: [{ n: 'Refreshment' }, { n: 'Installation', inst: true }] },
   { name: 'POS', code: 'POS', tid: true, acts: [
     { n: 'Maintenance', contact: true }, { n: 'Fixed Issue', contact: true }, { n: 'New Install', inst: true, contact: true, bizinfo: true },
     { n: 'Paper Roll' }, { n: 'Battery Replacement', contact: true }, { n: 'Replace', contact: true, replace: true },
@@ -620,8 +666,8 @@ const DEFAULT_CATALOG = [
   { name: 'Payway Inspection', code: 'PAYWAY', tid: false, acts: [{ n: 'Inspection' }, { n: 'Merchant Inquiries' }] }
 ];
 /* Box levels per activity: 0 = hidden, 1 = optional, 2 = must fill (red *). Same rules as the server. */
-const FIELD_KEYS = ['merchant', 'mid', 'tid', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune'];
-const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'Commune' };
+const FIELD_KEYS = ['merchant', 'mid', 'tid', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune', 'zone'];
+const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'Commune', zone: 'Zone / Area' };
 function legacyLevel(cat, a, k) {
   const rq = a.req && typeof a.req === 'object' ? a.req : {};
   const lv = (on, d) => !on ? 0 : (typeof rq[k] === 'boolean' ? (rq[k] ? 2 : 1) : d);
@@ -635,12 +681,12 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.code) o.code = String(a.code).toUpperCase();
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); });
   if (Array.isArray(a.custom) && a.custom.length) o.custom = a.custom;
   return o;
 }
-const normCat = list => list.map(t => ({ name: t.name, code: t.code, acts: (t.acts || []).map(a => normAct(t, a)) }));
+const normCat = list => list.map(t => ({ name: t.name, code: t.code, subs: (Array.isArray(t.subs) ? t.subs : (t.subs === undefined && (DEFAULT_CATALOG.find(d => d.name === t.name) || {}).subs) || []).map(s => ({ n: s.n, code: s.code })), acts: (t.acts || []).map(a => normAct(t, a)) }));
 const lvl = (d, k) => (d && d.f && d.f[k]) || 0;
 const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
@@ -648,7 +694,7 @@ const typeDef = n => CATALOG.find(t => t.name === n) || null;
 const actDef = (t, a) => { const d = typeDef(t); return d ? (d.acts.find(x => x.n === a) || null) : null; };
 const isInstall = (t, a) => { const d = actDef(t, a); return d ? !!d.inst : (a === 'Installation' || a === 'New Install'); };
 const dateLabel = (a, t) => !a ? 'Installed / action date' : (isInstall(t || curType, a) ? 'Installed date' : 'Action date');
-const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart','Groccery store','Health and Fitness','Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
+const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
 const TAB_ICONS = { 'QR': 'bi-qr-code', 'POS': 'bi-credit-card-2-front', 'SB': 'bi-speaker', 'Payway Inspection': 'bi-clipboard2-check' };
 const shortName = n => n === 'Payway Inspection' ? 'Payway' : n;
 let curType = (function () { try { return localStorage.getItem('it_type') || 'QR'; } catch (e) { return 'QR'; } })();
@@ -687,9 +733,20 @@ function followFirst() {
   const v = $('.f-act', first.el).value, list = ACTIVITIES[curType] || [];
   S.cards.slice(1).forEach(c => { if (!c.own && list.includes(v) && $('.f-act', c.el).value !== v) setAct(c, v); });
 }
+/* Sub category (QR: Installation, Refreshment ...): one choice for the whole submit, remembered for next time. */
+const lastSubs = (() => { try { return JSON.parse(localStorage.getItem('it_last_sub') || '{}') || {}; } catch (e) { return {}; } })();
+function fillSubs() {
+  const subs = (typeDef(curType) || {}).subs || [];
+  show($('#subWrap'), subs.length > 0);
+  if (!subs.some(s => s.n === S.sub)) S.sub = (subs.find(s => s.n === lastSubs[curType]) || {}).n || '';
+  $('#subChips').innerHTML = subs.map(s => '<button type="button" class="chip' + (s.n === S.sub ? ' active' : '') + '" data-s="' + esc(s.n) + '">' + esc(s.n) + ' <span class="opacity-75">(' + esc(s.code) + ')</span></button>').join('');
+}
+$('#subChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.sub = b.dataset.s; $$('#subChips .chip').forEach(x => x.classList.toggle('active', x === b)); });
+/* Tag and Zone/Area stay filled after a submit (they rarely change within a day). */
+const keep = (() => { try { return JSON.parse(localStorage.getItem('it_keep') || '{}') || {}; } catch (e) { return {}; } })();
 function rememberAct(a) {
-  lastActs[curType] = a;
-  try { localStorage.setItem('it_last_act', JSON.stringify(lastActs)); } catch (e) {}
+  lastActs[curType] = a; if (S.sub) lastSubs[curType] = S.sub;
+  try { localStorage.setItem('it_last_act', JSON.stringify(lastActs)); localStorage.setItem('it_last_sub', JSON.stringify(lastSubs)); localStorage.setItem('it_keep', JSON.stringify(keep)); } catch (e) {}
 }
 /** Product type buttons come from the category names (QR, POS, SB ...). */
 function fillPtypeChips(card) {
@@ -719,10 +776,19 @@ function customFieldHtml(f) {
     (f.opts || []).map(o => '<button type="button" class="chip rc-chip" data-v="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div></div>';
   if (f.kind === 'check') return '<div class="mb-3">' + lab + '<div data-fid="' + esc(f.id) + '" data-kind="check">' +
     (f.opts || []).map(o => '<div class="form-check"><label class="form-check-label"><input class="form-check-input" type="checkbox" value="' + esc(o) + '"> ' + esc(o) + '</label></div>').join('') + '</div></div>';
+  if (f.kind === 'spin') return '<div class="mb-3">' + lab + '<div class="input-group spin" style="max-width:220px" data-fid="' + esc(f.id) + '" data-kind="spin" data-min="' + (f.min == null ? 0 : f.min) + '" data-max="' + (f.max == null ? 100 : f.max) + '" data-step="' + (f.step || 1) + '">' +
+    '<button type="button" class="btn btn-soft spin-dn" aria-label="Less"><i class="bi bi-dash-lg"></i></button><input class="form-control text-center spin-in" inputmode="decimal" autocomplete="off" placeholder="' + (f.min == null ? 0 : f.min) + ' – ' + (f.max == null ? 100 : f.max) + '">' +
+    '<button type="button" class="btn btn-soft spin-up" aria-label="More"><i class="bi bi-plus-lg"></i></button></div></div>';
   const t = f.kind === 'date' ? 'date' : (f.kind === 'phone' ? 'tel' : 'text'), im = f.kind === 'number' ? 'decimal' : (f.kind === 'phone' ? 'tel' : 'text');
   const inp = '<input class="form-control" data-fid="' + esc(f.id) + '" data-kind="' + f.kind + '" type="' + t + '" inputmode="' + im + '" autocomplete="off"' + (f.kind === 'serial' ? ' autocapitalize="characters"' : '') + '>';
   return '<div class="mb-3">' + lab + (f.kind === 'serial' ? '<div class="input-group">' + inp + '<button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div>' : inp) + '</div>';
 }
+document.addEventListener('click', e => {      // spin number bar: - / +
+  const b = e.target.closest('.spin-dn, .spin-up'); if (!b) return;
+  const w = b.closest('.spin'), i = $('.spin-in', w), mn = +w.dataset.min, mx = +w.dataset.max, st = +w.dataset.step || 1, cur = parseFloat(i.value);
+  let v = isNaN(cur) ? mn : cur + (b.classList.contains('spin-up') ? st : -st);
+  v = Math.min(mx, Math.max(mn, Math.round(v * 1e6) / 1e6)); i.value = v;
+});
 document.addEventListener('click', e => {      // option buttons: pick one, tap again to clear
   const b = e.target.closest('.rc-chip'); if (!b) return;
   const on = !b.classList.contains('active'); $$('.rc-chip', b.parentNode).forEach(x => x.classList.remove('active')); b.classList.toggle('active', on);
@@ -730,10 +796,12 @@ document.addEventListener('click', e => {      // option buttons: pick one, tap 
 /** Value of an extra box: text, or an array of ticked values for tick boxes. */
 function customVal(el) {
   if (el.dataset.kind === 'radio') { const a = $('.rc-chip.active', el); return a ? a.dataset.v : ''; }
+  if (el.dataset.kind === 'spin') return String($('.spin-in', el).value || '').trim();
   return el.dataset.kind === 'check' ? $$('input:checked', el).map(i => i.value) : String(el.value || '').trim();
 }
 function setCustomVal(el, v) {
   if (el.dataset.kind === 'radio') { $$('.rc-chip', el).forEach(b => b.classList.toggle('active', b.dataset.v === (Array.isArray(v) ? v[0] : v))); return; }
+  if (el.dataset.kind === 'spin') { $('.spin-in', el).value = Array.isArray(v) ? v[0] || '' : (v == null ? '' : v); return; }
   if (el.dataset.kind === 'check') { const set = Array.isArray(v) ? v : String(v || '').split(', '); $$('input', el).forEach(i => { i.checked = set.includes(i.value); }); }
   else el.value = Array.isArray(v) ? v[0] || '' : (v == null ? '' : v);
 }
@@ -783,7 +851,7 @@ function setType(t) {
   try { localStorage.setItem('it_type', t); } catch (e) {}
   $$('#typeTabs button').forEach(b => b.classList.toggle('active', b.dataset.type === t));
   $$('.ty').forEach(el => { el.textContent = t; });
-  S.cards.forEach(applyType);
+  S.cards.forEach(applyType); fillSubs();
   const sb = $('#submitBtn');
   if (sb && !sb.disabled) sb.innerHTML = '<i class="bi bi-send me-1"></i>Submit ' + t + ' records';
 }
@@ -798,7 +866,7 @@ async function api(fn, ...args) {
     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ fn, args }), redirect: 'follow' });
     json = await res.json();
   } catch (e) {
-    throw new Error('Cannot reach the server. Check your connection and API_URL.');
+    const ne = new Error('Cannot reach the server. Check your connection and API_URL.'); ne.net = true; throw ne;
   }
   if (!json.ok) {
     const msg = String(json.error || 'Unknown error');
@@ -860,7 +928,7 @@ async function showApp() {
   $('#whoName').textContent = S.user.username;
   $('#whoRole').textContent = ' · ' + S.user.role;
   show($('#navUsers'), admin);
-  show($('#userFilterWrap'), admin);
+  show($('#userFilterWrap'), admin); show($('#branchWrap'), admin);
   show($('#chartCard'), false);
   show($('#catCard'), admin); show($('#rulesCard'), admin);
   if (!S.cards.length) addMerchant();
@@ -891,6 +959,21 @@ $('#loginForm').addEventListener('submit', async e => {
   busy(btn, false);
 });
 $('#logoutBtn').addEventListener('click', () => logout(false));
+const pinModal = new bootstrap.Modal($('#pinModal'));
+$('#whoBtn').addEventListener('click', () => {
+  ['#pinCur', '#pinNew', '#pinCfm'].forEach(s => { $(s).value = ''; }); show($('#pinError'), false);
+  $('#pinWho').textContent = S.user ? S.user.username + (S.user.staffId ? ' · Staff ID ' + S.user.staffId : '') + (S.user.branch ? ' · Branch ' + S.user.branch : '') : '';
+  pinModal.show();
+});
+$('#pinForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#pinSave'), err = $('#pinError'); show(err, false);
+  if ($('#pinNew').value !== $('#pinCfm').value) { err.textContent = 'The new PIN and the confirmation do not match.'; show(err, true); return; }
+  busy(btn, true, 'Saving…');
+  try { await api('changePin', S.token, $('#pinCur').value, $('#pinNew').value, $('#pinCfm').value); pinModal.hide(); toast('PIN changed. Use it the next time you sign in.', 'success'); }
+  catch (ex) { err.textContent = ex.message; show(err, true); }
+  busy(btn, false);
+});
 
 /* ============================ Tabs ============================ */
 function switchTab(name) {
@@ -1082,6 +1165,7 @@ function addMerchant() {
     '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="row g-2 align-items-center"><div class="col"><input type="time" class="form-control f-open" aria-label="Opens"></div><div class="col-auto small text-muted">to</div><div class="col"><input type="time" class="form-control f-close" aria-label="Closes"></div></div></div>' +
     '<div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input class="form-control f-group" maxlength="100" autocomplete="off" placeholder="e.g. owner / chain / group name"></div>' +
     '<div class="mb-3 hidden" data-fk="commune"><label class="form-label">Commune <span class="rq hidden">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label><div class="input-group"><input class="form-control f-commune" maxlength="80" autocomplete="off" placeholder="Filled from your location"><button type="button" class="btn btn-soft btn-commune" aria-label="Fill from my location" title="Fill from my location"><i class="bi bi-geo-alt"></i></button></div></div>' +
+    '<div class="mb-3 hidden" data-fk="zone"><label class="form-label">Zone / Area <span class="rq hidden">*</span></label><input class="form-control f-zone" maxlength="80" autocomplete="off" placeholder="e.g. Zone A / Area name"></div>' +
     '<div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input class="form-control f-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="e.g. 012 345 678"></div>' +
     '<div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input class="form-control f-tag" maxlength="200" autocomplete="off" placeholder="Extra remark / tag"></div>' +
     '<div class="custom-wrap hidden"></div>' +
@@ -1099,6 +1183,7 @@ function addMerchant() {
     '<div class="photo-grid"></div></div>';
   $('#merchantList').appendChild(el);
 
+  if (keep.tag) $('.f-tag', el).value = keep.tag; if (keep.zone) $('.f-zone', el).value = keep.zone;
   const dt = $('.f-date', el); dt.value = ymd(new Date()); dt.max = ymd(new Date());
   const card = { id, el, photos: [] };
   S.cards.push(card);
@@ -1491,7 +1576,8 @@ function renderPhotos(card) {
 
 /* ---- submit ---- */
 $('#submitBtn').addEventListener('click', async () => {
-  const items = [];
+  const items = [], keepNew = {};
+  if (((typeDef(curType) || {}).subs || []).length && !S.sub) { toast('Select the sub category.', 'danger'); $('#subWrap').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
   for (let i = 0; i < S.cards.length; i++) {
     const c = S.cards[i], g = s => $(s, c.el).value.trim();
     const bad = (m, sel) => { toast('Merchant ' + (i + 1) + ': ' + m, 'danger'); if (sel) $(sel, c.el).focus(); c.el.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
@@ -1500,7 +1586,7 @@ $('#submitBtn').addEventListener('click', async () => {
     if (!g('.f-date')) { bad('pick the date.', '.f-date'); return; }
     const must = [['merchant', '.f-name', 'the merchant name'], ['mid', '.f-mid', 'the MID'], ['tid', '.f-tid', 'the TID'], ['business', '.f-biz', 'the business name'],
       ['serial', '.f-serial', 'the serial number'], ['oldSn', '.f-old', 'the Old S/N'], ['newSn', '.f-new', 'the New S/N'], ['btype', '.f-btype', 'the business type'],
-      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['commune', '.f-commune', 'the commune'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
+      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['commune', '.f-commune', 'the commune'], ['zone', '.f-zone', 'the Zone / Area'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
     for (const [k, sel, txt] of must) if (L(k) === 2 && !g(sel)) { bad('enter ' + txt + '.', sel); return; }
     if (L('hours') && ((L('hours') === 2 && !g('.f-open')) || (!!g('.f-open') !== !!g('.f-close')))) { bad('enter both opening and closing time.', g('.f-open') ? '.f-close' : '.f-open'); return; }
     if (L('phone') && g('.f-phone') && !PHONE_RE.test(g('.f-phone'))) { bad('the phone number looks wrong.', '.f-phone'); return; }
@@ -1508,16 +1594,18 @@ $('#submitBtn').addEventListener('click', async () => {
     for (const f of ((ad && ad.custom) || [])) {
       const inp = $('[data-fid="' + f.id + '"]', c.el), v = inp ? customVal(inp) : '';
       if (!v.length) { if (f.req) { bad((f.kind === 'select' || f.kind === 'radio' ? 'choose ' : f.kind === 'check' ? 'tick at least one ' : 'enter ') + f.label + '.'); if (inp && inp.focus) inp.focus(); return; } continue; }
-      if (f.kind === 'number' && !/^-?\d+(\.\d+)?$/.test(v)) { bad(f.label + ' must be a number.'); return; }
+      if ((f.kind === 'number' || f.kind === 'spin') && !/^-?\d+(\.\d+)?$/.test(v)) { bad(f.label + ' must be a number.'); return; }
+      if (f.kind === 'spin' && (+v < f.min || +v > f.max)) { bad(f.label + ' must be between ' + f.min + ' and ' + f.max + '.'); return; }
       if (f.kind === 'phone' && !PHONE_RE.test(v)) { bad(f.label + ' looks wrong.'); return; }
       extra[f.id] = v;
     }
     if (L('photo') === 2 && !c.photos.length) { bad('attach at least one photo.'); return; }
+    if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone');
     const v = (k, sel) => L(k) ? g(sel) : '';
     items.push({ type: curType, activity: g('.f-act'), date: g('.f-date'), extra, locLv: L('location'),
       merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
-      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: v('commune', '.f-commune'), group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [] });
+      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: v('commune', '.f-commune'), zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [] });
   }
   const bytes = items.reduce((t, it) => t + it.photos.reduce((u, p) => u + p.length, 0), 0);
   if (bytes > 32e6) { toast('Photos and videos are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
@@ -1528,14 +1616,17 @@ $('#submitBtn').addEventListener('click', async () => {
     const loc = needLoc ? await currentLocation() : null;
     if (!loc && items.some(it => it.locLv === 2)) { toast('The location is required. Allow GPS (tap the refresh arrow) or choose the spot with the pin button.', 'danger'); busy(btn, false); return; }
     items.forEach(it => { if (loc && it.locLv > 0) it.location = loc; delete it.locLv; });
-    const r = await api('submitInstallations', S.token, items);
+    if (!S.batchId) S.batchId = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);     // same id on a retry, so a repeated send is saved only once
+    const r = await api('submitInstallations', S.token, items, S.batchId);
+    S.batchId = null;
     toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + '). Telegram: ' + r.telegram, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
+    Object.assign(keep, keepNew);
     if (items[0] && items[0].activity) rememberAct(items[0].activity);
     $('#merchantList').innerHTML = ''; S.cards = []; addMerchant();
     if (!loc && needLoc) toast('Location was not available, so it was not added to Telegram.', 'warning');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     loadSummary(); loadLast();
-  } catch (e) { toast(e.message, 'danger'); }
+  } catch (e) { if (!e.net) S.batchId = null; toast(e.message + (e.net ? ' If you retry, nothing is saved twice.' : ''), 'danger'); }
   busy(btn, false);
 });
 
@@ -1572,14 +1663,32 @@ function fillActivityFilter() {
   const list = cat ? (ACTIVITIES[cat] || []) : Array.from(new Set([].concat(...TYPES.map(t => ACTIVITIES[t]))));
   slicer('slActivity', 'fActivity', [{ v: '', l: 'All' }].concat(list.map(a => ({ v: a, l: a }))));
 }
+S.branches = []; S.branchOff = new Set();
+function paintBranches() {
+  if (!(S.user && S.user.role === 'Admin')) return;
+  $('#slBranch').innerHTML = S.branches.map(b => '<button type="button" class="chip' + (S.branchOff.has(b) ? '' : ' active') + '" data-b="' + esc(b) + '" aria-pressed="' + (!S.branchOff.has(b)) + '">' + esc(b) + '</button>').join('');
+}
+$('#slBranch').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  const c = b.dataset.b;
+  if (S.branchOff.has(c)) S.branchOff.delete(c);
+  else if (S.branches.filter(x => !S.branchOff.has(x)).length > 1) S.branchOff.add(c);     // keep at least one branch included
+  else { toast('Keep at least one branch included.', 'warning'); return; }
+  paintBranches(); loadRecords();
+});
 async function loadRecords() {
-  const r = range();
-  $('#recBody').innerHTML = '<tr><td colspan="23" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+  const r = range(), admin = S.user.role === 'Admin';
+  $('#recBody').innerHTML = '<tr><td colspan="25" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
   try {
-    const data = await api('getRecords', S.token, { user: $('#fUser').value, type: $('#fType').value, activity: $('#fActivity').value, from: r.from, to: r.to });
+    const f = { user: $('#fUser').value, type: $('#fType').value, activity: $('#fActivity').value, from: r.from, to: r.to };
+    if (admin && S.branchOff.size) f.branches = S.branches.filter(b => !S.branchOff.has(b));
+    const data = await api('getRecords', S.token, f);
     S.rows = data.rows;
-    if (S.user.role === 'Admin') slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }].concat(data.users.map(u => ({ v: u, l: u }))));
-    S.byUserCat = data.byUserCat || {};
+    if (admin) {
+      slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }].concat(data.users.map(u => ({ v: u, l: u }))));
+      S.branches = data.branches || []; S.branchOff = new Set(Array.from(S.branchOff).filter(b => S.branches.includes(b))); paintBranches();
+    }
+    S.byUserCat = data.byUserCat || {}; S.agg = data.agg || []; S.period = data.period || { from: '', to: '' };
     drawChart();
     renderRows();
   } catch (e) { toast(e.message, 'danger'); }
@@ -1587,7 +1696,7 @@ async function loadRecords() {
 function filtered() {
   const q = $('#fSearch').value.trim().toLowerCase();
   if (!q) return S.rows;
-  return S.rows.filter(r => [r.stamp, r.type, r.activity, r.tid, r.user, r.business, r.merchant, r.mid, r.remarks, r.phone, r.tag, r.serial, r.oldSn, r.newSn, r.btype, r.ptype, r.commune, r.group, r.extra].join(' ').toLowerCase().includes(q));
+  return S.rows.filter(r => [r.stamp, r.type, r.activity, r.tid, r.user, r.business, r.merchant, r.mid, r.remarks, r.phone, r.tag, r.serial, r.oldSn, r.newSn, r.btype, r.ptype, r.commune, r.zone, r.sub, r.group, r.extra].join(' ').toLowerCase().includes(q));
 }
 function locLink(t) {
   const m = /(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(String(t || ''));
@@ -1599,20 +1708,55 @@ function renderRows() {
   $('#recBody').innerHTML = rows.length ? rows.map(r =>
     '<tr><td><span class="pill">' + esc(r.type) + '</span></td><td>' + esc(r.activity) + '</td><td class="text-nowrap small">' + esc(r.stamp) +
     '</td><td class="text-nowrap">' + esc(r.date || r.ts.slice(0, 10)) + '</td><td><span class="pill">' + esc(r.user) + '</span></td><td class="fw-semibold">' + esc(r.merchant) +
-    '</td><td class="text-nowrap">' + esc(r.mid) + '</td><td class="text-nowrap">' + esc(r.tid) + '</td><td>' + esc(r.business) + '</td><td>' + esc(r.btype) + '</td><td class="text-nowrap">' + esc(r.hours) + '</td><td>' + esc(r.group) + '</td><td>' + esc(r.ptype) + '</td><td>' + esc(r.commune) + '</td><td>' + esc(r.extra) + '</td><td class="text-nowrap">' + esc(r.phone) + '</td><td>' + esc(r.tag) + '</td><td class="text-nowrap">' + esc(r.serial) + '</td><td class="text-nowrap">' + esc(r.oldSn) + '</td><td class="text-nowrap">' + esc(r.newSn) + '</td><td>' + esc(r.remarks) + '</td><td>' + locLink(r.loc) + '</td><td>' + (r.photos || '') + '</td></tr>'
-  ).join('') : '<tr><td colspan="23"><div class="empty"><i class="bi bi-inbox"></i>No records for this filter</div></td></tr>';
+    '</td><td class="text-nowrap">' + esc(r.mid) + '</td><td class="text-nowrap">' + esc(r.tid) + '</td><td>' + esc(r.business) + '</td><td>' + esc(r.btype) + '</td><td class="text-nowrap">' + esc(r.hours) + '</td><td>' + esc(r.group) + '</td><td>' + esc(r.ptype) + '</td><td>' + esc(r.commune) + '</td><td>' + esc(r.zone) + '</td><td>' + esc(r.sub) + '</td><td>' + esc(r.extra) + '</td><td class="text-nowrap">' + esc(r.phone) + '</td><td>' + esc(r.tag) + '</td><td class="text-nowrap">' + esc(r.serial) + '</td><td class="text-nowrap">' + esc(r.oldSn) + '</td><td class="text-nowrap">' + esc(r.newSn) + '</td><td>' + esc(r.remarks) + '</td><td>' + locLink(r.loc) + '</td><td>' + (r.photos || '') + '</td></tr>'
+  ).join('') : '<tr><td colspan="25"><div class="empty"><i class="bi bi-inbox"></i>No records for this filter</div></td></tr>';
 }
-/* ---- Admin chart: one cluster per staff member, one column per category ---- */
-// Colour by position in the category list (first four are the validated slots; the rest are extras).
+/* ---- Dashboard: summary tiles + one chart. Admin picks the grouping (activities / sub categories / categories) and the view (totals / by staff). ---- */
+// Colour by category for totals; by position for the by-staff series (first four are the validated slots; the rest are extras).
 const SLOT_LIGHT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#8a5cd0', '#d6458a', '#14a3b8', '#7a8190', '#a3b21a', '#c0392b', '#34495e', '#e67ebf'];
 const SLOT_DARK = ['#3987e5', '#d95926', '#199e70', '#c98500', '#9b73dd', '#e0579a', '#25b4c9', '#8d94a3', '#b4c32b', '#d4493a', '#5d7a96', '#ee8fcb'];
 const catColor = (t, dark) => (dark ? SLOT_DARK : SLOT_LIGHT)[Math.max(0, TYPES.indexOf(t)) % 12];
-function chartModel(byUserCat) {
-  const sum = s => TYPES.reduce((n, t) => n + (byUserCat[s][t] || 0), 0);
-  const staff = Object.keys(byUserCat).sort((a, b) => sum(b) - sum(a) || a.localeCompare(b));
-  const cats = TYPES.filter(t => staff.some(s => byUserCat[s][t]));
-  return { staff, cats, byUserCat };
+const slotColor = (i, dark) => (dark ? SLOT_DARK : SLOT_LIGHT)[i % 12];
+const fmtD = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); return m ? m[3] + '-' + MON[+m[2] - 1] + '-' + m[1] : ''; };
+const GROUPS = [{ v: 'act', l: 'Activities' }, { v: 'sub', l: 'Sub categories' }, { v: 'cat', l: 'Categories' }];
+const VIEWS = [{ v: 'total', l: 'Totals' }, { v: 'staff', l: 'By staff' }];
+S.group = 'act'; S.view = 'total'; S.agg = []; S.period = { from: '', to: '' };
+const itemOf = (a, g) => g === 'cat' ? { key: a.type, type: a.type, label: shortName(a.type) }
+  : g === 'sub' ? (a.sub ? { key: a.type + '|' + a.sub, type: a.type, label: shortName(a.type) + ' · ' + a.sub } : null)
+  : { key: a.type + '|' + a.activity, type: a.type, label: shortName(a.type) + ' · ' + a.activity };
+/** Every item the admin has set up for this grouping (so zero ones show too), limited by the category / activity filters. */
+function catalogItems(g) {
+  const ft = $('#fType').value, fa = $('#fActivity').value, out = [];
+  CATALOG.filter(t => !ft || t.name === ft).forEach(t => {
+    if (g === 'cat') out.push(itemOf({ type: t.name }, g));
+    else if (g === 'sub') (t.subs || []).forEach(s => out.push(itemOf({ type: t.name, sub: s.n }, g)));
+    else t.acts.filter(a => !fa || a.n === fa).forEach(a => out.push(itemOf({ type: t.name, activity: a.n }, g)));
+  });
+  return out;
 }
+function dashModel() {
+  const admin = S.user && S.user.role === 'Admin', g = admin ? S.group : 'act', view = admin ? S.view : 'total', agg = S.agg || [];
+  const items = new Map(), per = new Map();         // item key -> { label, type, total }, staff -> { item key -> count }
+  catalogItems(g).forEach(i => items.set(i.key, Object.assign({ total: 0 }, i)));
+  let total = 0, skipped = 0;
+  agg.forEach(a => {
+    const it = itemOf(a, g); if (!it) { skipped += a.count; return; }
+    if (!items.has(it.key)) items.set(it.key, Object.assign({ total: 0 }, it));
+    items.get(it.key).total += a.count; total += a.count;
+    if (!per.has(a.user)) per.set(a.user, {}); const m = per.get(a.user); m[it.key] = (m[it.key] || 0) + a.count;
+  });
+  const list = Array.from(items.entries()).map(([key, v]) => Object.assign({ key }, v));
+  const staff = Array.from(per.keys()).sort((x, y) => sumOf(per.get(y)) - sumOf(per.get(x)) || x.localeCompare(y));
+  const top = list.slice().sort((x, y) => y.total - x.total)[0];
+  const days = S.period.from && S.period.to ? Math.round((new Date(S.period.to) - new Date(S.period.from)) / 864e5) + 1 : 0;
+  const base = { g, view, total, skipped, staffN: new Set(agg.map(a => a.user)).size, top: top && top.total ? top : null, days };
+  if (view === 'staff' && staff.length) {
+    const used = list.filter(i => i.total > 0);
+    return Object.assign(base, { labels: staff, legend: true, datasets: used.map((i, n) => ({ label: i.label, color: slotColor(n), data: staff.map(s => per.get(s)[i.key] || 0) })) });
+  }
+  return Object.assign(base, { labels: list.map(i => i.label), legend: false, datasets: [{ label: 'Records', colors: list.map(i => i.type), data: list.map(i => i.total) }] });
+}
+const sumOf = o => Object.keys(o).reduce((n, k) => n + o[k], 0);
 function buildChart(canvas, m, o) {
   const dark = !!o.dark, ink = dark ? '#eceefd' : '#1e1b4b', muted = dark ? '#9aa0c0' : '#6b7280';
   const grid = dark ? '#2a2d4d' : '#e5e7eb', surface = o.exporting ? '#ffffff' : (dark ? '#181a31' : '#ffffff');
@@ -1626,59 +1770,74 @@ function buildChart(canvas, m, o) {
     const c = chart.ctx; c.save(); c.globalCompositeOperation = 'destination-over'; c.fillStyle = '#ffffff'; c.fillRect(0, 0, chart.width, chart.height); c.restore(); } };
   return new Chart(canvas, {
     type: 'bar',
-    data: { labels: m.staff, datasets: m.cats.map(t => ({
-      label: shortName(t), backgroundColor: catColor(t, dark), borderColor: surface, borderWidth: 2,
-      borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 34,
-      data: m.staff.map(s => m.byUserCat[s][t] || 0) })) },
+    data: { labels: m.labels, datasets: m.datasets.map(d => ({
+      label: d.label, backgroundColor: d.colors ? d.colors.map(t => catColor(t, dark)) : d.color, borderColor: surface, borderWidth: 2,
+      borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 34, data: d.data })) },
     options: {
       responsive: !o.exporting, maintainAspectRatio: false, devicePixelRatio: o.exporting ? 2 : undefined,
       animation: o.exporting ? false : { duration: 250 },
       layout: { padding: { top: 20 } },
       plugins: {
-        legend: { position: 'top', labels: { color: ink, usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10 } },
+        legend: { display: m.legend, position: 'top', labels: { color: ink, usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10 } },
         title: { display: !!o.title, text: o.title || '', color: ink, align: 'start', font: { size: 16, weight: '600' }, padding: { bottom: 10 } }
       },
       scales: {
         y: { beginAtZero: true, ticks: { precision: 0, color: muted }, grid: { color: grid } },
-        x: { ticks: { color: muted }, grid: { display: false } }
+        x: { ticks: { color: muted, autoSkip: false, maxRotation: 60, minRotation: m.labels.length > 6 ? 40 : 0 }, grid: { display: false } }
       }
     },
     plugins: [valueLabels, background]
   });
 }
+function paintDashControls() {
+  const admin = S.user && S.user.role === 'Admin';
+  show($('#dashCtl'), !!admin);
+  if (!admin) return;
+  $('#slGroup').innerHTML = GROUPS.map(o => '<button type="button" class="chip' + (o.v === S.group ? ' active' : '') + '" data-v="' + o.v + '">' + o.l + '</button>').join('');
+  $('#slView').innerHTML = VIEWS.map(o => '<button type="button" class="chip' + (o.v === S.view ? ' active' : '') + '" data-v="' + o.v + '">' + o.l + '</button>').join('');
+}
+$('#slGroup').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.group = b.dataset.v; drawChart(); } });
+$('#slView').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.view = b.dataset.v; drawChart(); } });
 function drawChart() {
-  const m = S.chartModel = chartModel(S.byUserCat || {});
-  show($('#chartCard'), m.staff.length > 0);
-  $('#chartTitleTxt').textContent = S.user && S.user.role === 'Admin' ? 'Activities by staff' : 'My activities by category';
+  const m = S.chartModel = dashModel(), admin = S.user && S.user.role === 'Admin';
+  show($('#chartCard'), (S.agg || []).length > 0);
+  $('#chartTitleTxt').textContent = admin ? 'Dashboard' : 'My dashboard';
+  paintDashControls();
+  $('#periodTxt').textContent = S.period.from ? 'Records from ' + fmtD(S.period.from) + ' to ' + fmtD(S.period.to) + (m.days ? ' · ' + m.days + ' day' + (m.days > 1 ? 's' : '') : '') : '';
+  const tiles = [['Records', m.total, 'in this period'], admin ? ['Staff', m.staffN, 'with records'] : ['Days', m.days, 'in this period'],
+    ['Top ' + ({ act: 'activity', sub: 'sub category', cat: 'category' }[m.g]), m.top ? m.top.total : 0, m.top ? m.top.label : '—'], ['Per day', m.days ? (m.total / m.days).toFixed(1) : '0', 'average']];
+  $('#kpiRow').innerHTML = tiles.map(t => '<div class="kpi"><div class="k-l">' + esc(t[0]) + '</div><div class="k-v">' + esc(String(t[1])) + '</div><div class="k-s">' + esc(t[2]) + '</div></div>').join('');
+  const note = $('#chartNote'); show(note, m.skipped > 0);
+  if (m.skipped) note.textContent = m.skipped + ' record' + (m.skipped > 1 ? 's' : '') + ' without a sub category are not in this chart.';
   if (S.chart) { S.chart.destroy(); S.chart = null; }
-  if (!m.staff.length) return;
-  $('#chartInner').style.minWidth = Math.max(0, m.staff.length * Math.max(1, m.cats.length) * 34 + 80) + 'px';   // scrolls sideways with many staff
+  if (!(S.agg || []).length) return;
+  $('#chartInner').style.minWidth = Math.max(0, m.labels.length * (m.datasets.length > 1 ? m.datasets.length * 30 : 44) + 80) + 'px';   // scrolls sideways with many items
   S.chart = buildChart($('#chart'), m, { dark: isDark() });
 }
 function chartTitle() {
-  const r = range(), p = $('#fPeriod'), parts = [];
-  let when = (PERIODS.find(x => x.v === p.value) || PERIODS[0]).l;
-  if (r.from) when += ' (' + r.from + (r.to && r.to !== r.from ? ' to ' + r.to : '') + ')';
-  parts.push(when);
+  const m = S.chartModel, admin = S.user && S.user.role === 'Admin';
+  const what = { act: 'activity', sub: 'sub category', cat: 'category' }[m.g];
+  const parts = [];
+  if (S.period.from) parts.push(fmtD(S.period.from) + ' to ' + fmtD(S.period.to));
+  if (admin && S.branchOff.size) parts.push('branches: ' + S.branches.filter(b => !S.branchOff.has(b)).join(', '));
   if ($('#fType').value) parts.push($('#fType').value);
-  if ($('#fActivity').value) parts.push($('#fActivity').value);
-  return (S.user && S.user.role === 'Admin' ? 'Activities by staff' : 'My activities') + ' — ' + parts.join(' · ');
+  return (admin ? 'Records by ' + what + (m.view === 'staff' ? ' and staff' : '') : 'My records by activity') + ' — ' + parts.join(' · ');
 }
 async function saveChartPng() {
   const m = S.chartModel;
-  if (!m || !m.staff.length) { toast('Nothing to save.', 'warning'); return; }
+  if (!m || !m.total) { toast('Nothing to save.', 'warning'); return; }
   const btn = $('#chartSaveBtn'); busy(btn, true, 'Saving…');
   try {
     const cv = document.createElement('canvas');          // always light, with a white background, so it reads anywhere
-    cv.width = Math.max(900, m.staff.length * Math.max(1, m.cats.length) * 40 + 140); cv.height = 560;
+    cv.width = Math.max(900, m.labels.length * (m.datasets.length > 1 ? m.datasets.length * 40 : 56) + 140); cv.height = 560;
     const ch = buildChart(cv, m, { dark: false, exporting: true, title: chartTitle() });
     await new Promise(res => requestAnimationFrame(res));
     const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
     ch.destroy();
-    const name = 'activities_' + ymd(new Date()) + '.png';
+    const name = 'dashboard_' + ymd(new Date()) + '.png';
     const file = new File([blob], name, { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {      // phones: share sheet -> "Save Image"
-      try { await navigator.share({ files: [file], title: 'Activities' }); busy(btn, false); return; }
+      try { await navigator.share({ files: [file], title: 'Dashboard' }); busy(btn, false); return; }
       catch (e) { if (e && e.name === 'AbortError') { busy(btn, false); return; } }
     }
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
@@ -1703,10 +1862,10 @@ const EXPORT_COLS = [
   ['Remarks', r => r.remarks], ['Installed/Action Date', r => r.date || r.ts.slice(0, 10)], ['Photos', r => r.photos], ['Category', r => r.type], ['Activity', r => r.activity],
   ['Stamp', r => r.stamp], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Old S/N', r => r.oldSn], ['New S/N', r => r.newSn], ['Location', r => r.loc],
   ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Business Type', r => r.btype], ['Extra Fields', r => r.extra], ['Serial No', r => r.serial],
-  ['Product Type', r => r.ptype], ['Commune', r => r.commune]
+  ['Product Type', r => r.ptype], ['Commune', r => r.commune], ['Zone/Area', r => r.zone], ['Sub Category', r => r.sub]
 ];
 /** The important columns for a KPI update, in this order. */
-const KPI_COLS = ['Installed/Action Date', 'Staff', 'Category', 'Activity', 'Merchant Name', 'MID', 'TID', 'Serial No', 'Product Type', 'Commune', 'Stamp'];
+const KPI_COLS = ['Category', 'Merchant Name', 'MID', 'Installed/Action Date'];
 /** Position of a record's category + activity in the admin's list (unknown ones go last). */
 function activityRank(r) {
   let n = 0;
@@ -1767,7 +1926,7 @@ function renderUsers(list) {
   S.users = list;
   $('#userList').innerHTML = list.map((u, i) =>
     '<div class="user-row"><div class="avatar">' + esc(u.username.charAt(0).toUpperCase()) + '</div>' +
-    '<div class="flex-grow-1"><div class="fw-semibold">' + esc(u.username) + '</div>' +
+    '<div class="flex-grow-1"><div class="fw-semibold">' + esc(u.username) + (u.staffId ? ' <span class="pill">' + esc(u.staffId) + '</span>' : ' <span class="pill" style="background:#fde8e8;color:#b42318">no Staff ID</span>') + (u.branch ? ' <span class="pill">' + esc(u.branch) + '</span>' : '') + '</div>' +
     '<small class="text-muted">' + esc(u.role) + (u.groupId ? ' · Group ' + esc(u.groupId) : '') + (u.topicId ? ' · Topic ' + esc(u.topicId) : '') + (u.maxEdits != null || u.editDays != null ? ' · Edits ' + (u.maxEdits != null ? (u.maxEdits === 0 ? 'off' : u.maxEdits + '×') : 'default') + (u.editDays != null ? ', ' + u.editDays + ' day' + (u.editDays === 1 ? '' : 's') : '') : '') + '</small></div>' +
     '<button class="btn btn-soft btn-sm" data-edit="' + i + '"><i class="bi bi-pencil"></i></button>' +
     '<button class="btn btn-outline-danger btn-sm border-0" data-del="' + i + '"><i class="bi bi-trash3"></i></button></div>'
@@ -1787,7 +1946,7 @@ function openUser(u) {
   show($('#userError'), false);
   $('#userModalTitle').textContent = u ? 'Edit staff' : 'Add staff';
   $('#uOriginal').value = u ? u.username : '';
-  $('#uName').value = u ? u.username : '';
+  $('#uName').value = u ? u.username : ''; $('#uStaffId').value = u ? (u.staffId || '') : ''; $('#uBranch').value = u ? (u.branch || '') : '';
   $('#uPin').value = '';
   $('#uPinHint').textContent = u ? '(leave blank to keep current)' : '(4–12 digits)';
   $('#uRole').value = u ? u.role : 'User';
@@ -1803,7 +1962,7 @@ $('#userForm').addEventListener('submit', async e => {
   show(err, false); busy(btn, true, 'Saving…');
   try {
     const list = await api('saveUser', S.token, {
-      original: $('#uOriginal').value, username: $('#uName').value, pin: $('#uPin').value,
+      original: $('#uOriginal').value, username: $('#uName').value, staffId: $('#uStaffId').value.trim(), branch: $('#uBranch').value.trim(), pin: $('#uPin').value,
       role: $('#uRole').value, topicId: $('#uTopic').value, groupId: $('#uGroup').value.trim(), maxEdits: $('#uMaxEdits').value.trim(), editDays: $('#uEditDays').value.trim()
     });
     renderUsers(list); userModal.hide(); toast('Staff saved', 'success');
@@ -1894,7 +2053,7 @@ $('#ruleSave').addEventListener('click', async () => {
 /* ============================ Categories editor (admin) ============================ */
 const catModal = new bootstrap.Modal($('#catModal'));
 let catDraft = [], catSeq = 0;
-const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes']];
+const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes'], ['spin', 'Spin number']];
 /** One row per box: Off / Optional / Must (red). */
 function fieldRows(a) {
   return '<details class="mt-2 a-fields"><summary class="small fw-semibold" style="cursor:pointer">Boxes to fill <span class="text-muted fw-normal">(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')</span></summary>' +
@@ -1910,8 +2069,11 @@ function renderCatEditor() {
       '<div class="d-flex gap-2 mb-2"><input class="form-control form-control-sm c-name" maxlength="30" placeholder="Category name" value="' + esc(t.name) + '">' +
       '<input class="form-control form-control-sm c-code" maxlength="8" placeholder="Code" style="max-width:90px" value="' + esc(t.code) + '">' +
       '<button type="button" class="btn btn-sm btn-outline-danger border-0 c-del" aria-label="Remove category"><i class="bi bi-trash3"></i></button></div>' +
+      '<div class="small text-muted mb-1">Sub categories <span class="fw-normal">(the code joins the stamp, e.g. QR + I)</span></div>' +
+      (t.subs || []).map((s, si) => '<div class="d-flex gap-1 mb-1" data-si="' + si + '"><input class="form-control form-control-sm s-name" maxlength="40" placeholder="Sub category" value="' + esc(s.n) + '"><input class="form-control form-control-sm s-code" maxlength="4" placeholder="Code" style="max-width:76px" value="' + esc(s.code) + '"><button type="button" class="btn btn-sm btn-outline-danger border-0 s-del" aria-label="Remove sub category"><i class="bi bi-x"></i></button></div>').join('') +
+      '<button type="button" class="btn btn-soft btn-sm s-add mb-3"><i class="bi bi-plus-lg me-1"></i>Sub category</button>' +
       t.acts.map((a, ai) =>
-        '<div class="mb-3 pb-2 border-bottom" data-ai="' + ai + '"><div class="d-flex gap-2 mb-1"><input class="form-control form-control-sm a-name" maxlength="40" placeholder="Activity" value="' + esc(a.n) + '">' +
+        '<div class="mb-3 pb-2 border-bottom" data-ai="' + ai + '"><div class="d-flex gap-2 mb-1"><input class="form-control form-control-sm a-name" maxlength="40" placeholder="Activity" value="' + esc(a.n) + '"><input class="form-control form-control-sm a-code" maxlength="4" placeholder="Code" title="Optional code added to the stamp" style="max-width:76px" value="' + esc(a.code || '') + '">' +
         '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-del" aria-label="Remove activity"><i class="bi bi-x-lg"></i></button></div>' +
         '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button></div>' +
         fieldRows(a) +
@@ -1921,29 +2083,36 @@ function renderCatEditor() {
           '<select class="form-select form-select-sm cf-kind" style="max-width:112px">' + CF_KINDS.map(k => '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + k[1] + '</option>').join('') + '</select>' +
           '<button type="button" class="chip cf-req' + (f.req ? ' active' : '') + '">Must</button>' +
           '<button type="button" class="btn btn-sm btn-outline-danger border-0 cf-del" aria-label="Remove box"><i class="bi bi-x"></i></button></div>' +
-          (f.kind === 'select' || f.kind === 'check' || f.kind === 'radio' ? '<input class="form-control form-control-sm cf-opts mb-2" data-ci="' + ci + '" placeholder="Values, separated by commas (e.g. Small, Medium, Large)" value="' + esc((f.opts || []).join(', ')) + '">' : '')).join('') +
+          (f.kind === 'select' || f.kind === 'check' || f.kind === 'radio' ? '<input class="form-control form-control-sm cf-opts mb-2" data-ci="' + ci + '" placeholder="Values, separated by commas (e.g. Small, Medium, Large)" value="' + esc((f.opts || []).join(', ')) + '">' : '') +
+          (f.kind === 'spin' ? '<div class="d-flex gap-1 mb-2 align-items-center small text-muted" data-ci="' + ci + '">Min <input class="form-control form-control-sm cf-min" type="number" style="max-width:80px" value="' + (f.min == null ? 0 : f.min) + '"> Max <input class="form-control form-control-sm cf-max" type="number" style="max-width:80px" value="' + (f.max == null ? 100 : f.max) + '"> Step <input class="form-control form-control-sm cf-step" type="number" min="0" step="any" style="max-width:70px" value="' + (f.step || 1) + '"></div>' : '')).join('') +
         '<button type="button" class="btn btn-soft btn-sm cf-add mt-1"><i class="bi bi-plus-lg me-1"></i>Box</button></div>').join('') +
       '<button type="button" class="btn btn-soft btn-sm c-addact"><i class="bi bi-plus-lg me-1"></i>Activity</button></div>').join('');
 }
 $('#catEditBtn').addEventListener('click', () => {
   catDraft = JSON.parse(JSON.stringify(CATALOG)); show($('#catError'), false); renderCatEditor(); catModal.show();
 });
-$('#catAdd').addEventListener('click', () => { catDraft.push({ name: '', code: '', acts: [normAct({}, { n: '' })] }); renderCatEditor(); });
+$('#catAdd').addEventListener('click', () => { catDraft.push({ name: '', code: '', subs: [], acts: [normAct({}, { n: '' })] }); renderCatEditor(); });
 $('#catList').addEventListener('input', e => {
   const box = e.target.closest('[data-ti]'); if (!box) return; const t = catDraft[+box.dataset.ti];
   if (e.target.classList.contains('c-name')) t.name = e.target.value;
   else if (e.target.classList.contains('c-code')) t.code = e.target.value.toUpperCase();
   else if (e.target.classList.contains('a-name')) t.acts[+e.target.closest('[data-ai]').dataset.ai].n = e.target.value;
+  else if (e.target.classList.contains('a-code')) t.acts[+e.target.closest('[data-ai]').dataset.ai].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  else if (e.target.classList.contains('s-name')) t.subs[+e.target.closest('[data-si]').dataset.si].n = e.target.value;
+  else if (e.target.classList.contains('s-code')) t.subs[+e.target.closest('[data-si]').dataset.si].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  else if (/\bcf-(min|max|step)\b/.test(e.target.className)) { const f = t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f[/cf-(min|max|step)/.exec(e.target.className)[1]] = e.target.value === '' ? '' : +e.target.value; }
   else if (e.target.classList.contains('cf-opts')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.dataset.ci].opts = e.target.value.split(',').map(x => x.trim()).filter(Boolean);
   else if (e.target.classList.contains('cf-label')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].label = e.target.value;
 });
 $('#catList').addEventListener('change', e => {
-  if (e.target.classList.contains('cf-kind')) { catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].kind = e.target.value; renderCatEditor(); }
+  if (e.target.classList.contains('cf-kind')) { const f = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.kind = e.target.value; if (f.kind === 'spin') { if (f.min == null) f.min = 0; if (f.max == null) f.max = 100; if (!f.step) f.step = 1; } renderCatEditor(); }
 });
 $('#catList').addEventListener('click', e => {
   const box = e.target.closest('[data-ti]'); if (!box) return; const ti = +box.dataset.ti, t = catDraft[ti];
   const ab = e.target.closest('[data-ai]'), ai = ab ? +ab.dataset.ai : -1;
   if (e.target.closest('.c-del')) { catDraft.splice(ti, 1); renderCatEditor(); }
+  else if (e.target.closest('.s-add')) { t.subs = t.subs || []; if (t.subs.length >= 12) { toast('At most 12 sub categories.', 'warning'); return; } t.subs.push({ n: '', code: '' }); renderCatEditor(); }
+  else if (e.target.closest('.s-del')) { t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1); renderCatEditor(); }
   else if (e.target.closest('.c-addact')) { t.acts.push(normAct({}, { n: '' })); renderCatEditor(); }
   else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
@@ -2090,7 +2259,7 @@ function openEdit() {
   $('#eBiz').value = r.business; $('#eRem').value = r.remarks;
   $('#bizTypeList').innerHTML = BIZ_TYPES.map(t => '<option value="' + esc(t) + '">').join('');
   const hm = /(\d{2}:\d{2}) ?- ?(\d{2}:\d{2})/.exec(r.hours || ''); $('#eOpen').value = hm ? hm[1] : ''; $('#eClose').value = hm ? hm[2] : '';
-  $('#prodTypeList').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">').join(''); $('#eProd').value = r.ptype || ''; $('#eCommune').value = r.commune || '';
+  $('#prodTypeList').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">').join(''); $('#eProd').value = r.ptype || ''; $('#eCommune').value = r.commune || ''; $('#eZone').value = r.zone || '';
   $('#eBType').value = r.btype || ''; $('#eGroup').value = r.group || '';
   { const d0 = actDef(r.type, r.activity); renderCustom($('#eCustom'), d0); const mp = {}; String(r.extra || '').split(' | ').forEach(x => { const i = x.indexOf(': '); if (i > 0) mp[x.slice(0, i)] = x.slice(i + 2); }); ((d0 && d0.custom) || []).forEach(f => { const el = $('[data-fid="' + f.id + '"]', $('#eCustom')); if (el && mp[f.label] != null) setCustomVal(el, mp[f.label]); }); }
   $('#ePhone').value = r.phone || ''; $('#eTag').value = r.tag || ''; $('#eSerial').value = r.serial || ''; $('#eOldSn').value = r.oldSn || ''; $('#eNewSn').value = r.newSn || '';
@@ -2107,7 +2276,7 @@ $('#editForm').addEventListener('submit', async e => {
       stamp: $('#eStamp').value, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
       mid: $('#eMid').value.trim(), tid: $('#eTid').value.trim(), business: $('#eBiz').value.trim(), remarks: $('#eRem').value.trim(),
       extra: Object.fromEntries($$('#eCustom [data-fid]').map(i => [i.dataset.fid, customVal(i)])), btype: $('#eBType').value.trim(), group: $('#eGroup').value.trim(), hours: $('#eOpen').value && $('#eClose').value ? $('#eOpen').value + ' - ' + $('#eClose').value : '',
-      ptype: $('#eProd').value.trim(), commune: $('#eCommune').value.trim(), serial: $('#eSerial').value.trim(), phone: $('#ePhone').value.trim(), tag: $('#eTag').value.trim(), oldSn: $('#eOldSn').value.trim(), newSn: $('#eNewSn').value.trim()
+      ptype: $('#eProd').value.trim(), commune: $('#eCommune').value.trim(), zone: $('#eZone').value.trim(), serial: $('#eSerial').value.trim(), phone: $('#ePhone').value.trim(), tag: $('#eTag').value.trim(), oldSn: $('#eOldSn').value.trim(), newSn: $('#eNewSn').value.trim()
     });
     S.today = (S.today || []).map(x => x.stamp === r.record.stamp ? r.record : x); renderLast(); editModal.hide();
     toast('Saved. Telegram: ' + r.telegram, r.telegram === 'updated' ? 'success' : 'warning');
