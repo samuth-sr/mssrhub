@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Installs">
   <meta name="theme-color" content="#4f46e5">
-  <title>Welocome to Merchant Support SR HUB</title>
+  <title>Wellcome to Merchant Support SR HUB</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -294,6 +294,13 @@
 
     <!-- USERS (admin) -->
     <section id="pane-users" class="hidden">
+       <div class="card-x">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-people me-1"></i>Staff</div>
+          <button class="btn btn-brand btn-sm px-3" id="addUserBtn"><i class="bi bi-person-plus me-1"></i>Add</button>
+        </div>
+        <div id="userList"></div>
+      </div>
       <div class="card-x" id="catCard">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="fw-bold"><i class="bi bi-diagram-3 me-1"></i>Categories &amp; activities</div>
@@ -350,21 +357,14 @@
           </div>
         </form>
       </div>
-
-      <div class="card-x">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="fw-bold"><i class="bi bi-people me-1"></i>Staff</div>
-          <button class="btn btn-brand btn-sm px-3" id="addUserBtn"><i class="bi bi-person-plus me-1"></i>Add</button>
-        </div>
-        <div id="userList"></div>
-      </div>
+     
     </section>
   </main>
 
   <nav class="bottom-nav">
     <button data-tab="new" class="active"><i class="bi bi-plus-circle-fill"></i>New</button>
     <button data-tab="records"><i class="bi bi-table"></i>Records</button>
-    <button data-tab="users" id="navUsers" class="hidden"><i class="bi bi-people-fill"></i>Staff</button>
+    <button data-tab="users" id="navUsers" class="hidden"><i class="bi bi-people-fill"></i>Administator</button>
   </nav>
 </div>
 
@@ -648,7 +648,7 @@ const typeDef = n => CATALOG.find(t => t.name === n) || null;
 const actDef = (t, a) => { const d = typeDef(t); return d ? (d.acts.find(x => x.n === a) || null) : null; };
 const isInstall = (t, a) => { const d = actDef(t, a); return d ? !!d.inst : (a === 'Installation' || a === 'New Install'); };
 const dateLabel = (a, t) => !a ? 'Installed / action date' : (isInstall(t || curType, a) ? 'Installed date' : 'Action date');
-const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
+const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart','Groccery store','Health and Fitness','Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
 const TAB_ICONS = { 'QR': 'bi-qr-code', 'POS': 'bi-credit-card-2-front', 'SB': 'bi-speaker', 'Payway Inspection': 'bi-clipboard2-check' };
 const shortName = n => n === 'Payway Inspection' ? 'Payway' : n;
 let curType = (function () { try { return localStorage.getItem('it_type') || 'QR'; } catch (e) { return 'QR'; } })();
