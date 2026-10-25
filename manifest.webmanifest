@@ -1,6 +1,6 @@
 {
-  "name": "Installation Tracker",
-  "short_name": "Installs",
+  "name": "MS SR HUB ACTIVITIES",
+  "short_name": "MS SR WEB APP",
   "description": "Record and track merchant installations.",
   "start_url": "./",
   "scope": "./",
