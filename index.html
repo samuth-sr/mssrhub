@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Installs">
   <meta name="theme-color" content="#4f46e5">
-  <title>Welcome to Merchant Support SR HUB</title>
+ <title>Welcome to Merchant Support SR HUB</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -187,7 +187,7 @@
   <form class="login-card fade-in" id="loginForm" autocomplete="on">
     <button class="theme-btn login-theme theme-toggle" type="button" title="Light / dark mode" style="background:#eef2ff;color:#4f46e5"><i class="bi bi-moon-stars-fill"></i></button>
     <div class="logo"><i class="bi bi-tools"></i></div>
-    <h4 class="text-center fw-bold mb-1">>Merchant Support SR HUB Activities Records</h4>
+    <h4 class="text-center fw-bold mb-1">Merchant Support SR HUB Activities Records</h4>
     <p class="text-center text-muted mb-4">Sign in to continue</p>
 
     <label class="form-label">Staff ID</label>
@@ -207,7 +207,7 @@
   <header class="topbar">
     <div class="d-flex justify-content-between align-items-center" style="max-width:880px;margin:0 auto">
       <div>
-        <div class="title fs-5"><i class="bi bi-tools me-2"></i>Activities</div>
+        <div class="title fs-5"><i class="bi bi-tools me-2"></i>MS SR HUB WEB APP</div>
         <button type="button" class="chip mt-2" id="whoBtn" title="Change my PIN"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span><i class="bi bi-key ms-1"></i></button>
       </div>
       <div class="d-flex gap-2">
@@ -681,7 +681,7 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.code) o.code = String(a.code).toUpperCase();
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.code) o.code = String(a.code).toUpperCase(); if (a.sub) o.sub = a.sub; if (a.tg) o.tg = a.tg;
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); });
   if (Array.isArray(a.custom) && a.custom.length) o.custom = a.custom;
   return o;
@@ -694,7 +694,7 @@ const typeDef = n => CATALOG.find(t => t.name === n) || null;
 const actDef = (t, a) => { const d = typeDef(t); return d ? (d.acts.find(x => x.n === a) || null) : null; };
 const isInstall = (t, a) => { const d = actDef(t, a); return d ? !!d.inst : (a === 'Installation' || a === 'New Install'); };
 const dateLabel = (a, t) => !a ? 'Installed / action date' : (isInstall(t || curType, a) ? 'Installed date' : 'Action date');
-const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
+const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart','Groccery store','Health and Fitness','Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
 const TAB_ICONS = { 'QR': 'bi-qr-code', 'POS': 'bi-credit-card-2-front', 'SB': 'bi-speaker', 'Payway Inspection': 'bi-clipboard2-check' };
 const shortName = n => n === 'Payway Inspection' ? 'Payway' : n;
 let curType = (function () { try { return localStorage.getItem('it_type') || 'QR'; } catch (e) { return 'QR'; } })();
@@ -715,8 +715,12 @@ function setCatalog(c) {
 (function () { let c = null; try { c = JSON.parse(localStorage.getItem('it_catalog')); } catch (e) {} setCatalog(c); })();
 
 /** Rebuilds a card's activity buttons for the current tab (keeps the choice if still valid). */
+/** Linked mode: once an activity is linked to a sub category, each sub category (and "General") shows only its own activities. */
+const isLinked = t => !!(t && t.subs && t.subs.length && t.acts.some(a => a.sub));
+const actsFor = type => { const t = typeDef(type); return !t ? [] : isLinked(t) ? t.acts.filter(a => (a.sub || '') === (S.sub || '')).map(a => a.n) : t.acts.map(a => a.n); };
+const actKey = () => curType + (isLinked(typeDef(curType)) ? '|' + (S.sub || '') : '');
 function fillActivities(card) {
-  const list = ACTIVITIES[curType] || [], keep = $('.f-act', card.el).value, single = list.length === 1;
+  const list = actsFor(curType), keep = $('.f-act', card.el).value, single = list.length === 1;
   $('.act-chips', card.el).innerHTML = list.map(a => '<button type="button" class="chip" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('');
   show($('.act-wrap', card.el), !single);
   setAct(card, list.includes(keep) ? keep : (single ? list[0] : startAct(card, list)));
@@ -726,26 +730,36 @@ const lastActs = (() => { try { return JSON.parse(localStorage.getItem('it_last_
 function startAct(card, list) {
   const first = S.cards[0];
   if (first && first !== card) { if (card.own) return ''; const v = $('.f-act', first.el).value; return list.includes(v) ? v : ''; }
-  return list.includes(lastActs[curType]) ? lastActs[curType] : '';
+  return list.includes(lastActs[actKey()]) ? lastActs[actKey()] : '';
 }
 function followFirst() {
   const first = S.cards[0]; if (!first) return;
-  const v = $('.f-act', first.el).value, list = ACTIVITIES[curType] || [];
+  const v = $('.f-act', first.el).value, list = actsFor(curType);
   S.cards.slice(1).forEach(c => { if (!c.own && list.includes(v) && $('.f-act', c.el).value !== v) setAct(c, v); });
 }
 /* Sub category (QR: Installation, Refreshment ...): one choice for the whole submit, remembered for next time. */
 const lastSubs = (() => { try { return JSON.parse(localStorage.getItem('it_last_sub') || '{}') || {}; } catch (e) { return {}; } })();
-function fillSubs() {
-  const subs = (typeDef(curType) || {}).subs || [];
-  show($('#subWrap'), subs.length > 0);
-  if (!subs.some(s => s.n === S.sub)) S.sub = (subs.find(s => s.n === lastSubs[curType]) || {}).n || '';
-  $('#subChips').innerHTML = subs.map(s => '<button type="button" class="chip' + (s.n === S.sub ? ' active' : '') + '" data-s="' + esc(s.n) + '">' + esc(s.n) + ' <span class="opacity-75">(' + esc(s.code) + ')</span></button>').join('');
+function subOptions() {
+  const t = typeDef(curType) || {}, subs = t.subs || [], o = subs.map(s => ({ n: s.n, label: s.n + ' (' + s.code + ')' }));
+  if (isLinked(t) && t.acts.some(a => !a.sub)) o.push({ n: '', label: 'General' });
+  return o;
 }
-$('#subChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.sub = b.dataset.s; $$('#subChips .chip').forEach(x => x.classList.toggle('active', x === b)); });
+const sessSubs = {};      // linked categories: the sub category used earlier in this visit (a fresh visit starts on the stand-alone activities)
+function fillSubs() {
+  const t = typeDef(curType) || {}, opts = subOptions();
+  show($('#subWrap'), (t.subs || []).length > 0);
+  if (!opts.some(o => o.n === S.sub)) { const lk = isLinked(t), r = lk ? sessSubs[curType] : lastSubs[curType]; S.sub = opts.some(o => o.n === r) ? r : (lk && opts.length ? (opts.some(o => o.n === '') ? '' : opts[0].n) : null); }
+  $('#subChips').innerHTML = opts.map(o => '<button type="button" class="chip' + (o.n === S.sub ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.label) + '</button>').join('');
+}
+$('#subChips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return; S.sub = b.dataset.s;
+  $$('#subChips .chip').forEach(x => x.classList.toggle('active', x === b));
+  if (isLinked(typeDef(curType))) { S.cards.forEach(fillActivities); followFirst(); }
+});
 /* Tag and Zone/Area stay filled after a submit (they rarely change within a day). */
 const keep = (() => { try { return JSON.parse(localStorage.getItem('it_keep') || '{}') || {}; } catch (e) { return {}; } })();
 function rememberAct(a) {
-  lastActs[curType] = a; if (S.sub) lastSubs[curType] = S.sub;
+  lastActs[actKey()] = a; if (S.sub != null) { lastSubs[curType] = S.sub; sessSubs[curType] = S.sub; }
   try { localStorage.setItem('it_last_act', JSON.stringify(lastActs)); localStorage.setItem('it_last_sub', JSON.stringify(lastSubs)); localStorage.setItem('it_keep', JSON.stringify(keep)); } catch (e) {}
 }
 /** Product type buttons come from the category names (QR, POS, SB ...). */
@@ -851,13 +865,13 @@ function setType(t) {
   try { localStorage.setItem('it_type', t); } catch (e) {}
   $$('#typeTabs button').forEach(b => b.classList.toggle('active', b.dataset.type === t));
   $$('.ty').forEach(el => { el.textContent = t; });
-  S.cards.forEach(applyType); fillSubs();
+  fillSubs(); S.cards.forEach(applyType);
   const sb = $('#submitBtn');
   if (sb && !sb.disabled) sb.innerHTML = '<i class="bi bi-send me-1"></i>Submit ' + t + ' records';
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbyoDWRf7bGWfedw0Pug7D9aHMI4S-Y_oJb2xZ4dJAedG_UB0xT1syRmdM3PNFYSbBo0/exec';
+const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
 
 async function api(fn, ...args) {
   let json;
@@ -1577,7 +1591,7 @@ function renderPhotos(card) {
 /* ---- submit ---- */
 $('#submitBtn').addEventListener('click', async () => {
   const items = [], keepNew = {};
-  if (((typeDef(curType) || {}).subs || []).length && !S.sub) { toast('Select the sub category.', 'danger'); $('#subWrap').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  if (((typeDef(curType) || {}).subs || []).length && S.sub == null) { toast('Select the sub category.', 'danger'); $('#subWrap').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
   for (let i = 0; i < S.cards.length; i++) {
     const c = S.cards[i], g = s => $(s, c.el).value.trim();
     const bad = (m, sel) => { toast('Merchant ' + (i + 1) + ': ' + m, 'danger'); if (sel) $(sel, c.el).focus(); c.el.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
@@ -1707,7 +1721,7 @@ function renderRows() {
   $('#recCount').textContent = rows.length;
   $('#recBody').innerHTML = rows.length ? rows.map(r =>
     '<tr><td><span class="pill">' + esc(r.type) + '</span></td><td>' + esc(r.activity) + '</td><td class="text-nowrap small">' + esc(r.stamp) +
-    '</td><td class="text-nowrap">' + esc(r.date || r.ts.slice(0, 10)) + '</td><td><span class="pill">' + esc(r.user) + '</span></td><td class="fw-semibold">' + esc(r.merchant) +
+    '</td><td class="text-nowrap">' + esc(fmtD(r.date || r.ts)) + '</td><td><span class="pill">' + esc(r.user) + '</span></td><td class="fw-semibold">' + esc(r.merchant) +
     '</td><td class="text-nowrap">' + esc(r.mid) + '</td><td class="text-nowrap">' + esc(r.tid) + '</td><td>' + esc(r.business) + '</td><td>' + esc(r.btype) + '</td><td class="text-nowrap">' + esc(r.hours) + '</td><td>' + esc(r.group) + '</td><td>' + esc(r.ptype) + '</td><td>' + esc(r.commune) + '</td><td>' + esc(r.zone) + '</td><td>' + esc(r.sub) + '</td><td>' + esc(r.extra) + '</td><td class="text-nowrap">' + esc(r.phone) + '</td><td>' + esc(r.tag) + '</td><td class="text-nowrap">' + esc(r.serial) + '</td><td class="text-nowrap">' + esc(r.oldSn) + '</td><td class="text-nowrap">' + esc(r.newSn) + '</td><td>' + esc(r.remarks) + '</td><td>' + locLink(r.loc) + '</td><td>' + (r.photos || '') + '</td></tr>'
   ).join('') : '<tr><td colspan="25"><div class="empty"><i class="bi bi-inbox"></i>No records for this filter</div></td></tr>';
 }
@@ -1718,6 +1732,8 @@ const SLOT_DARK = ['#3987e5', '#d95926', '#199e70', '#c98500', '#9b73dd', '#e057
 const catColor = (t, dark) => (dark ? SLOT_DARK : SLOT_LIGHT)[Math.max(0, TYPES.indexOf(t)) % 12];
 const slotColor = (i, dark) => (dark ? SLOT_DARK : SLOT_LIGHT)[i % 12];
 const fmtD = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); return m ? m[3] + '-' + MON[+m[2] - 1] + '-' + m[1] : ''; };
+/** 26-Oct-2026 05:58:12 from the stored 2026-10-26 05:58:12 */
+const fmtTs = s => { const d = fmtD(s), t = /(\d{2}:\d{2}(?::\d{2})?)\s*$/.exec(String(s || '')); return d + (t ? ' ' + t[1] : ''); };
 const GROUPS = [{ v: 'act', l: 'Activities' }, { v: 'sub', l: 'Sub categories' }, { v: 'cat', l: 'Categories' }];
 const VIEWS = [{ v: 'total', l: 'Totals' }, { v: 'staff', l: 'By staff' }];
 S.group = 'act'; S.view = 'total'; S.agg = []; S.period = { from: '', to: '' };
@@ -1858,14 +1874,14 @@ $('#fSearch').addEventListener('input', () => { clearTimeout(recTimer); recTimer
 
 /** Header + rows of the records currently shown (same for CSV and Copy). */
 const EXPORT_COLS = [
-  ['Timestamp', r => r.ts], ['Staff', r => r.user], ['Merchant Name', r => r.merchant], ['MID', r => r.mid], ['TID', r => r.tid], ['Business Name', r => r.business],
-  ['Remarks', r => r.remarks], ['Installed/Action Date', r => r.date || r.ts.slice(0, 10)], ['Photos', r => r.photos], ['Category', r => r.type], ['Activity', r => r.activity],
+  ['Timestamp', r => fmtTs(r.ts)], ['Staff', r => r.user], ['Merchant Name', r => r.merchant], ['MID', r => r.mid], ['TID', r => r.tid], ['Business Name', r => r.business],
+  ['Remarks', r => r.remarks], ['Installed/Action Date', r => fmtD(r.date || r.ts)], ['Photos', r => r.photos], ['Category', r => r.type], ['Activity', r => r.activity],
   ['Stamp', r => r.stamp], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Old S/N', r => r.oldSn], ['New S/N', r => r.newSn], ['Location', r => r.loc],
   ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Business Type', r => r.btype], ['Extra Fields', r => r.extra], ['Serial No', r => r.serial],
   ['Product Type', r => r.ptype], ['Commune', r => r.commune], ['Zone/Area', r => r.zone], ['Sub Category', r => r.sub]
 ];
 /** The important columns for a KPI update, in this order. */
-const KPI_COLS = ['Category', 'Merchant Name', 'MID', 'Installed/Action Date'];
+const KPI_COLS = ['Category', 'Sub Category', 'Activity', 'MID', 'Merchant Name', 'Installed/Action Date'];
 /** Position of a record's category + activity in the admin's list (unknown ones go last). */
 function activityRank(r) {
   let n = 0;
@@ -2010,7 +2026,7 @@ async function tplPreview() {
 async function loadTemplate() {
   try {
     const t = await api('getTelegramTemplate', S.token);
-    tplDefault = t.defaultTemplate; $('#tplText').value = t.template;
+    S.tgPlaceholders = t.placeholders; tplDefault = t.defaultTemplate; $('#tplText').value = t.template;
     $('#tplStatus').textContent = t.isDefault ? 'Default' : 'Custom';
     $('#tplChips').innerHTML = t.placeholders.map(k => '<button type="button" class="chip" data-k="' + esc(k) + '">{' + esc(k) + '}</button>').join('');
     tplPreview();
@@ -2076,7 +2092,13 @@ function renderCatEditor() {
         '<div class="mb-3 pb-2 border-bottom" data-ai="' + ai + '"><div class="d-flex gap-2 mb-1"><input class="form-control form-control-sm a-name" maxlength="40" placeholder="Activity" value="' + esc(a.n) + '"><input class="form-control form-control-sm a-code" maxlength="4" placeholder="Code" title="Optional code added to the stamp" style="max-width:76px" value="' + esc(a.code || '') + '">' +
         '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-del" aria-label="Remove activity"><i class="bi bi-x-lg"></i></button></div>' +
         '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button></div>' +
+        ((t.subs || []).length ? '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Sub category</span><select class="form-select form-select-sm a-sub" style="max-width:220px"><option value="">None (stands alone)</option>' + t.subs.filter(s => s.n).map(s => '<option value="' + esc(s.n) + '"' + (a.sub === s.n ? ' selected' : '') + '>' + esc(s.n) + '</option>').join('') + '</select></div>' : '') +
         fieldRows(a) +
+        '<details class="mt-2 a-tgbox"' + (a.tg ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Telegram message <span class="text-muted fw-normal">(' + (a.tg ? 'own message' : 'standard message') + ')</span></summary>' +
+          '<textarea class="form-control form-control-sm a-tg mt-2" rows="6" spellcheck="false" placeholder="Leave empty to use the standard message (Telegram message box below). Example:&#10;🛠 <b>{title}</b>&#10;🧾 {merchant} · MID {mid}">' + esc(a.tg || '') + '</textarea>' +
+          '<div class="chips mt-2 a-tgchips">' + (S.tgPlaceholders || []).map(k => '<button type="button" class="chip a-tgk" data-k="' + esc(k) + '">{' + esc(k) + '}</button>').join('') + '</div>' +
+          '<div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-soft btn-sm a-tgprev">Preview</button><button type="button" class="btn btn-soft btn-sm a-tgclear">Use standard</button></div>' +
+          '<div class="small mt-2 a-tgout hidden" style="white-space:pre-wrap"></div></details>' +
         '<div class="small text-muted mt-2">Extra boxes</div>' +
         (a.custom || []).map((f, ci) =>
           '<div class="d-flex gap-1 mb-1 align-items-center" data-ci="' + ci + '"><input class="form-control form-control-sm cf-label" maxlength="30" placeholder="Box name" value="' + esc(f.label) + '">' +
@@ -2097,22 +2119,31 @@ $('#catList').addEventListener('input', e => {
   if (e.target.classList.contains('c-name')) t.name = e.target.value;
   else if (e.target.classList.contains('c-code')) t.code = e.target.value.toUpperCase();
   else if (e.target.classList.contains('a-name')) t.acts[+e.target.closest('[data-ai]').dataset.ai].n = e.target.value;
+  else if (e.target.classList.contains('a-tg')) t.acts[+e.target.closest('[data-ai]').dataset.ai].tg = e.target.value;
   else if (e.target.classList.contains('a-code')) t.acts[+e.target.closest('[data-ai]').dataset.ai].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  else if (e.target.classList.contains('s-name')) t.subs[+e.target.closest('[data-si]').dataset.si].n = e.target.value;
+  else if (e.target.classList.contains('s-name')) { const s = t.subs[+e.target.closest('[data-si]').dataset.si], old = s.n; s.n = e.target.value; t.acts.forEach(a => { if (a.sub === old) a.sub = s.n; }); }
   else if (e.target.classList.contains('s-code')) t.subs[+e.target.closest('[data-si]').dataset.si].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   else if (/\bcf-(min|max|step)\b/.test(e.target.className)) { const f = t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f[/cf-(min|max|step)/.exec(e.target.className)[1]] = e.target.value === '' ? '' : +e.target.value; }
   else if (e.target.classList.contains('cf-opts')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.dataset.ci].opts = e.target.value.split(',').map(x => x.trim()).filter(Boolean);
   else if (e.target.classList.contains('cf-label')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].label = e.target.value;
 });
 $('#catList').addEventListener('change', e => {
+  if (e.target.classList.contains('a-sub')) { catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].sub = e.target.value; return; }
   if (e.target.classList.contains('cf-kind')) { const f = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.kind = e.target.value; if (f.kind === 'spin') { if (f.min == null) f.min = 0; if (f.max == null) f.max = 100; if (!f.step) f.step = 1; } renderCatEditor(); }
 });
 $('#catList').addEventListener('click', e => {
   const box = e.target.closest('[data-ti]'); if (!box) return; const ti = +box.dataset.ti, t = catDraft[ti];
   const ab = e.target.closest('[data-ai]'), ai = ab ? +ab.dataset.ai : -1;
   if (e.target.closest('.c-del')) { catDraft.splice(ti, 1); renderCatEditor(); }
+  else if (e.target.closest('.a-tgk')) { const ta = $('.a-tg', ab), k = '{' + e.target.closest('.a-tgk').dataset.k + '}', p = ta.selectionStart == null ? ta.value.length : ta.selectionStart; ta.value = ta.value.slice(0, p) + k + ta.value.slice(ta.selectionEnd == null ? p : ta.selectionEnd); t.acts[ai].tg = ta.value; ta.focus(); ta.selectionStart = ta.selectionEnd = p + k.length; }
+  else if (e.target.closest('.a-tgclear')) { t.acts[ai].tg = ''; renderCatEditor(); }
+  else if (e.target.closest('.a-tgprev')) {
+    const out = $('.a-tgout', ab), txt = $('.a-tg', ab).value.trim();
+    if (!txt) { out.textContent = 'This activity uses the standard message.'; show(out, true); return; }
+    api('previewTelegramTemplate', S.token, txt).then(r => { out.innerHTML = r; show(out, true); }).catch(ex => { out.textContent = ex.message; show(out, true); });
+  }
   else if (e.target.closest('.s-add')) { t.subs = t.subs || []; if (t.subs.length >= 12) { toast('At most 12 sub categories.', 'warning'); return; } t.subs.push({ n: '', code: '' }); renderCatEditor(); }
-  else if (e.target.closest('.s-del')) { t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1); renderCatEditor(); }
+  else if (e.target.closest('.s-del')) { const gone = t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1)[0]; t.acts.forEach(a => { if (gone && a.sub === gone.n) a.sub = ''; }); renderCatEditor(); }
   else if (e.target.closest('.c-addact')) { t.acts.push(normAct({}, { n: '' })); renderCatEditor(); }
   else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
@@ -2250,7 +2281,7 @@ function openEdit() {
   show($('#eError'), false);
   $('#eCat').textContent = r.type;
   $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + ' · edit ' + ((r.edits || 0) + 1) + ' of ' + S.rules.max;
-  const list = ACTIVITIES[r.type] || [r.activity], single = list.length === 1;
+  const rt = typeDef(r.type), list = rt && isLinked(rt) ? rt.acts.filter(a => (a.sub || '') === (r.sub || '')).map(a => a.n) : (ACTIVITIES[r.type] || [r.activity]), single = list.length === 1;
   $('#eAct').innerHTML = (single ? '' : '<option value="">Select activity…</option>') + list.map(a => '<option>' + esc(a) + '</option>').join('');
   $('#eAct').value = list.includes(r.activity) ? r.activity : (single ? list[0] : '');
   show($('#eActWrap'), !single);
