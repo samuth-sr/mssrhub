@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Installs">
   <meta name="theme-color" content="#4f46e5">
- <title>Welcome to Merchant Support SR HUB</title>
+  <title>Welcome to Merchant Support SR HUB</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -109,6 +109,12 @@
     .seg.fit.stack button { flex-direction: column; gap: 2px; padding: 8px 2px; line-height: 1.15; text-align: center; }
     .seg.fit.stack button i { font-size: 1.1em; }
     .seg.fit .tl { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+    .sub-lab { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 4px 5px; }
+    .seg.seg-sub { display: grid; grid-template-columns: repeat(var(--sc, 3), minmax(0, 1fr)); gap: 3px; padding: 3px; border-radius: 12px; margin-bottom: 12px; box-shadow: none; background: rgba(79,70,229,.07); border-color: rgba(79,70,229,.1); }
+    .seg.seg-sub button { font-size: .74rem; font-weight: 600; padding: 7px 8px; border-radius: 9px; line-height: 1.15; text-align: center; white-space: normal; }
+    .seg.seg-sub button .sc { font-size: .9em; opacity: .7; font-weight: 500; margin-left: 2px; }
+    .seg.seg-sub button.active { background: #fff; color: var(--brand); box-shadow: 0 1px 4px rgba(79,70,229,.25); font-weight: 700; }
+    [data-theme="dark"] .seg.seg-sub button.active { background: var(--brand); color: #fff; }
     .seg button.active { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; box-shadow: 0 4px 12px rgba(79,70,229,.3); }
 
     /* Bottom nav */
@@ -146,6 +152,13 @@
     .logo { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; font-size: 1.9rem; color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-2)); margin: 0 auto 14px; }
 
     /* Scan modal */
+    .scan-box { position: relative; }
+    .scan-frame { position: absolute; left: 8%; right: 8%; top: 50%; height: 34%; transform: translateY(-50%); border: 2px solid rgba(255,255,255,.9); border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0,0,0,.35); pointer-events: none; }
+    .scan-frame.qr { left: 18%; right: 18%; height: 64%; }
+    .scan-frame::after { content: ''; position: absolute; left: 6%; right: 6%; top: 50%; height: 2px; background: rgba(239,68,68,.85); animation: scanline 1.6s ease-in-out infinite alternate; }
+    @keyframes scanline { from { top: 18%; } to { top: 82%; } }
+    .scan-tools { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .scan-tools input[type=range] { flex: 1; }
     #scanVideo { width: 100%; border-radius: 16px; background: #000; max-height: 60vh; object-fit: cover; }
 
     .toast-container { z-index: 2000; }
@@ -237,7 +250,7 @@
     <!-- NEW -->
     <section id="pane-new" class="fade-in">
       <div class="seg" id="typeTabs" role="tablist"></div>
-      <div id="subWrap" class="card-x p-3 mb-3 hidden"><label class="form-label mb-2">Sub category <span class="rq">*</span></label><div class="chips" id="subChips"></div></div>
+      <div id="subWrap" class="hidden"><div class="seg seg-sub" aria-label="Sub category" id="subChips" role="tablist"></div></div>
       <div id="merchantList"></div>
 
       <div class="card-x" id="locCard">
@@ -274,6 +287,7 @@
           <div class="col-6" id="fToWrap"><label class="form-label">To</label><input type="date" id="fTo" class="form-control"></div>
         </div>
         <div class="mb-3"><div class="form-label">Category</div><div class="chips" id="slType"></div><input type="hidden" id="fType" value=""></div>
+        <div class="mb-3 hidden" id="subFilterWrap"><div class="form-label">Sub category</div><div class="chips" id="slSub"></div><input type="hidden" id="fSub" value=""></div>
         <div class="mb-3"><div class="form-label">Activity</div><div class="chips" id="slActivity"></div><input type="hidden" id="fActivity" value=""></div>
         <input id="fSearch" class="form-control" placeholder="Search merchant, MID, TID, phone, remarks…">
       </div>
@@ -288,17 +302,19 @@
         <div class="hidden" id="dashCtl">
           <div class="d-flex flex-wrap gap-3 mb-3">
             <div><div class="form-label mb-1">Group by</div><div class="chips" id="slGroup"></div></div>
-            <div><div class="form-label mb-1">View</div><div class="chips" id="slView"></div></div>
+            <div id="viewWrap"><div class="form-label mb-1">View</div><div class="chips" id="slView"></div></div>
+            <div><div class="form-label mb-1">Columns</div><div class="chips" id="slZero"></div></div>
           </div>
         </div>
         <div style="overflow-x:auto"><div id="chartInner" style="height:320px"><canvas id="chart" role="img" aria-label="Records grouped by activity, sub category or category"></canvas></div></div>
-        <div class="small text-muted mt-2 hidden" id="chartNote"></div>
+        <div class="small mt-2 fw-semibold" id="chartWho"></div>
+        <div class="small text-muted mt-1 hidden" id="chartNote"></div>
       </div>
 
       <div class="card-x p-0 overflow-hidden">
         <div class="d-flex justify-content-between align-items-center p-3 pb-2">
           <div><span class="fw-bold">Records</span> <span class="pill ms-1" id="recCount">0</span></div>
-          <div class="d-flex gap-2"><button class="btn btn-soft btn-sm" id="copyKpiBtn" title="Copy only the important columns, in activity order, for a KPI update"><i class="bi bi-clipboard-data me-1"></i>Copy KPI</button><button class="btn btn-soft btn-sm" id="copyBtn" title="Copy every column"><i class="bi bi-clipboard me-1"></i>Copy all</button><button class="btn btn-soft btn-sm" id="csvBtn"><i class="bi bi-download me-1"></i>CSV</button></div>
+          <div class="d-flex gap-2"><button class="btn btn-soft btn-sm" id="copyKpiBtn" title="Copy only the important columns, in activity order, for a KPI update"><i class="bi bi-clipboard-data me-1"></i>Copy KPI</button><button class="btn btn-soft btn-sm" id="copyTgBtn" title="Copy the KPI table as text that looks like a table in a Telegram message"><i class="bi bi-telegram me-1"></i>Telegram</button><button class="btn btn-soft btn-sm" id="copyBtn" title="Copy every column"><i class="bi bi-clipboard me-1"></i>Copy all</button><button class="btn btn-soft btn-sm" id="csvBtn"><i class="bi bi-download me-1"></i>CSV</button></div>
         </div>
         <div class="table-responsive">
           <table class="table table-hover mb-0">
@@ -394,7 +410,11 @@
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <video id="scanVideo" playsinline muted></video>
+        <div class="scan-box"><video id="scanVideo" playsinline muted></video><div class="scan-frame" id="scanFrame"></div></div>
+        <div class="scan-tools hidden" id="scanTools">
+          <button type="button" class="btn btn-soft btn-sm hidden" id="scanTorch" aria-pressed="false"><i class="bi bi-lightning-charge me-1"></i>Light</button>
+          <div class="d-flex align-items-center gap-2 flex-grow-1 hidden" id="scanZoomWrap"><i class="bi bi-zoom-in" aria-hidden="true"></i><input type="range" id="scanZoom" aria-label="Zoom"></div>
+        </div>
         <div id="scanError" class="alert alert-warning small mt-3 mb-0 hidden"></div>
         <p class="text-muted small mt-2 mb-0" id="scanHelp">Point the camera at the merchant QR. If the camera is blocked, close this and use <b>Upload</b>.</p>
         <label class="btn btn-soft btn-sm mt-2 mb-0 hidden" id="snFileWrap"><i class="bi bi-image me-1"></i>Read from a photo<input type="file" accept="image/*" id="snFile" hidden></label>
@@ -686,7 +706,7 @@ function normAct(cat, a) {
   if (Array.isArray(a.custom) && a.custom.length) o.custom = a.custom;
   return o;
 }
-const normCat = list => list.map(t => ({ name: t.name, code: t.code, subs: (Array.isArray(t.subs) ? t.subs : (t.subs === undefined && (DEFAULT_CATALOG.find(d => d.name === t.name) || {}).subs) || []).map(s => ({ n: s.n, code: s.code })), acts: (t.acts || []).map(a => normAct(t, a)) }));
+const normCat = list => list.map(t => ({ name: t.name, code: t.code, icon: /^[a-z0-9-]{1,30}$/.test(String(t.icon || '')) ? t.icon : '', subs: (Array.isArray(t.subs) ? t.subs : (t.subs === undefined && (DEFAULT_CATALOG.find(d => d.name === t.name) || {}).subs) || []).map(s => ({ n: s.n, code: s.code })), acts: (t.acts || []).map(a => normAct(t, a)) }));
 const lvl = (d, k) => (d && d.f && d.f[k]) || 0;
 const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
@@ -696,8 +716,12 @@ const isInstall = (t, a) => { const d = actDef(t, a); return d ? !!d.inst : (a =
 const dateLabel = (a, t) => !a ? 'Installed / action date' : (isInstall(t || curType, a) ? 'Installed date' : 'Action date');
 const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart','Groccery store','Health and Fitness','Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
 const TAB_ICONS = { 'QR': 'bi-qr-code', 'POS': 'bi-credit-card-2-front', 'SB': 'bi-speaker', 'Payway Inspection': 'bi-clipboard2-check' };
+const CAT_ICONS = ['qr-code', 'credit-card-2-front', 'speaker', 'clipboard2-check', 'grid', 'shop', 'bag', 'box-seam', 'cart', 'wallet2', 'phone', 'tools', 'wrench', 'house-door', 'building', 'geo-alt', 'truck', 'star', 'heart', 'lightning', 'cup-hot', 'lamp', 'tag', 'person-badge', 'gift', 'printer', 'wifi', 'cash-coin', 'patch-check', 'calendar-check'];
+const iconOf = n => { const d = CATALOG.find(t => t.name === n); return d && d.icon ? 'bi-' + d.icon : (TAB_ICONS[n] || 'bi-grid'); };
 const shortName = n => n === 'Payway Inspection' ? 'Payway' : n;
 let curType = (function () { try { return localStorage.getItem('it_type') || 'QR'; } catch (e) { return 'QR'; } })();
+const SUB_NONE = '__none__';      // report filter value: records without a sub category
+function actInSub(t, a, fs) { return !fs || !isLinked(t) || (fs === SUB_NONE ? !a.sub : a.sub === fs); }
 function setCatalog(c) {
   if (!Array.isArray(c) || !c.length) c = DEFAULT_CATALOG;
   c = normCat(c);
@@ -707,16 +731,16 @@ function setCatalog(c) {
   const tabs = $('#typeTabs');
   tabs.classList.remove('scroll'); tabs.classList.add('fit'); tabs.classList.toggle('stack', TYPES.length > 4);
   tabs.style.setProperty('--tf', TYPES.length <= 4 ? '.92rem' : TYPES.length <= 5 ? '.76rem' : TYPES.length <= 7 ? '.68rem' : '.6rem');
-  tabs.innerHTML = TYPES.map(t => '<button type="button" data-type="' + esc(t) + '"><i class="bi ' + (TAB_ICONS[t] || 'bi-grid') + '"></i><span class="tl">' + esc(shortName(t)) + '</span></button>').join('');
+  tabs.innerHTML = TYPES.map(t => '<button type="button" data-type="' + esc(t) + '"><i class="bi ' + iconOf(t) + '"></i><span class="tl">' + esc(shortName(t)) + '</span></button>').join('');
   $$('#typeTabs button').forEach(b => b.classList.toggle('active', b.dataset.type === curType));
-  if (typeof fillTypeSlicer === 'function') { fillTypeSlicer(); fillActivityFilter(); }
+  if (typeof fillTypeSlicer === 'function') { fillTypeSlicer(); fillSubFilter(); fillActivityFilter(); }
   try { localStorage.setItem('it_catalog', JSON.stringify(c)); } catch (e) {}
 }
 (function () { let c = null; try { c = JSON.parse(localStorage.getItem('it_catalog')); } catch (e) {} setCatalog(c); })();
 
 /** Rebuilds a card's activity buttons for the current tab (keeps the choice if still valid). */
 /** Linked mode: once an activity is linked to a sub category, each sub category (and "General") shows only its own activities. */
-const isLinked = t => !!(t && t.subs && t.subs.length && t.acts.some(a => a.sub));
+function isLinked(t) { return !!(t && t.subs && t.subs.length && t.acts.some(a => a.sub)); }
 const actsFor = type => { const t = typeDef(type); return !t ? [] : isLinked(t) ? t.acts.filter(a => (a.sub || '') === (S.sub || '')).map(a => a.n) : t.acts.map(a => a.n); };
 const actKey = () => curType + (isLinked(typeDef(curType)) ? '|' + (S.sub || '') : '');
 function fillActivities(card) {
@@ -740,8 +764,8 @@ function followFirst() {
 /* Sub category (QR: Installation, Refreshment ...): one choice for the whole submit, remembered for next time. */
 const lastSubs = (() => { try { return JSON.parse(localStorage.getItem('it_last_sub') || '{}') || {}; } catch (e) { return {}; } })();
 function subOptions() {
-  const t = typeDef(curType) || {}, subs = t.subs || [], o = subs.map(s => ({ n: s.n, label: s.n + ' (' + s.code + ')' }));
-  if (isLinked(t) && t.acts.some(a => !a.sub)) o.push({ n: '', label: 'General' });
+  const t = typeDef(curType) || {}, subs = t.subs || [], o = subs.map(s => ({ n: s.n, name: s.n, code: s.code }));
+  if (isLinked(t) && t.acts.some(a => !a.sub)) o.push({ n: '', name: subs.some(s => /^general$/i.test(s.n)) ? 'Other' : 'General', code: '' });      // the stand-alone tab; not "General" when a sub category already has that name
   return o;
 }
 const sessSubs = {};      // linked categories: the sub category used earlier in this visit (a fresh visit starts on the stand-alone activities)
@@ -749,11 +773,12 @@ function fillSubs() {
   const t = typeDef(curType) || {}, opts = subOptions();
   show($('#subWrap'), (t.subs || []).length > 0);
   if (!opts.some(o => o.n === S.sub)) { const lk = isLinked(t), r = lk ? sessSubs[curType] : lastSubs[curType]; S.sub = opts.some(o => o.n === r) ? r : (lk && opts.length ? (opts.some(o => o.n === '') ? '' : opts[0].n) : null); }
-  $('#subChips').innerHTML = opts.map(o => '<button type="button" class="chip' + (o.n === S.sub ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.label) + '</button>').join('');
+  $('#subChips').style.setProperty('--sc', opts.length <= 4 ? Math.max(1, opts.length) : opts.length <= 6 ? 3 : 4);      // equal-width tabs; more than 4 wrap onto a second row
+  $('#subChips').innerHTML = opts.map(o => '<button type="button" class="' + (o.n === S.sub ? 'active' : '') + '" role="tab" aria-selected="' + (o.n === S.sub) + '" data-s="' + esc(o.n) + '">' + esc(o.name) + (o.code ? ' <span class="sc">' + esc(o.code) + '</span>' : '') + '</button>').join('');
 }
 $('#subChips').addEventListener('click', e => {
-  const b = e.target.closest('.chip'); if (!b) return; S.sub = b.dataset.s;
-  $$('#subChips .chip').forEach(x => x.classList.toggle('active', x === b));
+  const b = e.target.closest('button'); if (!b) return; S.sub = b.dataset.s;
+  $$('#subChips button').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-selected', x === b); });
   if (isLinked(typeDef(curType))) { S.cards.forEach(fillActivities); followFirst(); }
 });
 /* Tag and Zone/Area stay filled after a submit (they rarely change within a day). */
@@ -871,7 +896,7 @@ function setType(t) {
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbyoDWRf7bGWfedw0Pug7D9aHMI4S-Y_oJb2xZ4dJAedG_UB0xT1syRmdM3PNFYSbBo0/exec';
+const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
 
 async function api(fn, ...args) {
   let json;
@@ -1058,7 +1083,7 @@ function applyQR(card, text) {
 const scanModal = new bootstrap.Modal($('#scanModal'));
 function scanMode(sn) {
   $('#scanTitle').textContent = sn ? 'Scan barcode / serial number' : 'Scan KHQR';
-  $('#scanHelp').innerHTML = sn ? 'Point the camera at the barcode or QR on the sticker. If the camera is blocked, use <b>Read from a photo</b> or type it.' : 'Point the camera at the merchant QR. If the camera is blocked, close this and use <b>Upload</b>.';
+  $('#scanHelp').innerHTML = sn ? 'Hold the phone 15–20 cm away and keep the barcode inside the frame. Tap <b>Light</b> in the dark, or slide to zoom. If the camera is blocked, use <b>Read from a photo</b> or type it.' : 'Point the camera at the merchant QR. If the camera is blocked, close this and use <b>Upload</b>.';
   show($('#snFileWrap'), !!sn);
 }
 /** Opens the scanner to fill one serial-number box. ret = a modal to come back to afterwards. */
@@ -1072,22 +1097,94 @@ function applySn(text) {
   inp.dispatchEvent(new Event('input', { bubbles: true }));
   scanModal.hide();
 }
+const SN_FORMATS = ['code_128', 'code_39', 'code_93', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'codabar', 'data_matrix', 'qr_code', 'pdf417'];
+/** Camera scanner. Uses the phone's own barcode detector when it has one (fast, reads small / curved stickers), else ZXing with "try harder". HD video, continuous focus, light and zoom where the phone allows. */
 async function startScan() {
-  show($('#scanError'), false);
+  show($('#scanError'), false); show($('#scanTools'), false);
+  const sn = !!S.snInput, video = $('#scanVideo');
+  $('#scanFrame').classList.toggle('qr', !sn);
   try {
-    S.reader = S.snInput ? new ZXing.BrowserMultiFormatReader() : new ZXing.BrowserQRCodeReader();
-    await S.reader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, 'scanVideo', result => {
-      if (!result) return;
-      if (S.snInput) applySn(result.getText());
-      else if (S.scanTarget) { const t = S.scanTarget; scanModal.hide(); applyQR(t, result.getText()); }
-    });
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no camera');
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
+    const track = stream.getVideoTracks()[0], caps = (track && track.getCapabilities && track.getCapabilities()) || {};
+    const sc = S.scan = { stream, track, done: false, timer: null };
+    video.srcObject = stream; await video.play().catch(() => {});
+    try { if (caps.focusMode && caps.focusMode.includes('continuous')) await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+    show($('#scanTorch'), !!caps.torch); $('#scanTorch').classList.remove('active'); $('#scanTorch').setAttribute('aria-pressed', 'false');
+    const z = $('#scanZoom'); show($('#scanZoomWrap'), !!caps.zoom);
+    if (caps.zoom) { z.min = caps.zoom.min; z.max = caps.zoom.max; z.step = caps.zoom.step || 0.1; z.value = caps.zoom.min; }
+    show($('#scanTools'), !!(caps.torch || caps.zoom));
+    const found = text => {
+      text = String(text || '').trim(); if (!text || sc.done) return; sc.done = true;
+      try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+      if (sn) applySn(text);
+      else if (S.scanTarget) { const t = S.scanTarget; scanModal.hide(); applyQR(t, text); }
+    };
+    let det = null;
+    if (window.BarcodeDetector) {
+      try {
+        const sup = BarcodeDetector.getSupportedFormats ? await BarcodeDetector.getSupportedFormats() : SN_FORMATS;
+        const formats = (sn ? SN_FORMATS : ['qr_code']).filter(f => sup.includes(f));
+        if (formats.length) det = new BarcodeDetector({ formats });
+      } catch (e) { det = null; }
+    }
+    if (det) {
+      let busy = false;
+      sc.timer = setInterval(async () => {
+        if (busy || sc.done || video.readyState < 2) return; busy = true;
+        try { const r = await det.detect(video); if (r && r[0]) found(r[0].rawValue); } catch (e) {}
+        busy = false;
+      }, 120);
+    } else {
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      const F = ZXing.BarcodeFormat;
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, sn ? [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR, F.DATA_MATRIX, F.QR_CODE, F.PDF_417] : [F.QR_CODE]);
+      if (sn && ZXing.MultiFormatReader && ZXing.HTMLCanvasElementLuminanceSource && ZXing.HybridBinarizer && ZXing.GlobalHistogramBinarizer && ZXing.BinaryBitmap) {
+        // iPhone / browsers without a built-in detector: read the middle strip of each frame, enlarged, several times a second.
+        // Thin Code 128 bars need many pixels per bar; the strip is much faster and clearer than the whole frame.
+        const mfr = new ZXing.MultiFormatReader(); mfr.setHints(hints);
+        const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+        const passes = [{ y: .25, h: .5, b: 'h' }, { y: .25, h: .5, b: 'g' }, { y: .35, h: .3, b: 'h' }, { y: 0, h: 1, b: 'h' }, { y: .35, h: .3, b: 'g' }];
+        let n = 0, busy = false;
+        const tryPass = ps => {
+          const vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
+          const sy = Math.round(vh * ps.y), sh = Math.round(vh * ps.h), k = Math.min(1.5, 1800 / vw);
+          cv.width = Math.round(vw * k); cv.height = Math.round(sh * k);
+          cx.drawImage(video, 0, sy, vw, sh, 0, 0, cv.width, cv.height);
+          const src = new ZXing.HTMLCanvasElementLuminanceSource(cv);
+          const bin = ps.b === 'g' ? new ZXing.GlobalHistogramBinarizer(src) : new ZXing.HybridBinarizer(src);
+          try { return mfr.decode(new ZXing.BinaryBitmap(bin)).getText(); } catch (e) { return null; }
+        };
+        sc.timer = setInterval(() => {
+          if (busy || sc.done || video.readyState < 2) return; busy = true;
+          try { const t = tryPass(passes[n++ % passes.length]); if (t) found(t); } catch (e) {}
+          busy = false;
+        }, 90);
+      } else {
+        S.reader = sn ? new ZXing.BrowserMultiFormatReader(hints, 80) : new ZXing.BrowserQRCodeReader(hints, 80);
+        await S.reader.decodeFromStream(stream, video, result => { if (result) found(result.getText()); });
+      }
+    }
   } catch (e) {
-    $('#scanError').textContent = S.snInput ? 'Camera is not available here. Close this and type the number instead.' : 'Camera is not available here. Close this and tap Upload instead.';
+    stopCamera();
+    $('#scanError').textContent = S.snInput ? 'Camera is not available here. Close this and type the number, or use Read from a photo.' : 'Camera is not available here. Close this and tap Upload instead.';
     show($('#scanError'), true);
   }
 }
-function stopScan() {
+function stopCamera() {
+  const sc = S.scan; S.scan = null;
+  if (sc) { clearInterval(sc.timer); sc.done = true; try { sc.stream.getTracks().forEach(t => t.stop()); } catch (e) {} }
   try { S.reader && S.reader.reset(); } catch (e) {} S.reader = null;
+  const v = $('#scanVideo'); try { v.pause(); v.srcObject = null; } catch (e) {}
+}
+$('#scanTorch').addEventListener('click', async () => {
+  const sc = S.scan; if (!sc) return; const on = !$('#scanTorch').classList.contains('active');
+  try { await sc.track.applyConstraints({ advanced: [{ torch: on }] }); $('#scanTorch').classList.toggle('active', on); $('#scanTorch').setAttribute('aria-pressed', String(on)); } catch (e) { toast('This phone cannot switch the light from here.', 'warning'); }
+});
+$('#scanZoom').addEventListener('input', async e => { const sc = S.scan; if (sc) { try { await sc.track.applyConstraints({ advanced: [{ zoom: +e.target.value }] }); } catch (er) {} } });
+function stopScan() {
+  stopCamera();
   S.snInput = null;
   if (S.scanReturn) { const r = S.scanReturn; S.scanReturn = null; setTimeout(() => r.show(), 200); }
 }
@@ -1098,9 +1195,15 @@ $('#snFile').addEventListener('change', async e => {
   let text = null, loaded = null;
   try {
     loaded = await loadImage(f);
-    const rd = new ZXing.BrowserMultiFormatReader();
+    if (window.BarcodeDetector) {      // the phone's own detector first: best on small or curved stickers
+      try { const r = await new BarcodeDetector().detect(loaded.img); if (r && r[0] && r[0].rawValue) text = r[0].rawValue; } catch (er) {}
+    }
+    if (!text) {
+    let hints = null; try { hints = new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER, true); } catch (er) { hints = null; }
+    const rd = hints ? new ZXing.BrowserMultiFormatReader(hints) : new ZXing.BrowserMultiFormatReader();
     for (const src of [loaded.url, () => scaledDataUrl(loaded.img, 1000), () => scaledDataUrl(loaded.img, 1600), () => scaledDataUrl(loaded.img, 600)]) {
       try { text = (await rd.decodeFromImageUrl(typeof src === 'function' ? src() : src)).getText(); break; } catch (er) { /* next */ }
+    }
     }
   } catch (er) {}
   if (loaded) URL.revokeObjectURL(loaded.url);
@@ -1672,10 +1775,19 @@ function bindSlicer(boxId, inputId, after) {
   });
 }
 function fillTypeSlicer() { slicer('slType', 'fType', [{ v: '', l: 'All' }].concat(TYPES.map(t => ({ v: t, l: shortName(t) })))); }
+/** Sub category filter: the sub categories of the chosen category (or of all), plus "no sub category" when some records can have none. */
+function fillSubFilter() {
+  const ft = $('#fType').value, cats = CATALOG.filter(t => !ft || t.name === ft), names = new Set(); let none = false;
+  cats.forEach(t => { (t.subs || []).forEach(s => names.add(s.n)); if (!(t.subs && t.subs.length) || isLinked(t)) none = true; });
+  const opts = [{ v: '', l: 'All' }].concat(Array.from(names).map(n => ({ v: n, l: n })));
+  if (names.size && none) opts.push({ v: SUB_NONE, l: names.has('General') ? 'Other' : 'General' });
+  slicer('slSub', 'fSub', names.size ? opts : [{ v: '', l: 'All' }]);
+  show($('#subFilterWrap'), names.size > 0);
+}
 function fillActivityFilter() {
-  const cat = $('#fType').value;
-  const list = cat ? (ACTIVITIES[cat] || []) : Array.from(new Set([].concat(...TYPES.map(t => ACTIVITIES[t]))));
-  slicer('slActivity', 'fActivity', [{ v: '', l: 'All' }].concat(list.map(a => ({ v: a, l: a }))));
+  const cat = $('#fType').value, fs = $('#fSub').value, set = new Set();
+  CATALOG.filter(t => !cat || t.name === cat).forEach(t => t.acts.forEach(a => { if (actInSub(t, a, fs)) set.add(a.n); }));
+  slicer('slActivity', 'fActivity', [{ v: '', l: 'All' }].concat(Array.from(set).map(a => ({ v: a, l: a }))));
 }
 S.branches = []; S.branchOff = new Set();
 function paintBranches() {
@@ -1694,7 +1806,7 @@ async function loadRecords() {
   const r = range(), admin = S.user.role === 'Admin';
   $('#recBody').innerHTML = '<tr><td colspan="25" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
   try {
-    const f = { user: $('#fUser').value, type: $('#fType').value, activity: $('#fActivity').value, from: r.from, to: r.to };
+    const f = { user: $('#fUser').value, type: $('#fType').value, sub: $('#fSub').value, activity: $('#fActivity').value, from: r.from, to: r.to };
     if (admin && S.branchOff.size) f.branches = S.branches.filter(b => !S.branchOff.has(b));
     const data = await api('getRecords', S.token, f);
     S.rows = data.rows;
@@ -1736,22 +1848,23 @@ const fmtD = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); 
 const fmtTs = s => { const d = fmtD(s), t = /(\d{2}:\d{2}(?::\d{2})?)\s*$/.exec(String(s || '')); return d + (t ? ' ' + t[1] : ''); };
 const GROUPS = [{ v: 'act', l: 'Activities' }, { v: 'sub', l: 'Sub categories' }, { v: 'cat', l: 'Categories' }];
 const VIEWS = [{ v: 'total', l: 'Totals' }, { v: 'staff', l: 'By staff' }];
-S.group = 'act'; S.view = 'total'; S.agg = []; S.period = { from: '', to: '' };
+const ZEROS = [{ v: '0', l: 'With records' }, { v: '1', l: 'All, incl. zero' }];
+S.group = 'act'; S.view = 'total'; S.zero = false; S.agg = []; S.period = { from: '', to: '' };
 const itemOf = (a, g) => g === 'cat' ? { key: a.type, type: a.type, label: shortName(a.type) }
   : g === 'sub' ? (a.sub ? { key: a.type + '|' + a.sub, type: a.type, label: shortName(a.type) + ' · ' + a.sub } : null)
   : { key: a.type + '|' + a.activity, type: a.type, label: shortName(a.type) + ' · ' + a.activity };
 /** Every item the admin has set up for this grouping (so zero ones show too), limited by the category / activity filters. */
 function catalogItems(g) {
-  const ft = $('#fType').value, fa = $('#fActivity').value, out = [];
+  const ft = $('#fType').value, fa = $('#fActivity').value, fs = $('#fSub').value, out = [];
   CATALOG.filter(t => !ft || t.name === ft).forEach(t => {
     if (g === 'cat') out.push(itemOf({ type: t.name }, g));
-    else if (g === 'sub') (t.subs || []).forEach(s => out.push(itemOf({ type: t.name, sub: s.n }, g)));
-    else t.acts.filter(a => !fa || a.n === fa).forEach(a => out.push(itemOf({ type: t.name, activity: a.n }, g)));
+    else if (g === 'sub') (t.subs || []).filter(s => !fs || s.n === fs).forEach(s => out.push(itemOf({ type: t.name, sub: s.n }, g)));
+    else t.acts.filter(a => (!fa || a.n === fa) && actInSub(t, a, fs)).forEach(a => out.push(itemOf({ type: t.name, activity: a.n }, g)));
   });
   return out;
 }
 function dashModel() {
-  const admin = S.user && S.user.role === 'Admin', g = admin ? S.group : 'act', view = admin ? S.view : 'total', agg = S.agg || [];
+  const admin = S.user && S.user.role === 'Admin', g = S.group, view = admin ? S.view : 'total', agg = S.agg || [];
   const items = new Map(), per = new Map();         // item key -> { label, type, total }, staff -> { item key -> count }
   catalogItems(g).forEach(i => items.set(i.key, Object.assign({ total: 0 }, i)));
   let total = 0, skipped = 0;
@@ -1767,10 +1880,11 @@ function dashModel() {
   const days = S.period.from && S.period.to ? Math.round((new Date(S.period.to) - new Date(S.period.from)) / 864e5) + 1 : 0;
   const base = { g, view, total, skipped, staffN: new Set(agg.map(a => a.user)).size, top: top && top.total ? top : null, days };
   if (view === 'staff' && staff.length) {
-    const used = list.filter(i => i.total > 0);
+    const used = S.zero ? list : list.filter(i => i.total > 0);
     return Object.assign(base, { labels: staff, legend: true, datasets: used.map((i, n) => ({ label: i.label, color: slotColor(n), data: staff.map(s => per.get(s)[i.key] || 0) })) });
   }
-  return Object.assign(base, { labels: list.map(i => i.label), legend: false, datasets: [{ label: 'Records', colors: list.map(i => i.type), data: list.map(i => i.total) }] });
+  const shown = S.zero ? list : list.filter(i => i.total > 0);      // only columns with a value, unless "All, incl. zero" is chosen
+  return Object.assign(base, { labels: shown.map(i => i.label), legend: false, datasets: [{ label: 'Records', colors: shown.map(i => i.type), data: shown.map(i => i.total) }] });
 }
 const sumOf = o => Object.keys(o).reduce((n, k) => n + o[k], 0);
 function buildChart(canvas, m, o) {
@@ -1792,7 +1906,7 @@ function buildChart(canvas, m, o) {
     options: {
       responsive: !o.exporting, maintainAspectRatio: false, devicePixelRatio: o.exporting ? 2 : undefined,
       animation: o.exporting ? false : { duration: 250 },
-      layout: { padding: { top: 20 } },
+      layout: { padding: { top: 20, bottom: o.footer ? 26 : 0 } },
       plugins: {
         legend: { display: m.legend, position: 'top', labels: { color: ink, usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10 } },
         title: { display: !!o.title, text: o.title || '', color: ink, align: 'start', font: { size: 16, weight: '600' }, padding: { bottom: 10 } }
@@ -1802,23 +1916,34 @@ function buildChart(canvas, m, o) {
         x: { ticks: { color: muted, autoSkip: false, maxRotation: 60, minRotation: m.labels.length > 6 ? 40 : 0 }, grid: { display: false } }
       }
     },
-    plugins: [valueLabels, background]
+    plugins: [valueLabels, background, { id: 'who', afterDraw(chart) {       // who the picture is about, under the graph
+      if (!o.footer) return; const c = chart.ctx; c.save(); c.fillStyle = muted; c.textAlign = 'left'; c.textBaseline = 'bottom';
+      c.font = '600 14px -apple-system, "Segoe UI", Roboto, sans-serif'; c.fillText(o.footer, 8, chart.height - 6); c.restore(); } }]
   });
 }
 function paintDashControls() {
   const admin = S.user && S.user.role === 'Admin';
-  show($('#dashCtl'), !!admin);
-  if (!admin) return;
+  show($('#dashCtl'), true); show($('#viewWrap'), !!admin);
   $('#slGroup').innerHTML = GROUPS.map(o => '<button type="button" class="chip' + (o.v === S.group ? ' active' : '') + '" data-v="' + o.v + '">' + o.l + '</button>').join('');
   $('#slView').innerHTML = VIEWS.map(o => '<button type="button" class="chip' + (o.v === S.view ? ' active' : '') + '" data-v="' + o.v + '">' + o.l + '</button>').join('');
+  $('#slZero').innerHTML = ZEROS.map(o => '<button type="button" class="chip' + ((o.v === '1') === S.zero ? ' active' : '') + '" data-v="' + o.v + '">' + o.l + '</button>').join('');
 }
+$('#slZero').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.zero = b.dataset.v === '1'; drawChart(); } });
 $('#slGroup').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.group = b.dataset.v; drawChart(); } });
 $('#slView').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.view = b.dataset.v; drawChart(); } });
+/** Who the graph is about: the staff member (their own screen) or the staff / branches the admin is looking at. */
+function whoText() {
+  const admin = S.user && S.user.role === 'Admin';
+  if (!admin) return 'Staff: ' + S.user.username + (S.user.staffId ? ' (' + S.user.staffId + ')' : '') + (S.user.branch ? ' · Branch ' + S.user.branch : '');
+  const br = S.branchOff.size ? S.branches.filter(b => !S.branchOff.has(b)).join(', ') : 'all branches';
+  return 'Staff: ' + ($('#fUser').value || 'All staff') + ' · Branch: ' + br;
+}
 function drawChart() {
   const m = S.chartModel = dashModel(), admin = S.user && S.user.role === 'Admin';
   show($('#chartCard'), (S.agg || []).length > 0);
   $('#chartTitleTxt').textContent = admin ? 'Dashboard' : 'My dashboard';
   paintDashControls();
+  $('#chartWho').textContent = whoText();
   $('#periodTxt').textContent = S.period.from ? 'Records from ' + fmtD(S.period.from) + ' to ' + fmtD(S.period.to) + (m.days ? ' · ' + m.days + ' day' + (m.days > 1 ? 's' : '') : '') : '';
   const tiles = [['Records', m.total, 'in this period'], admin ? ['Staff', m.staffN, 'with records'] : ['Days', m.days, 'in this period'],
     ['Top ' + ({ act: 'activity', sub: 'sub category', cat: 'category' }[m.g]), m.top ? m.top.total : 0, m.top ? m.top.label : '—'], ['Per day', m.days ? (m.total / m.days).toFixed(1) : '0', 'average']];
@@ -1837,7 +1962,9 @@ function chartTitle() {
   if (S.period.from) parts.push(fmtD(S.period.from) + ' to ' + fmtD(S.period.to));
   if (admin && S.branchOff.size) parts.push('branches: ' + S.branches.filter(b => !S.branchOff.has(b)).join(', '));
   if ($('#fType').value) parts.push($('#fType').value);
-  return (admin ? 'Records by ' + what + (m.view === 'staff' ? ' and staff' : '') : 'My records by activity') + ' — ' + parts.join(' · ');
+  if ($('#fSub').value) parts.push($('#fSub').value === SUB_NONE ? 'no sub category' : $('#fSub').value);
+  if ($('#fActivity').value) parts.push($('#fActivity').value);
+  return (admin ? 'Records by ' : 'My records by ') + what + (m.view === 'staff' ? ' and staff' : '') + ' — ' + parts.join(' · ');
 }
 async function saveChartPng() {
   const m = S.chartModel;
@@ -1846,7 +1973,7 @@ async function saveChartPng() {
   try {
     const cv = document.createElement('canvas');          // always light, with a white background, so it reads anywhere
     cv.width = Math.max(900, m.labels.length * (m.datasets.length > 1 ? m.datasets.length * 40 : 56) + 140); cv.height = 560;
-    const ch = buildChart(cv, m, { dark: false, exporting: true, title: chartTitle() });
+    const ch = buildChart(cv, m, { dark: false, exporting: true, title: chartTitle(), footer: whoText() });
     await new Promise(res => requestAnimationFrame(res));
     const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
     ch.destroy();
@@ -1865,10 +1992,11 @@ async function saveChartPng() {
 $('#chartSaveBtn').addEventListener('click', saveChartPng);
 
 ['#fFrom', '#fTo'].forEach(x => $(x).addEventListener('change', loadRecords));
-slicer('slPeriod', 'fPeriod', PERIODS); fillTypeSlicer(); fillActivityFilter();
+slicer('slPeriod', 'fPeriod', PERIODS); fillTypeSlicer(); fillSubFilter(); fillActivityFilter();
 bindSlicer('slUser', 'fUser', loadRecords);
 bindSlicer('slPeriod', 'fPeriod', () => { const c = $('#fPeriod').value === 'custom'; show($('#fCustomWrap'), c); if (!c) loadRecords(); });
-bindSlicer('slType', 'fType', () => { fillActivityFilter(); loadRecords(); });
+bindSlicer('slType', 'fType', () => { fillSubFilter(); fillActivityFilter(); loadRecords(); });
+bindSlicer('slSub', 'fSub', () => { fillActivityFilter(); loadRecords(); });
 bindSlicer('slActivity', 'fActivity', loadRecords);
 $('#fSearch').addEventListener('input', () => { clearTimeout(recTimer); recTimer = setTimeout(renderRows, 150); });
 
@@ -1928,6 +2056,30 @@ async function copyReport(cols, what, table) {
   toast(ok ? 'Copied ' + (lines.length - 1) + ' record(s)' + (what ? ' (' + what + ')' : '') + '. Paste into Google Sheets or Excel.' : 'Could not copy. Use the CSV button instead.', ok ? 'success' : 'warning');
 }
 $('#copyBtn').addEventListener('click', () => copyReport(null, ''));
+/** KPI as a text table for a Telegram message: aligned columns inside a ``` block (monospace), split in parts that fit the 4096-character limit. */
+function kpiTelegramParts(table) {
+  const heads = ['Category', 'Sub', 'Activity', 'MID', 'Merchant', 'Date'], cap = [10, 14, 16, 12, 22, 11];
+  const len = s => Array.from(s).length, clean = (v, n) => { const a = Array.from(String(v == null ? '' : v).replace(/[`\t\r\n]+/g, ' ').trim()); return a.length > n ? a.slice(0, n - 1).join('') + '…' : a.join(''); };
+  const rows = table.slice(1).map(r => r.map((v, i) => clean(v, cap[i])));
+  const w = heads.map((hd, i) => Math.max(len(hd), ...rows.map(r => len(r[i]))));
+  const pad = (s, n) => s + ' '.repeat(Math.max(0, n - len(s)));
+  const line = r => r.map((v, i) => pad(v, w[i])).join(' | ').replace(/\s+$/, '');
+  const head = [line(heads), w.map(n => '-'.repeat(n)).join('-+-')];
+  const parts = []; let cur = [];
+  const used = () => cur.length ? head.concat(cur).join('\n').length : 0;
+  rows.forEach(r => { const l = line(r); if (cur.length && used() + l.length + 1 > 3600) { parts.push(cur); cur = []; } cur.push(l); });
+  if (cur.length) parts.push(cur);
+  const per = S.period.from ? fmtD(S.period.from) + ' to ' + fmtD(S.period.to) : '';
+  return parts.map((p, i) => 'KPI' + (per ? ' ' + per : '') + ' · ' + rows.length + ' record' + (rows.length > 1 ? 's' : '') + (parts.length > 1 ? ' · part ' + (i + 1) + '/' + parts.length : '') + '\n```\n' + head.concat(p).join('\n') + '\n```');
+}
+$('#copyTgBtn').addEventListener('click', async () => {
+  const t = kpiTable(); if (t.length < 2) { toast('Nothing to copy.', 'warning'); return; }
+  const parts = kpiTelegramParts(t), key = t.length + '|' + t[1].join('|') + '|' + t[t.length - 1].join('|');
+  if (S.tgKey !== key) { S.tgKey = key; S.tgIdx = 0; }
+  const i = (S.tgIdx || 0) % parts.length; S.tgIdx = i + 1;
+  const ok = await copyText(parts[i]);
+  toast(ok ? (parts.length > 1 ? 'Part ' + (i + 1) + ' of ' + parts.length + ' copied. Paste it in Telegram, then tap again for the next part.' : 'Copied ' + (t.length - 1) + ' record(s). Paste into Telegram.') : 'Could not copy.', ok ? 'success' : 'warning');
+});
 $('#copyKpiBtn').addEventListener('click', () => copyReport(null, 'KPI columns, in activity order', kpiTable()));
 
 /* ============================ Users (admin) ============================ */
@@ -2085,6 +2237,7 @@ function renderCatEditor() {
       '<div class="d-flex gap-2 mb-2"><input class="form-control form-control-sm c-name" maxlength="30" placeholder="Category name" value="' + esc(t.name) + '">' +
       '<input class="form-control form-control-sm c-code" maxlength="8" placeholder="Code" style="max-width:90px" value="' + esc(t.code) + '">' +
       '<button type="button" class="btn btn-sm btn-outline-danger border-0 c-del" aria-label="Remove category"><i class="bi bi-trash3"></i></button></div>' +
+      '<details class="mb-2"><summary class="small fw-semibold" style="cursor:pointer">Tab symbol <i class="bi bi-' + esc(t.icon || ({ QR: 'qr-code', POS: 'credit-card-2-front', SB: 'speaker', 'Payway Inspection': 'clipboard2-check' }[t.name]) || 'grid') + ' ms-1"></i></summary><div class="chips mt-2 c-icons">' + CAT_ICONS.map(n => '<button type="button" class="chip c-icon' + (t.icon === n ? ' active' : '') + '" data-i="' + n + '" aria-label="' + n + '" style="padding:6px 10px"><i class="bi bi-' + n + '"></i></button>').join('') + '</div></details>' +
       '<div class="small text-muted mb-1">Sub categories <span class="fw-normal">(the code joins the stamp, e.g. QR + I)</span></div>' +
       (t.subs || []).map((s, si) => '<div class="d-flex gap-1 mb-1" data-si="' + si + '"><input class="form-control form-control-sm s-name" maxlength="40" placeholder="Sub category" value="' + esc(s.n) + '"><input class="form-control form-control-sm s-code" maxlength="4" placeholder="Code" style="max-width:76px" value="' + esc(s.code) + '"><button type="button" class="btn btn-sm btn-outline-danger border-0 s-del" aria-label="Remove sub category"><i class="bi bi-x"></i></button></div>').join('') +
       '<button type="button" class="btn btn-soft btn-sm s-add mb-3"><i class="bi bi-plus-lg me-1"></i>Sub category</button>' +
@@ -2142,6 +2295,7 @@ $('#catList').addEventListener('click', e => {
     if (!txt) { out.textContent = 'This activity uses the standard message.'; show(out, true); return; }
     api('previewTelegramTemplate', S.token, txt).then(r => { out.innerHTML = r; show(out, true); }).catch(ex => { out.textContent = ex.message; show(out, true); });
   }
+  else if (e.target.closest('.c-icon')) { t.icon = e.target.closest('.c-icon').dataset.i; renderCatEditor(); }
   else if (e.target.closest('.s-add')) { t.subs = t.subs || []; if (t.subs.length >= 12) { toast('At most 12 sub categories.', 'warning'); return; } t.subs.push({ n: '', code: '' }); renderCatEditor(); }
   else if (e.target.closest('.s-del')) { const gone = t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1)[0]; t.acts.forEach(a => { if (gone && a.sub === gone.n) a.sub = ''; }); renderCatEditor(); }
   else if (e.target.closest('.c-addact')) { t.acts.push(normAct({}, { n: '' })); renderCatEditor(); }
