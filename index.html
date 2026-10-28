@@ -6,9 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Installs">
+  <meta name="apple-mobile-web-app-title" content="MS SR HUB">
   <meta name="theme-color" content="#4f46e5">
-  <title>Welcome to Merchant Support SR HUB</title>
+  <title>MS SR HUB WEB APP</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -65,6 +65,7 @@
     .fl-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: .82rem; }
     .fl-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; flex: none; }
     .fl-seg button { border: 0; background: transparent; color: var(--muted); font-size: .72rem; font-weight: 700; padding: 3px 9px; }
+    .fl-seg button.active[data-v=""] { background: #e0e7ff; color: var(--brand); }
     .fl-seg button.active[data-v="0"] { background: #94a3b8; color: #fff; }
     .fl-seg button.active[data-v="1"] { background: var(--brand); color: #fff; }
     .fl-seg button.active[data-v="2"] { background: #dc2626; color: #fff; }
@@ -417,6 +418,7 @@
         </div>
         <div id="scanError" class="alert alert-warning small mt-3 mb-0 hidden"></div>
         <p class="text-muted small mt-2 mb-0" id="scanHelp">Point the camera at the merchant QR. If the camera is blocked, close this and use <b>Upload</b>.</p>
+        <div class="small text-muted mt-1" id="scanEngine" style="opacity:.7"></div>
         <label class="btn btn-soft btn-sm mt-2 mb-0 hidden" id="snFileWrap"><i class="bi bi-image me-1"></i>Read from a photo<input type="file" accept="image/*" id="snFile" hidden></label>
       </div>
     </div>
@@ -701,27 +703,40 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.code) o.code = String(a.code).toUpperCase(); if (a.sub) o.sub = a.sub; if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
+  if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); });
+  if (o.minPh && !o.f.photo) o.f.photo = 1;
   if (Array.isArray(a.custom) && a.custom.length) o.custom = a.custom;
   return o;
 }
-const normCat = list => list.map(t => ({ name: t.name, code: t.code, icon: /^[a-z0-9-]{1,30}$/.test(String(t.icon || '')) ? t.icon : '', subs: (Array.isArray(t.subs) ? t.subs : (t.subs === undefined && (DEFAULT_CATALOG.find(d => d.name === t.name) || {}).subs) || []).map(s => ({ n: s.n, code: s.code })), acts: (t.acts || []).map(a => normAct(t, a)) }));
+const normCat = list => list.map(t => ({ name: t.name, code: t.code, icon: /^[a-z0-9-]{1,30}$/.test(String(t.icon || '')) ? t.icon : '', subs: (Array.isArray(t.subs) ? t.subs : (t.subs === undefined && (DEFAULT_CATALOG.find(d => d.name === t.name) || {}).subs) || []).map(s => { const r = { n: s.n, code: s.code }; if (s.f && typeof s.f === 'object') { const f = {}; FIELD_KEYS.forEach(k => { if ([0, 1, 2].includes(s.f[k])) f[k] = s.f[k]; }); if (Object.keys(f).length) r.f = f; } if (+s.minPh > 0) r.minPh = Math.min(MAX_PHOTOS, Math.floor(+s.minPh)); return r; }), acts: (t.acts || []).map(a => normAct(t, a)) }));
 const lvl = (d, k) => (d && d.f && d.f[k]) || 0;
 const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
 const typeDef = n => CATALOG.find(t => t.name === n) || null;
 const actDef = (t, a) => { const d = typeDef(t); return d ? (d.acts.find(x => x.n === a) || null) : null; };
+const actSubs = a => (a && a.subs && a.subs.length) ? a.subs : [''];      // the sub categories an activity appears under; [''] = stand-alone only
+/** The activity as it behaves under a sub category: that sub category's box rules (admin) win over the activity's own. */
+function effDef(t, a, sub) {
+  const d = actDef(t, a), td = typeDef(t), sd = sub && td && td.subs ? td.subs.find(s => s.n === sub) : null;
+  if (!d || !sd || (!sd.f && !sd.minPh)) return d;
+  const o = Object.assign({}, d, { f: Object.assign({}, d.f, sd.f || {}) });
+  if (sd.minPh > 0) o.minPh = sd.minPh;
+  if (o.minPh && !o.f.photo) o.f.photo = 1;
+  return o;
+}
 const isInstall = (t, a) => { const d = actDef(t, a); return d ? !!d.inst : (a === 'Installation' || a === 'New Install'); };
 const dateLabel = (a, t) => !a ? 'Installed / action date' : (isInstall(t || curType, a) ? 'Installed date' : 'Action date');
-const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart','Groccery store','Health and Fitness','Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
+const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart','Groccery store','Health and Fitness','Education','Massage / Spa','Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
 const TAB_ICONS = { 'QR': 'bi-qr-code', 'POS': 'bi-credit-card-2-front', 'SB': 'bi-speaker', 'Payway Inspection': 'bi-clipboard2-check' };
 const CAT_ICONS = ['qr-code', 'credit-card-2-front', 'speaker', 'clipboard2-check', 'grid', 'shop', 'bag', 'box-seam', 'cart', 'wallet2', 'phone', 'tools', 'wrench', 'house-door', 'building', 'geo-alt', 'truck', 'star', 'heart', 'lightning', 'cup-hot', 'lamp', 'tag', 'person-badge', 'gift', 'printer', 'wifi', 'cash-coin', 'patch-check', 'calendar-check'];
 const iconOf = n => { const d = CATALOG.find(t => t.name === n); return d && d.icon ? 'bi-' + d.icon : (TAB_ICONS[n] || 'bi-grid'); };
 const shortName = n => n === 'Payway Inspection' ? 'Payway' : n;
 let curType = (function () { try { return localStorage.getItem('it_type') || 'QR'; } catch (e) { return 'QR'; } })();
 const SUB_NONE = '__none__';      // report filter value: records without a sub category
-function actInSub(t, a, fs) { return !fs || !isLinked(t) || (fs === SUB_NONE ? !a.sub : a.sub === fs); }
+function actInSub(t, a, fs) { return !fs || !isLinked(t) || (fs === SUB_NONE ? actSubs(a).includes('') : actSubs(a).includes(fs)); }
 function setCatalog(c) {
   if (!Array.isArray(c) || !c.length) c = DEFAULT_CATALOG;
   c = normCat(c);
@@ -740,8 +755,8 @@ function setCatalog(c) {
 
 /** Rebuilds a card's activity buttons for the current tab (keeps the choice if still valid). */
 /** Linked mode: once an activity is linked to a sub category, each sub category (and "General") shows only its own activities. */
-function isLinked(t) { return !!(t && t.subs && t.subs.length && t.acts.some(a => a.sub)); }
-const actsFor = type => { const t = typeDef(type); return !t ? [] : isLinked(t) ? t.acts.filter(a => (a.sub || '') === (S.sub || '')).map(a => a.n) : t.acts.map(a => a.n); };
+function isLinked(t) { return !!(t && t.subs && t.subs.length && t.acts.some(a => a.subs && a.subs.some(Boolean))); }
+const actsFor = type => { const t = typeDef(type); return !t ? [] : isLinked(t) ? t.acts.filter(a => actSubs(a).includes(S.sub || '')).map(a => a.n) : t.acts.map(a => a.n); };
 const actKey = () => curType + (isLinked(typeDef(curType)) ? '|' + (S.sub || '') : '');
 function fillActivities(card) {
   const list = actsFor(curType), keep = $('.f-act', card.el).value, single = list.length === 1;
@@ -765,7 +780,7 @@ function followFirst() {
 const lastSubs = (() => { try { return JSON.parse(localStorage.getItem('it_last_sub') || '{}') || {}; } catch (e) { return {}; } })();
 function subOptions() {
   const t = typeDef(curType) || {}, subs = t.subs || [], o = subs.map(s => ({ n: s.n, name: s.n, code: s.code }));
-  if (isLinked(t) && t.acts.some(a => !a.sub)) o.push({ n: '', name: subs.some(s => /^general$/i.test(s.n)) ? 'Other' : 'General', code: '' });      // the stand-alone tab; not "General" when a sub category already has that name
+  if (isLinked(t) && t.acts.some(a => actSubs(a).includes(''))) o.push({ n: '', name: subs.some(s => /^general$/i.test(s.n)) ? 'Other' : 'General', code: '' });      // the stand-alone tab; not "General" when a sub category already has that name
   return o;
 }
 const sessSubs = {};      // linked categories: the sub category used earlier in this visit (a fresh visit starts on the stand-alone activities)
@@ -780,6 +795,8 @@ $('#subChips').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return; S.sub = b.dataset.s;
   $$('#subChips button').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-selected', x === b); });
   if (isLinked(typeDef(curType))) { S.cards.forEach(fillActivities); followFirst(); }
+  else S.cards.forEach(c => { const a = $('.f-act', c.el).value; if (a) setAct(c, a); });      // this sub category's box rules apply right away
+  updateLocCard();
 });
 /* Tag and Zone/Area stay filled after a submit (they rarely change within a day). */
 const keep = (() => { try { return JSON.parse(localStorage.getItem('it_keep') || '{}') || {}; } catch (e) { return {}; } })();
@@ -855,12 +872,14 @@ function renderCustom(box, d) {
 /** Shows only the boxes the activity needs (data-fk="key") and puts the red * on the must-fill ones. */
 function applyLevels(root, d) {
   FIELD_KEYS.forEach(k => $$('[data-fk="' + k + '"]', root).forEach(w => { show(w, lvl(d, k) > 0); $$('.rq', w).forEach(x => show(x, lvl(d, k) === 2)); }));
+  const mp = lvl(d, 'photo') ? (d.minPh || 0) : 0;       // the admin's minimum number of photos / videos
+  $$('[data-fk="photo"]', root).forEach(w => { if (mp) $$('.rq', w).forEach(x => show(x, true)); const pm = $('.ph-min', w); if (pm) { pm.textContent = mp > 1 ? '(at least ' + mp + ')' : ''; show(pm, mp > 1); } });
 }
 /** Selects an activity: highlights it and shows the extra boxes it needs (phone/tag, old/new S/N). */
 function setAct(card, a) {
   $('.f-act', card.el).value = a;
   $$('.act-chips .chip', card.el).forEach(b => b.classList.toggle('active', b.dataset.a === a));
-  const d = actDef(curType, a);
+  const d = effDef(curType, a, S.sub || '');
   applyLevels(card.el, d);
   { // the small Scan / Upload QR buttons sit beside the first QR-related box this activity shows (merchant name, else MID, else TID)
     const first = ['merchant', 'mid', 'tid'].find(k => lvl(d, k) > 0), tools = $('.qr-tools', card.el);
@@ -873,7 +892,7 @@ function setAct(card, a) {
 }
 /** The location card is shown while some merchant card still needs a location (admin: Location box = optional or must). */
 function updateLocCard() {
-  const ds = S.cards.map(c => { const a = $('.f-act', c.el).value; return a ? actDef(curType, a) : null; });
+  const ds = S.cards.map(c => { const a = $('.f-act', c.el).value; return a ? effDef(curType, a, S.sub || '') : null; });
   show($('#locCard'), ds.some(d => !d || lvl(d, 'location') > 0));
   show($('#locStar'), ds.some(d => d && lvl(d, 'location') === 2));
 }
@@ -1098,9 +1117,21 @@ function applySn(text) {
   scanModal.hide();
 }
 const SN_FORMATS = ['code_128', 'code_39', 'code_93', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'codabar', 'data_matrix', 'qr_code', 'pdf417'];
+/** ZBar (WebAssembly): much better than ZXing on thin, dense Code 128 stickers. Loaded only when the phone has no built-in barcode detector (iPhone); if it cannot load, ZXing is used. */
+let zbarP = null;
+function loadZbar() {
+  if (window.zbarWasm) return Promise.resolve(window.zbarWasm);
+  if (zbarP) return zbarP;
+  zbarP = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/@undecaf/zbar-wasm@0.11.0/dist/index.js';
+    s.onload = () => window.zbarWasm && window.zbarWasm.scanImageData ? res(window.zbarWasm) : rej(new Error('no zbar'));
+    s.onerror = () => rej(new Error('load')); document.head.appendChild(s); setTimeout(() => rej(new Error('timeout')), 10000);
+  }).catch(() => { zbarP = null; return null; });
+  return zbarP;
+}
 /** Camera scanner. Uses the phone's own barcode detector when it has one (fast, reads small / curved stickers), else ZXing with "try harder". HD video, continuous focus, light and zoom where the phone allows. */
 async function startScan() {
-  show($('#scanError'), false); show($('#scanTools'), false);
+  show($('#scanError'), false); show($('#scanTools'), false); $('#scanEngine').textContent = '';
   const sn = !!S.snInput, video = $('#scanVideo');
   $('#scanFrame').classList.toggle('qr', !sn);
   try {
@@ -1129,6 +1160,7 @@ async function startScan() {
       } catch (e) { det = null; }
     }
     if (det) {
+      $('#scanEngine').textContent = 'Reader: built-in';
       let busy = false;
       sc.timer = setInterval(async () => {
         if (busy || sc.done || video.readyState < 2) return; busy = true;
@@ -1145,20 +1177,25 @@ async function startScan() {
         // Thin Code 128 bars need many pixels per bar; the strip is much faster and clearer than the whole frame.
         const mfr = new ZXing.MultiFormatReader(); mfr.setHints(hints);
         const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+        let zb = null; loadZbar().then(z => { zb = z; $('#scanEngine').textContent = 'Reader: ' + (z ? 'ZBar' : 'ZXing'); });
+        $('#scanEngine').textContent = 'Reader: ZXing (loading ZBar…)';
         const passes = [{ y: .25, h: .5, b: 'h' }, { y: .25, h: .5, b: 'g' }, { y: .35, h: .3, b: 'h' }, { y: 0, h: 1, b: 'h' }, { y: .35, h: .3, b: 'g' }];
         let n = 0, busy = false;
-        const tryPass = ps => {
+        const tryPass = async ps => {
           const vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
           const sy = Math.round(vh * ps.y), sh = Math.round(vh * ps.h), k = Math.min(1.5, 1800 / vw);
           cv.width = Math.round(vw * k); cv.height = Math.round(sh * k);
           cx.drawImage(video, 0, sy, vw, sh, 0, 0, cv.width, cv.height);
+          if (zb) {
+            try { const r = await zb.scanImageData(cx.getImageData(0, 0, cv.width, cv.height)); if (r && r.length) { const t = r[0].decode ? r[0].decode() : new TextDecoder().decode(r[0].data); if (t) return t; } } catch (e) {}
+          }
           const src = new ZXing.HTMLCanvasElementLuminanceSource(cv);
           const bin = ps.b === 'g' ? new ZXing.GlobalHistogramBinarizer(src) : new ZXing.HybridBinarizer(src);
           try { return mfr.decode(new ZXing.BinaryBitmap(bin)).getText(); } catch (e) { return null; }
         };
-        sc.timer = setInterval(() => {
+        sc.timer = setInterval(async () => {
           if (busy || sc.done || video.readyState < 2) return; busy = true;
-          try { const t = tryPass(passes[n++ % passes.length]); if (t) found(t); } catch (e) {}
+          try { const t = await tryPass(passes[n++ % passes.length]); if (t) found(t); } catch (e) {}
           busy = false;
         }, 90);
       } else {
@@ -1287,7 +1324,7 @@ function addMerchant() {
     '<div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input class="form-control f-tag" maxlength="200" autocomplete="off" placeholder="Extra remark / tag"></div>' +
     '<div class="custom-wrap hidden"></div>' +
     '<div class="mb-3 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea class="form-control f-rem" rows="2"></textarea></div>' +
-    '<div class="hidden" data-fk="photo"><label class="form-label">Photos / videos <span class="rq hidden">*</span> <span class="text-lowercase fw-normal">(max ' + MAX_PHOTOS + ', videos ≤ ' + MAX_VIDEOS + ' × ' + MAX_VIDEO_MB + ' MB)</span></label>' +
+    '<div class="hidden" data-fk="photo"><label class="form-label">Photos / videos <span class="rq hidden">*</span> <span class="ph-min fw-semibold hidden"></span> <span class="text-lowercase fw-normal">(max ' + MAX_PHOTOS + ', videos ≤ ' + MAX_VIDEOS + ' × ' + MAX_VIDEO_MB + ' MB)</span></label>' +
     '<div class="row g-2">' +
       '<div class="col-6"><button type="button" class="btn btn-soft w-100 btn-cam"><i class="bi bi-camera me-1"></i>Take photo</button></div>' +
       '<div class="col-6"><button type="button" class="btn btn-soft w-100 btn-photo"><i class="bi bi-images me-1"></i>Photos or Videos</button></div>' +
@@ -1699,7 +1736,7 @@ $('#submitBtn').addEventListener('click', async () => {
     const c = S.cards[i], g = s => $(s, c.el).value.trim();
     const bad = (m, sel) => { toast('Merchant ' + (i + 1) + ': ' + m, 'danger'); if (sel) $(sel, c.el).focus(); c.el.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
     if (!g('.f-act')) { bad('select an activity.'); return; }
-    const ad = actDef(curType, g('.f-act')), L = k => lvl(ad, k);
+    const ad = effDef(curType, g('.f-act'), S.sub || ''), L = k => lvl(ad, k);
     if (!g('.f-date')) { bad('pick the date.', '.f-date'); return; }
     const must = [['merchant', '.f-name', 'the merchant name'], ['mid', '.f-mid', 'the MID'], ['tid', '.f-tid', 'the TID'], ['business', '.f-biz', 'the business name'],
       ['serial', '.f-serial', 'the serial number'], ['oldSn', '.f-old', 'the Old S/N'], ['newSn', '.f-new', 'the New S/N'], ['btype', '.f-btype', 'the business type'],
@@ -1716,7 +1753,8 @@ $('#submitBtn').addEventListener('click', async () => {
       if (f.kind === 'phone' && !PHONE_RE.test(v)) { bad(f.label + ' looks wrong.'); return; }
       extra[f.id] = v;
     }
-    if (L('photo') === 2 && !c.photos.length) { bad('attach at least one photo.'); return; }
+    const needPh = L('photo') ? Math.max(L('photo') === 2 ? 1 : 0, (ad && ad.minPh) || 0) : 0;
+    if (c.photos.length < needPh) { bad(needPh > 1 ? 'attach at least ' + needPh + ' photos or videos (you have ' + c.photos.length + ').' : 'attach at least one photo.'); return; }
     if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone');
     const v = (k, sel) => L(k) ? g(sel) : '';
     items.push({ type: curType, activity: g('.f-act'), date: g('.f-date'), extra, locLv: L('location'),
@@ -1775,12 +1813,11 @@ function bindSlicer(boxId, inputId, after) {
   });
 }
 function fillTypeSlicer() { slicer('slType', 'fType', [{ v: '', l: 'All' }].concat(TYPES.map(t => ({ v: t, l: shortName(t) })))); }
-/** Sub category filter: the sub categories of the chosen category (or of all), plus "no sub category" when some records can have none. */
+/** Sub category filter: the sub categories of the chosen category (or of all). */
 function fillSubFilter() {
-  const ft = $('#fType').value, cats = CATALOG.filter(t => !ft || t.name === ft), names = new Set(); let none = false;
-  cats.forEach(t => { (t.subs || []).forEach(s => names.add(s.n)); if (!(t.subs && t.subs.length) || isLinked(t)) none = true; });
+  const ft = $('#fType').value, names = new Set();
+  CATALOG.filter(t => !ft || t.name === ft).forEach(t => (t.subs || []).forEach(s => names.add(s.n)));
   const opts = [{ v: '', l: 'All' }].concat(Array.from(names).map(n => ({ v: n, l: n })));
-  if (names.size && none) opts.push({ v: SUB_NONE, l: names.has('General') ? 'Other' : 'General' });
   slicer('slSub', 'fSub', names.size ? opts : [{ v: '', l: 'All' }]);
   show($('#subFilterWrap'), names.size > 0);
 }
@@ -1846,11 +1883,14 @@ const slotColor = (i, dark) => (dark ? SLOT_DARK : SLOT_LIGHT)[i % 12];
 const fmtD = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); return m ? m[3] + '-' + MON[+m[2] - 1] + '-' + m[1] : ''; };
 /** 26-Oct-2026 05:58:12 from the stored 2026-10-26 05:58:12 */
 const fmtTs = s => { const d = fmtD(s), t = /(\d{2}:\d{2}(?::\d{2})?)\s*$/.exec(String(s || '')); return d + (t ? ' ' + t[1] : ''); };
-const GROUPS = [{ v: 'act', l: 'Activities' }, { v: 'sub', l: 'Sub categories' }, { v: 'cat', l: 'Categories' }];
+const GROUPS = [{ v: 'act', l: 'Activities' }, { v: 'sub', l: 'Sub categories' }, { v: 'cat', l: 'Categories' }, { v: 'cs', l: 'Cat + Sub' }];
 const VIEWS = [{ v: 'total', l: 'Totals' }, { v: 'staff', l: 'By staff' }];
 const ZEROS = [{ v: '0', l: 'With records' }, { v: '1', l: 'All, incl. zero' }];
 S.group = 'act'; S.view = 'total'; S.zero = false; S.agg = []; S.period = { from: '', to: '' };
-const itemOf = (a, g) => g === 'cat' ? { key: a.type, type: a.type, label: shortName(a.type) }
+/** Name of the stand-alone group of a category that has sub categories ("General", or "Other" when a sub category already has that name). */
+const standName = t => ((t && t.subs) || []).some(s => /^general$/i.test(s.n)) ? 'Other' : 'General';
+const itemOf = (a, g) => g === 'cs' ? (a.sub ? { key: a.type + '|' + a.sub, type: a.type, label: shortName(a.type) + ' · ' + a.sub } : { key: a.type + '|', type: a.type, label: shortName(a.type) + (((typeDef(a.type) || {}).subs || []).length ? ' · ' + standName(typeDef(a.type)) : '') })
+  : g === 'cat' ? { key: a.type, type: a.type, label: shortName(a.type) }
   : g === 'sub' ? (a.sub ? { key: a.type + '|' + a.sub, type: a.type, label: shortName(a.type) + ' · ' + a.sub } : null)
   : { key: a.type + '|' + a.activity, type: a.type, label: shortName(a.type) + ' · ' + a.activity };
 /** Every item the admin has set up for this grouping (so zero ones show too), limited by the category / activity filters. */
@@ -1858,6 +1898,7 @@ function catalogItems(g) {
   const ft = $('#fType').value, fa = $('#fActivity').value, fs = $('#fSub').value, out = [];
   CATALOG.filter(t => !ft || t.name === ft).forEach(t => {
     if (g === 'cat') out.push(itemOf({ type: t.name }, g));
+    else if (g === 'cs') { (t.subs || []).filter(s => !fs || s.n === fs).forEach(s => out.push(itemOf({ type: t.name, sub: s.n }, g))); if (!fs || fs === SUB_NONE) out.push(itemOf({ type: t.name }, g)); }
     else if (g === 'sub') (t.subs || []).filter(s => !fs || s.n === fs).forEach(s => out.push(itemOf({ type: t.name, sub: s.n }, g)));
     else t.acts.filter(a => (!fa || a.n === fa) && actInSub(t, a, fs)).forEach(a => out.push(itemOf({ type: t.name, activity: a.n }, g)));
   });
@@ -1946,7 +1987,7 @@ function drawChart() {
   $('#chartWho').textContent = whoText();
   $('#periodTxt').textContent = S.period.from ? 'Records from ' + fmtD(S.period.from) + ' to ' + fmtD(S.period.to) + (m.days ? ' · ' + m.days + ' day' + (m.days > 1 ? 's' : '') : '') : '';
   const tiles = [['Records', m.total, 'in this period'], admin ? ['Staff', m.staffN, 'with records'] : ['Days', m.days, 'in this period'],
-    ['Top ' + ({ act: 'activity', sub: 'sub category', cat: 'category' }[m.g]), m.top ? m.top.total : 0, m.top ? m.top.label : '—'], ['Per day', m.days ? (m.total / m.days).toFixed(1) : '0', 'average']];
+    ['Top ' + ({ act: 'activity', sub: 'sub category', cat: 'category', cs: 'category + sub' }[m.g]), m.top ? m.top.total : 0, m.top ? m.top.label : '—'], ['Per day', m.days ? (m.total / m.days).toFixed(1) : '0', 'average']];
   $('#kpiRow').innerHTML = tiles.map(t => '<div class="kpi"><div class="k-l">' + esc(t[0]) + '</div><div class="k-v">' + esc(String(t[1])) + '</div><div class="k-s">' + esc(t[2]) + '</div></div>').join('');
   const note = $('#chartNote'); show(note, m.skipped > 0);
   if (m.skipped) note.textContent = m.skipped + ' record' + (m.skipped > 1 ? 's' : '') + ' without a sub category are not in this chart.';
@@ -1957,7 +1998,7 @@ function drawChart() {
 }
 function chartTitle() {
   const m = S.chartModel, admin = S.user && S.user.role === 'Admin';
-  const what = { act: 'activity', sub: 'sub category', cat: 'category' }[m.g];
+  const what = { act: 'activity', sub: 'sub category', cat: 'category', cs: 'category and sub category' }[m.g];
   const parts = [];
   if (S.period.from) parts.push(fmtD(S.period.from) + ' to ' + fmtD(S.period.to));
   if (admin && S.branchOff.size) parts.push('branches: ' + S.branches.filter(b => !S.branchOff.has(b)).join(', '));
@@ -2058,7 +2099,7 @@ async function copyReport(cols, what, table) {
 $('#copyBtn').addEventListener('click', () => copyReport(null, ''));
 /** KPI as a text table for a Telegram message: aligned columns inside a ``` block (monospace), split in parts that fit the 4096-character limit. */
 function kpiTelegramParts(table) {
-  const heads = ['Category', 'Sub', 'Activity', 'MID', 'Merchant', 'Date'], cap = [10, 14, 16, 12, 22, 11];
+  const heads = ['Category', 'Sub', 'Activity', 'MID', 'Merchant', 'Date'], cap = [30, 30, 30, 30, 30, 11];
   const len = s => Array.from(s).length, clean = (v, n) => { const a = Array.from(String(v == null ? '' : v).replace(/[`\t\r\n]+/g, ' ').trim()); return a.length > n ? a.slice(0, n - 1).join('') + '…' : a.join(''); };
   const rows = table.slice(1).map(r => r.map((v, i) => clean(v, cap[i])));
   const w = heads.map((hd, i) => Math.max(len(hd), ...rows.map(r => len(r[i]))));
@@ -2228,6 +2269,15 @@ function fieldRows(a) {
     FIELD_KEYS.map(k => '<div class="fl-row" data-k="' + k + '"><span>' + FIELD_NAMES[k] + '</span><span class="fl-seg">' +
       [[0, 'Off'], [1, 'Optional'], [2, 'Must']].map(p => '<button type="button" class="a-lv' + (lvl(a, k) === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('') + '</details>';
 }
+/** Box rules of a sub category: each box can Follow the activity, or be forced Off / Optional / Must while this sub category is used. */
+function subRules(s, si) {
+  const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0);
+  return '<details class="mb-2 ms-2 s-rules" data-sr="' + si + '"><summary class="small text-muted" style="cursor:pointer">Box rules for ' + esc(s.n) + ' <span class="s-count">(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')</span></summary>' +
+    '<div class="small text-muted mb-1">Pick Must, Optional or Off to override the activity while this sub category is used. Follow keeps the activity\'s own setting.</div>' +
+    FIELD_KEYS.map(k => '<div class="fl-row" data-k="' + k + '"><span>' + FIELD_NAMES[k] + '</span><span class="fl-seg">' +
+      [['', 'Follow'], [0, 'Off'], [1, 'Optional'], [2, 'Must']].map(p => '<button type="button" class="s-lv' + (((s.f || {})[k] === undefined ? '' : (s.f || {})[k]) === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('') +
+    '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm s-minph" style="max-width:80px" value="' + (s.minPh || 0) + '"><span class="small text-muted">0 = follow the activity</span></div></details>';
+}
 function renderCatSummary() {
   $('#catSummary').innerHTML = CATALOG.map(t => '<div class="mb-1"><b>' + esc(t.name) + '</b> <span class="text-muted">(' + esc(t.code) + ')</span>: ' + t.acts.map(a => esc(a.n) + (a.custom && a.custom.length ? ' <span class="text-muted">(+' + a.custom.length + ')</span>' : '')).join(', ') + '</div>').join('');
 }
@@ -2239,14 +2289,15 @@ function renderCatEditor() {
       '<button type="button" class="btn btn-sm btn-outline-danger border-0 c-del" aria-label="Remove category"><i class="bi bi-trash3"></i></button></div>' +
       '<details class="mb-2"><summary class="small fw-semibold" style="cursor:pointer">Tab symbol <i class="bi bi-' + esc(t.icon || ({ QR: 'qr-code', POS: 'credit-card-2-front', SB: 'speaker', 'Payway Inspection': 'clipboard2-check' }[t.name]) || 'grid') + ' ms-1"></i></summary><div class="chips mt-2 c-icons">' + CAT_ICONS.map(n => '<button type="button" class="chip c-icon' + (t.icon === n ? ' active' : '') + '" data-i="' + n + '" aria-label="' + n + '" style="padding:6px 10px"><i class="bi bi-' + n + '"></i></button>').join('') + '</div></details>' +
       '<div class="small text-muted mb-1">Sub categories <span class="fw-normal">(the code joins the stamp, e.g. QR + I)</span></div>' +
-      (t.subs || []).map((s, si) => '<div class="d-flex gap-1 mb-1" data-si="' + si + '"><input class="form-control form-control-sm s-name" maxlength="40" placeholder="Sub category" value="' + esc(s.n) + '"><input class="form-control form-control-sm s-code" maxlength="4" placeholder="Code" style="max-width:76px" value="' + esc(s.code) + '"><button type="button" class="btn btn-sm btn-outline-danger border-0 s-del" aria-label="Remove sub category"><i class="bi bi-x"></i></button></div>').join('') +
+      (t.subs || []).map((s, si) => '<div class="d-flex gap-1 mb-1" data-si="' + si + '"><input class="form-control form-control-sm s-name" maxlength="40" placeholder="Sub category" value="' + esc(s.n) + '"><input class="form-control form-control-sm s-code" maxlength="4" placeholder="Code" style="max-width:76px" value="' + esc(s.code) + '"><button type="button" class="btn btn-sm btn-outline-danger border-0 s-del" aria-label="Remove sub category"><i class="bi bi-x"></i></button></div>' + (s.n ? subRules(s, si) : '')).join('') +
       '<button type="button" class="btn btn-soft btn-sm s-add mb-3"><i class="bi bi-plus-lg me-1"></i>Sub category</button>' +
       t.acts.map((a, ai) =>
         '<div class="mb-3 pb-2 border-bottom" data-ai="' + ai + '"><div class="d-flex gap-2 mb-1"><input class="form-control form-control-sm a-name" maxlength="40" placeholder="Activity" value="' + esc(a.n) + '"><input class="form-control form-control-sm a-code" maxlength="4" placeholder="Code" title="Optional code added to the stamp" style="max-width:76px" value="' + esc(a.code || '') + '">' +
         '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-del" aria-label="Remove activity"><i class="bi bi-x-lg"></i></button></div>' +
         '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button></div>' +
-        ((t.subs || []).length ? '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Sub category</span><select class="form-select form-select-sm a-sub" style="max-width:220px"><option value="">None (stands alone)</option>' + t.subs.filter(s => s.n).map(s => '<option value="' + esc(s.n) + '"' + (a.sub === s.n ? ' selected' : '') + '>' + esc(s.n) + '</option>').join('') + '</select></div>' : '') +
+        ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + [{ n: '', name: 'Stand-alone' }].concat(t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n }))).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
         fieldRows(a) +
+        '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm a-minph" style="max-width:80px" value="' + (a.minPh || 0) + '"><span class="small text-muted">0 = follow the Photos box</span></div>' +
         '<details class="mt-2 a-tgbox"' + (a.tg ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Telegram message <span class="text-muted fw-normal">(' + (a.tg ? 'own message' : 'standard message') + ')</span></summary>' +
           '<textarea class="form-control form-control-sm a-tg mt-2" rows="6" spellcheck="false" placeholder="Leave empty to use the standard message (Telegram message box below). Example:&#10;🛠 <b>{title}</b>&#10;🧾 {merchant} · MID {mid}">' + esc(a.tg || '') + '</textarea>' +
           '<div class="chips mt-2 a-tgchips">' + (S.tgPlaceholders || []).map(k => '<button type="button" class="chip a-tgk" data-k="' + esc(k) + '">{' + esc(k) + '}</button>').join('') + '</div>' +
@@ -2274,14 +2325,15 @@ $('#catList').addEventListener('input', e => {
   else if (e.target.classList.contains('a-name')) t.acts[+e.target.closest('[data-ai]').dataset.ai].n = e.target.value;
   else if (e.target.classList.contains('a-tg')) t.acts[+e.target.closest('[data-ai]').dataset.ai].tg = e.target.value;
   else if (e.target.classList.contains('a-code')) t.acts[+e.target.closest('[data-ai]').dataset.ai].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  else if (e.target.classList.contains('s-name')) { const s = t.subs[+e.target.closest('[data-si]').dataset.si], old = s.n; s.n = e.target.value; t.acts.forEach(a => { if (a.sub === old) a.sub = s.n; }); }
+  else if (e.target.classList.contains('s-name')) { const s = t.subs[+e.target.closest('[data-si]').dataset.si], old = s.n; s.n = e.target.value; t.acts.forEach(a => { if (a.subs) a.subs = a.subs.map(x => x === old ? s.n : x); }); }
   else if (e.target.classList.contains('s-code')) t.subs[+e.target.closest('[data-si]').dataset.si].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   else if (/\bcf-(min|max|step)\b/.test(e.target.className)) { const f = t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f[/cf-(min|max|step)/.exec(e.target.className)[1]] = e.target.value === '' ? '' : +e.target.value; }
   else if (e.target.classList.contains('cf-opts')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.dataset.ci].opts = e.target.value.split(',').map(x => x.trim()).filter(Boolean);
   else if (e.target.classList.contains('cf-label')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].label = e.target.value;
 });
 $('#catList').addEventListener('change', e => {
-  if (e.target.classList.contains('a-sub')) { catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].sub = e.target.value; return; }
+  if (e.target.classList.contains('a-minph')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); a.minPh = v; if (v && !a.f.photo) a.f.photo = 1; renderCatEditor(); return; }
+  if (e.target.classList.contains('s-minph')) { const sr = e.target.closest('[data-sr]'), s = catDraft[+e.target.closest('[data-ti]').dataset.ti].subs[+sr.dataset.sr]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); if (v) s.minPh = v; else delete s.minPh; e.target.value = v; const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0); $('.s-count', sr).textContent = '(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')'; return; }
   if (e.target.classList.contains('cf-kind')) { const f = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.kind = e.target.value; if (f.kind === 'spin') { if (f.min == null) f.min = 0; if (f.max == null) f.max = 100; if (!f.step) f.step = 1; } renderCatEditor(); }
 });
 $('#catList').addEventListener('click', e => {
@@ -2295,14 +2347,28 @@ $('#catList').addEventListener('click', e => {
     if (!txt) { out.textContent = 'This activity uses the standard message.'; show(out, true); return; }
     api('previewTelegramTemplate', S.token, txt).then(r => { out.innerHTML = r; show(out, true); }).catch(ex => { out.textContent = ex.message; show(out, true); });
   }
+  else if (e.target.closest('.a-subchip')) {
+    const a = t.acts[ai], cur = actSubs(a).slice(), v = e.target.closest('.a-subchip').dataset.s, at = cur.indexOf(v);
+    if (at >= 0) { if (cur.length === 1) { toast('An activity must appear under at least one place.', 'warning'); return; } cur.splice(at, 1); } else cur.push(v);
+    const names = (t.subs || []).map(s => s.n).filter(x => x && cur.includes(x)), all = names.concat(cur.includes('') ? [''] : []);
+    if (all.length === 1 && all[0] === '') delete a.subs; else a.subs = all;
+    e.target.closest('.a-subchip').classList.toggle('active', at < 0);
+  }
+  else if (e.target.closest('.s-lv')) {
+    const sr = e.target.closest('[data-sr]'), s = t.subs[+sr.dataset.sr], row = e.target.closest('.fl-row'), v = e.target.closest('.s-lv').dataset.v;
+    s.f = s.f || {}; if (v === '') delete s.f[row.dataset.k]; else s.f[row.dataset.k] = +v;
+    if (!Object.keys(s.f).length) delete s.f;
+    $$('.s-lv', row).forEach(b => b.classList.toggle('active', b.dataset.v === v));
+    const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0); $('.s-count', sr).textContent = '(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')';
+  }
   else if (e.target.closest('.c-icon')) { t.icon = e.target.closest('.c-icon').dataset.i; renderCatEditor(); }
   else if (e.target.closest('.s-add')) { t.subs = t.subs || []; if (t.subs.length >= 12) { toast('At most 12 sub categories.', 'warning'); return; } t.subs.push({ n: '', code: '' }); renderCatEditor(); }
-  else if (e.target.closest('.s-del')) { const gone = t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1)[0]; t.acts.forEach(a => { if (gone && a.sub === gone.n) a.sub = ''; }); renderCatEditor(); }
+  else if (e.target.closest('.s-del')) { const gone = t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1)[0]; t.acts.forEach(a => { if (gone && a.subs) { a.subs = a.subs.filter(x => x !== gone.n); if (!a.subs.length) delete a.subs; } }); renderCatEditor(); }
   else if (e.target.closest('.c-addact')) { t.acts.push(normAct({}, { n: '' })); renderCatEditor(); }
   else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
-    const row = e.target.closest('.fl-row'), a = t.acts[ai]; a.f[row.dataset.k] = +e.target.closest('.a-lv').dataset.v;
+    const row = e.target.closest('.fl-row'), a = t.acts[ai]; a.f[row.dataset.k] = +e.target.closest('.a-lv').dataset.v; if (row.dataset.k === 'photo' && !a.f.photo) { a.minPh = 0; const mi = $('.a-minph', ab); if (mi) mi.value = 0; }
     $$('.a-lv', row).forEach(b => b.classList.toggle('active', +b.dataset.v === a.f[row.dataset.k]));
     $('summary span', e.target.closest('.a-fields')).textContent = '(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')';
   }
@@ -2426,7 +2492,7 @@ $('#todayList').addEventListener('click', e => {
 });
 const editModal = new bootstrap.Modal($('#editModal'));
 function updateEditDateLabel() {
-  const t = S.last ? S.last.type : curType, a = $('#eAct').value, d = actDef(t, a);
+  const t = S.last ? S.last.type : curType, a = $('#eAct').value, d = effDef(t, a, (S.last && S.last.sub) || '');
   $('#eDateLbl').textContent = dateLabel(a, t).replace('Installed / action date', 'Date');
   applyLevels($('#editModal'), d); renderCustom($('#eCustom'), d);
 }
@@ -2435,7 +2501,7 @@ function openEdit() {
   show($('#eError'), false);
   $('#eCat').textContent = r.type;
   $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + ' · edit ' + ((r.edits || 0) + 1) + ' of ' + S.rules.max;
-  const rt = typeDef(r.type), list = rt && isLinked(rt) ? rt.acts.filter(a => (a.sub || '') === (r.sub || '')).map(a => a.n) : (ACTIVITIES[r.type] || [r.activity]), single = list.length === 1;
+  const rt = typeDef(r.type), list = rt && isLinked(rt) ? rt.acts.filter(a => actSubs(a).includes(r.sub || '')).map(a => a.n) : (ACTIVITIES[r.type] || [r.activity]), single = list.length === 1;
   $('#eAct').innerHTML = (single ? '' : '<option value="">Select activity…</option>') + list.map(a => '<option>' + esc(a) + '</option>').join('');
   $('#eAct').value = list.includes(r.activity) ? r.activity : (single ? list[0] : '');
   show($('#eActWrap'), !single);
@@ -2446,7 +2512,7 @@ function openEdit() {
   const hm = /(\d{2}:\d{2}) ?- ?(\d{2}:\d{2})/.exec(r.hours || ''); $('#eOpen').value = hm ? hm[1] : ''; $('#eClose').value = hm ? hm[2] : '';
   $('#prodTypeList').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">').join(''); $('#eProd').value = r.ptype || ''; $('#eCommune').value = r.commune || ''; $('#eZone').value = r.zone || '';
   $('#eBType').value = r.btype || ''; $('#eGroup').value = r.group || '';
-  { const d0 = actDef(r.type, r.activity); renderCustom($('#eCustom'), d0); const mp = {}; String(r.extra || '').split(' | ').forEach(x => { const i = x.indexOf(': '); if (i > 0) mp[x.slice(0, i)] = x.slice(i + 2); }); ((d0 && d0.custom) || []).forEach(f => { const el = $('[data-fid="' + f.id + '"]', $('#eCustom')); if (el && mp[f.label] != null) setCustomVal(el, mp[f.label]); }); }
+  { const d0 = effDef(r.type, r.activity, r.sub || ''); renderCustom($('#eCustom'), d0); const mp = {}; String(r.extra || '').split(' | ').forEach(x => { const i = x.indexOf(': '); if (i > 0) mp[x.slice(0, i)] = x.slice(i + 2); }); ((d0 && d0.custom) || []).forEach(f => { const el = $('[data-fid="' + f.id + '"]', $('#eCustom')); if (el && mp[f.label] != null) setCustomVal(el, mp[f.label]); }); }
   $('#ePhone').value = r.phone || ''; $('#eTag').value = r.tag || ''; $('#eSerial').value = r.serial || ''; $('#eOldSn').value = r.oldSn || ''; $('#eNewSn').value = r.newSn || '';
   updateEditDateLabel();
   editModal.show();

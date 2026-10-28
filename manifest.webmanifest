@@ -1,8 +1,7 @@
 {
-  "name": "Installation Tracker",
-  "short_name": "Installs",
+  "name": "Merchant Support SR HUB Activities Records",
+  "short_name": "MS SR HUB",
   "description": "Record and track merchant installations.",
-  "start_url": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
