@@ -192,7 +192,9 @@
     :root[data-theme="dark"] .btn-close { filter: invert(1); }
     .theme-btn { background: rgba(255,255,255,.18); border: 0; color: #fff; width: 36px; height: 36px; border-radius: 50%; }
     .login-theme { position: absolute; top: 14px; right: 14px; }
-  </style>
+  .st-col{width:28px;height:28px;border-radius:50%;border:2px solid #cfd6e0;padding:0}.st-col.on{border-color:#0d6efd;box-shadow:0 0 0 2px #0d6efd55}
+.hours-line .form-control{flex:1 1 0;min-width:0}
+</style>
 </head>
 <body>
 
@@ -255,7 +257,7 @@
       <div id="merchantList"></div>
 
       <div class="card-x" id="locCard">
-        <div class="d-flex gap-3 align-items-center">
+        <div class="d-flex gap-3 align-items-center" id="locRow">
           <img id="locMap" class="hidden" alt="Map" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex:none">
           <div class="flex-grow-1" style="min-width:0">
             <div class="fw-semibold small"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Current location <span class="rq hidden" id="locStar">*</span> <span class="text-muted fw-normal">(sent to Telegram)</span> <span class="pill hidden" id="locTag">Chosen on map</span></div>
@@ -268,6 +270,8 @@
             <a id="locOpen" class="btn btn-soft btn-sm hidden" target="_blank" rel="noopener" aria-label="Open in Maps"><i class="bi bi-box-arrow-up-right"></i></a>
           </div>
         </div>
+        <div class="mt-3 hidden" id="distWrap"><label class="form-label mb-1" for="fDistrict">District <span class="rq hidden" id="distStar">*</span> <span class="text-lowercase fw-normal">(from your location, same for all merchants)</span></label>
+          <div class="input-group"><input class="form-control" id="fDistrict" maxlength="80" autocomplete="off" placeholder="Filled from your location"><button type="button" class="btn btn-soft" id="distFill" aria-label="Fill from my location" title="Fill from my location"><i class="bi bi-geo-alt"></i></button></div></div>
       </div>
       <button class="btn btn-soft w-100 mb-3" id="addMerchantBtn"><i class="bi bi-plus-lg me-1"></i>Add another merchant</button>
       <button class="btn btn-brand w-100" id="submitBtn"><i class="bi bi-send me-1"></i>Submit activities</button>
@@ -319,7 +323,7 @@
         </div>
         <div class="table-responsive">
           <table class="table table-hover mb-0">
-            <thead><tr><th>Category</th><th>Activity</th><th>Stamp</th><th>Date</th><th>Staff</th><th>Merchant</th><th>MID</th><th>TID</th><th>Business</th><th>Type</th><th>Hours</th><th>Group</th><th>Product type</th><th>Commune</th><th>Zone</th><th>Sub category</th><th>Extra</th><th>Phone</th><th>Tag</th><th>Serial No</th><th>Old S/N</th><th>New S/N</th><th>Remarks</th><th>Location</th><th>📷</th></tr></thead>
+            <thead><tr><th>Category</th><th>Activity</th><th>Stamp</th><th>Date</th><th>Staff</th><th>Merchant</th><th>MID</th><th>TID</th><th>Business</th><th>Type</th><th>Hours</th><th>Group</th><th>Product type</th><th>District</th><th>Zone</th><th>Sub category</th><th>Extra</th><th>Phone</th><th>Tag</th><th>Serial No</th><th>Old S/N</th><th>New S/N</th><th>Remarks</th><th>Location</th><th>📷</th></tr></thead>
             <tbody id="recBody"></tbody>
           </table>
         </div>
@@ -538,9 +542,9 @@
         <div class="mb-3 hidden" data-fk="oldSn"><label class="form-label">Old S/N <span class="rq hidden">*</span></label><div class="input-group"><input id="eOldSn" class="form-control" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>
         <div class="mb-3 hidden" data-fk="newSn"><label class="form-label">New S/N <span class="rq hidden">*</span></label><div class="input-group"><input id="eNewSn" class="form-control" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>
         <div class="mb-3 hidden" data-fk="btype"><label class="form-label">Business type <span class="rq hidden">*</span></label><input id="eBType" class="form-control" maxlength="60" list="bizTypeList"><datalist id="bizTypeList"></datalist></div>
-        <div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input id="eProd" class="form-control" maxlength="60" list="prodTypeList"><datalist id="prodTypeList"></datalist></div>
-        <div class="mb-3 hidden" data-fk="commune"><label class="form-label">Commune <span class="rq hidden">*</span></label><input id="eCommune" class="form-control" maxlength="80"></div>
-        <div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="row g-2 align-items-center"><div class="col"><input type="time" id="eOpen" class="form-control"></div><div class="col-auto small text-muted">to</div><div class="col"><input type="time" id="eClose" class="form-control"></div></div></div>
+        <div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input id="eProd" class="form-control" maxlength="120" list="prodTypeList"><datalist id="prodTypeList"></datalist></div>
+        <div class="mb-3 hidden" data-fk="commune"><label class="form-label">District <span class="rq hidden">*</span></label><input id="eCommune" class="form-control" maxlength="80"></div>
+        <div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="d-flex align-items-center gap-2 hours-line"><label class="small text-muted mb-0">Open</label><input type="time" id="eOpen" class="form-control" aria-label="Open"><label class="small text-muted mb-0 ms-1">Close</label><input type="time" id="eClose" class="form-control" aria-label="Close"></div></div>
         <div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input id="eGroup" class="form-control" maxlength="100"></div>
         <div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input id="ePhone" class="form-control" type="tel" inputmode="tel"></div>
         <div class="mb-3 hidden" data-fk="zone"><label class="form-label">Zone / Area <span class="rq hidden">*</span></label><input id="eZone" class="form-control" maxlength="80"></div>
@@ -598,6 +602,7 @@
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stUser" data-k="user"><label class="form-check-label" for="stUser">User name <span class="text-muted">(under title)</span></label></div></div>
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stTime" data-k="time"><label class="form-check-label" for="stTime">Date &amp; time</label></div></div>
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stCoords" data-k="coords"><label class="form-check-label" for="stCoords">GPS numbers</label></div></div>
+          <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stCompass" data-k="compass"><label class="form-check-label" for="stCompass">Compass</label></div></div>
           <div class="col-6"><div class="form-check form-switch"><input class="form-check-input st-opt" type="checkbox" role="switch" id="stAddr" data-k="addr"><label class="form-check-label" for="stAddr">Address</label></div></div>
         </div>
         <div class="small text-muted mt-1 mb-3">Map, GPS and address need location permission and internet.</div>
@@ -610,6 +615,26 @@
         <input type="range" class="form-range st-size" id="stMapZoom" min="13" max="19" step="1" data-k="mapZoom">
         <label class="form-label mb-0">Logo size <span id="stLogoVal"></span></label>
         <input type="range" class="form-range st-size mb-3" id="stLogoSz" min="50" max="300" step="5" data-k="logoScale">
+        <label class="form-label mb-0">Compass size <span id="stCompSzVal"></span></label>
+        <input type="range" class="form-range st-size st-pct" id="stCompSz" min="50" max="200" step="5" data-k="compassScale">
+        <div class="fw-semibold small mt-2 mb-1">Opacity (each object)</div>
+        <label class="form-label mb-0">Compass <span id="stOpCompassVal"></span></label>
+        <input type="range" class="form-range st-size st-pct" id="stOpCompass" min="10" max="100" step="5" data-k="opCompass">
+        <label class="form-label mb-0">Text <span id="stOpTextVal"></span></label>
+        <input type="range" class="form-range st-size st-pct" id="stOpText" min="10" max="100" step="5" data-k="opText">
+        <label class="form-label mb-0">Map <span id="stOpMapVal"></span></label>
+        <input type="range" class="form-range st-size st-pct" id="stOpMap" min="10" max="100" step="5" data-k="opMap">
+        <label class="form-label mb-0">Logo <span id="stOpLogoVal"></span></label>
+        <input type="range" class="form-range st-size st-pct" id="stOpLogo" min="10" max="100" step="5" data-k="opLogo">
+        <div class="fw-semibold small mt-2 mb-1">Font color <span class="text-muted fw-normal">(all text)</span></div>
+        <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+          <button type="button" class="st-col" data-c="#ffffff" style="background:#ffffff" aria-label="White"></button>
+          <button type="button" class="st-col" data-c="#ffeb3b" style="background:#ffeb3b" aria-label="Yellow"></button>
+          <button type="button" class="st-col" data-c="#ff9800" style="background:#ff9800" aria-label="Orange"></button>
+          <button type="button" class="st-col" data-c="#4caf50" style="background:#4caf50" aria-label="Green"></button>
+          <button type="button" class="st-col" data-c="#000000" style="background:#000000" aria-label="Black"></button>
+          <label class="mb-0 small text-muted d-flex align-items-center gap-1">Custom <input type="color" id="stColor" value="#ffffff" style="width:34px;height:30px;padding:0;border:0;background:none"></label>
+        </div>
         <label class="form-label">Title text <span class="text-muted">(shown as #title)</span></label>
         <input id="stTitle" class="form-control" maxlength="40" placeholder="e.g. Merchant Support SR">
         <label class="form-label mt-3">Logo (top-right)</label>
@@ -672,6 +697,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const show = (el, on = true) => el.classList.toggle('hidden', !on);
 
 const S = { token: null, user: null, cards: [], seq: 0, rows: [], chart: null, scanTarget: null, reader: null };
+const DEFAULT_MIN_PH = 2;      // photos needed when Photos is required and the admin set no minimum
 const MAX_PHOTOS = 10;
 const MAX_VIDEOS = 2, MAX_VIDEO_MB = 15;
 const MAX_MERCHANTS = 10;
@@ -689,7 +715,7 @@ const DEFAULT_CATALOG = [
 ];
 /* Box levels per activity: 0 = hidden, 1 = optional, 2 = must fill (red *). Same rules as the server. */
 const FIELD_KEYS = ['merchant', 'mid', 'tid', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune', 'zone'];
-const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'Commune', zone: 'Zone / Area' };
+const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'District', zone: 'Zone / Area' };
 function legacyLevel(cat, a, k) {
   const rq = a.req && typeof a.req === 'object' ? a.req : {};
   const lv = (on, d) => !on ? 0 : (typeof rq[k] === 'boolean' ? (rq[k] ? 2 : 1) : d);
@@ -703,7 +729,7 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); });
@@ -717,7 +743,14 @@ const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
 const typeDef = n => CATALOG.find(t => t.name === n) || null;
 const actDef = (t, a) => { const d = typeDef(t); return d ? (d.acts.find(x => x.n === a) || null) : null; };
-const actSubs = a => (a && a.subs && a.subs.length) ? a.subs : [''];      // the sub categories an activity appears under; [''] = stand-alone only
+const actSubs = a => (a && a.subs && a.subs.length) ? a.subs : [''];      // the sub categories an activity appears under; [''] = not linked to any (category without links)
+/** Once any activity is linked to a sub category, every activity belongs to at least one: unlinked ones appear under all sub categories (there is no stand-alone group). */
+function allocSubs(t) {
+  const names = (t.subs || []).map(x => x.n).filter(Boolean);
+  t.acts.forEach(a => { if (a.subs) { a.subs = a.subs.filter(x => x && names.includes(x)); if (!a.subs.length) delete a.subs; } });
+  if (names.length && t.acts.some(a => a.subs && a.subs.length)) t.acts.forEach(a => { if (!a.subs || !a.subs.length) a.subs = names.slice(); });
+  return t;
+}
 /** The activity as it behaves under a sub category: that sub category's box rules (admin) win over the activity's own. */
 function effDef(t, a, sub) {
   const d = actDef(t, a), td = typeDef(t), sd = sub && td && td.subs ? td.subs.find(s => s.n === sub) : null;
@@ -729,7 +762,7 @@ function effDef(t, a, sub) {
 }
 const isInstall = (t, a) => { const d = actDef(t, a); return d ? !!d.inst : (a === 'Installation' || a === 'New Install'); };
 const dateLabel = (a, t) => !a ? 'Installed / action date' : (isInstall(t || curType, a) ? 'Installed date' : 'Action date');
-const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart','Groccery store','Health and Fitness','Education','Massage / Spa','Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
+const BIZ_TYPES = ['Restaurant', 'Cafe', 'Mini mart', 'Grocery store', 'Health and Fitness', 'Education', 'Massage / Spa', 'Construction Material', 'Financial / Consultant', 'Supermarket', 'Pharmacy', 'Clothing shop', 'Beauty / Salon', 'Hotel / Guesthouse', 'Gas station', 'Electronics', 'Bakery', 'Others'];
 const TAB_ICONS = { 'QR': 'bi-qr-code', 'POS': 'bi-credit-card-2-front', 'SB': 'bi-speaker', 'Payway Inspection': 'bi-clipboard2-check' };
 const CAT_ICONS = ['qr-code', 'credit-card-2-front', 'speaker', 'clipboard2-check', 'grid', 'shop', 'bag', 'box-seam', 'cart', 'wallet2', 'phone', 'tools', 'wrench', 'house-door', 'building', 'geo-alt', 'truck', 'star', 'heart', 'lightning', 'cup-hot', 'lamp', 'tag', 'person-badge', 'gift', 'printer', 'wifi', 'cash-coin', 'patch-check', 'calendar-check'];
 const iconOf = n => { const d = CATALOG.find(t => t.name === n); return d && d.icon ? 'bi-' + d.icon : (TAB_ICONS[n] || 'bi-grid'); };
@@ -739,7 +772,7 @@ const SUB_NONE = '__none__';      // report filter value: records without a sub 
 function actInSub(t, a, fs) { return !fs || !isLinked(t) || (fs === SUB_NONE ? actSubs(a).includes('') : actSubs(a).includes(fs)); }
 function setCatalog(c) {
   if (!Array.isArray(c) || !c.length) c = DEFAULT_CATALOG;
-  c = normCat(c);
+  c = normCat(c).map(allocSubs);
   CATALOG = c; TYPES = c.map(t => t.name); ACTIVITIES = {};
   c.forEach(t => { ACTIVITIES[t.name] = t.acts.map(a => a.n); });
   if (!TYPES.includes(curType)) curType = TYPES[0];
@@ -780,14 +813,13 @@ function followFirst() {
 const lastSubs = (() => { try { return JSON.parse(localStorage.getItem('it_last_sub') || '{}') || {}; } catch (e) { return {}; } })();
 function subOptions() {
   const t = typeDef(curType) || {}, subs = t.subs || [], o = subs.map(s => ({ n: s.n, name: s.n, code: s.code }));
-  if (isLinked(t) && t.acts.some(a => actSubs(a).includes(''))) o.push({ n: '', name: subs.some(s => /^general$/i.test(s.n)) ? 'Other' : 'General', code: '' });      // the stand-alone tab; not "General" when a sub category already has that name
   return o;
 }
 const sessSubs = {};      // linked categories: the sub category used earlier in this visit (a fresh visit starts on the stand-alone activities)
 function fillSubs() {
   const t = typeDef(curType) || {}, opts = subOptions();
   show($('#subWrap'), (t.subs || []).length > 0);
-  if (!opts.some(o => o.n === S.sub)) { const lk = isLinked(t), r = lk ? sessSubs[curType] : lastSubs[curType]; S.sub = opts.some(o => o.n === r) ? r : (lk && opts.length ? (opts.some(o => o.n === '') ? '' : opts[0].n) : null); }
+  if (!opts.some(o => o.n === S.sub)) { const lk = isLinked(t), r = lk ? sessSubs[curType] : lastSubs[curType]; S.sub = opts.some(o => o.n === r) ? r : (lk && opts.length ? opts[0].n : null); }
   $('#subChips').style.setProperty('--sc', opts.length <= 4 ? Math.max(1, opts.length) : opts.length <= 6 ? 3 : 4);      // equal-width tabs; more than 4 wrap onto a second row
   $('#subChips').innerHTML = opts.map(o => '<button type="button" class="' + (o.n === S.sub ? 'active' : '') + '" role="tab" aria-selected="' + (o.n === S.sub) + '" data-s="' + esc(o.n) + '">' + esc(o.name) + (o.code ? ' <span class="sc">' + esc(o.code) + '</span>' : '') + '</button>').join('');
 }
@@ -810,14 +842,21 @@ function fillPtypeChips(card) {
   syncPtype(card.el);
 }
 function syncPtype(el) {
-  const v = $('.f-ptype', el).value.trim().toLowerCase();
-  $$('.ptype-chips .chip', el).forEach(b => b.classList.toggle('active', b.dataset.t.toLowerCase() === v));
+  const picked = $('.f-ptype', el).value.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);       // several product types can be chosen: "QR, POS"
+  $$('.ptype-chips .chip', el).forEach(b => b.classList.toggle('active', picked.includes(b.dataset.t.toLowerCase())));
 }
-/** Commune from the current location (the address lookup), unless the staff typed their own. */
+/** District from the current location (the address lookup), unless the staff typed their own. One box under the location, used for every merchant. */
 function fillCommuneAll(force, clear) {
-  const c = (geo.place && geo.place.commune) || ''; if (!c && !clear) return;
-  S.cards.forEach(card => { const i = $('.f-commune', card.el); if (force || !i.dataset.touched) i.value = c; });   // clear = the place changed: drop the old, now wrong, value
+  const c = (geo.place && geo.place.district) || ''; if (!c && !clear) return;
+  const i = $('#fDistrict'); if (force || !i.dataset.touched) i.value = c;      // clear = the place changed: drop the old, now wrong, value
 }
+$('#fDistrict').addEventListener('input', e => { e.target.dataset.touched = '1'; });
+$('#distFill').addEventListener('click', async () => {
+  if (!geo.pos) await refreshGeo(8000);
+  try { await geo.lookup; } catch (e) {}
+  const c = geo.place && geo.place.district, i = $('#fDistrict');
+  if (c) { i.value = c; delete i.dataset.touched; } else toast('No district found for this location. Type it.', 'warning');
+});
 function syncBtype(el) {
   const v = $('.f-btype', el).value.trim().toLowerCase();
   $$('.btype-chips .chip', el).forEach(b => b.classList.toggle('active', b.dataset.t.toLowerCase() === v));
@@ -872,7 +911,7 @@ function renderCustom(box, d) {
 /** Shows only the boxes the activity needs (data-fk="key") and puts the red * on the must-fill ones. */
 function applyLevels(root, d) {
   FIELD_KEYS.forEach(k => $$('[data-fk="' + k + '"]', root).forEach(w => { show(w, lvl(d, k) > 0); $$('.rq', w).forEach(x => show(x, lvl(d, k) === 2)); }));
-  const mp = lvl(d, 'photo') ? (d.minPh || 0) : 0;       // the admin's minimum number of photos / videos
+  const mp = lvl(d, 'photo') ? ((d.minPh || 0) > 0 ? d.minPh : (lvl(d, 'photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;       // the admin's minimum number of photos / videos (2 when Photos is required and none is set)
   $$('[data-fk="photo"]', root).forEach(w => { if (mp) $$('.rq', w).forEach(x => show(x, true)); const pm = $('.ph-min', w); if (pm) { pm.textContent = mp > 1 ? '(at least ' + mp + ')' : ''; show(pm, mp > 1); } });
 }
 /** Selects an activity: highlights it and shows the extra boxes it needs (phone/tag, old/new S/N). */
@@ -893,8 +932,10 @@ function setAct(card, a) {
 /** The location card is shown while some merchant card still needs a location (admin: Location box = optional or must). */
 function updateLocCard() {
   const ds = S.cards.map(c => { const a = $('.f-act', c.el).value; return a ? effDef(curType, a, S.sub || '') : null; });
-  show($('#locCard'), ds.some(d => !d || lvl(d, 'location') > 0));
+  const needLoc = ds.some(d => !d || lvl(d, 'location') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0);
+  show($('#locCard'), needLoc || needDist); show($('#locRow'), needLoc); show($('#distWrap'), needDist);
   show($('#locStar'), ds.some(d => d && lvl(d, 'location') === 2));
+  show($('#distStar'), ds.some(d => d && lvl(d, 'commune') === 2));
 }
 function updateDateLabel(card) {
   $('.date-lbl', card.el).textContent = dateLabel($('.f-act', card.el).value);
@@ -915,7 +956,7 @@ function setType(t) {
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbwzIbJ90xp4Ylmw08KSmrMK0PP7PIwbcx8FsloR7-LDqkBI8vy-dI4RPoufJaXWqhE/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyoDWRf7bGWfedw0Pug7D9aHMI4S-Y_oJb2xZ4dJAedG_UB0xT1syRmdM3PNFYSbBo0/exec';
 
 async function api(fn, ...args) {
   let json;
@@ -1315,10 +1356,9 @@ function addMerchant() {
     '<div class="mb-3 hidden" data-fk="newSn"><label class="form-label">New S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-new" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="btype"><label class="form-label">Business type <span class="rq hidden">*</span></label><input class="form-control f-btype mb-2" maxlength="60" autocomplete="off" placeholder="Type, or tap one below">' +
       '<div class="chips btype-chips">' + BIZ_TYPES.map(t => '<button type="button" class="chip" data-t="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div></div>' +
-    '<div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input class="form-control f-ptype mb-2" maxlength="60" autocomplete="off" placeholder="Type, or tap one below"><div class="chips ptype-chips"></div></div>' +
-    '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="row g-2 align-items-center"><div class="col"><input type="time" class="form-control f-open" aria-label="Opens"></div><div class="col-auto small text-muted">to</div><div class="col"><input type="time" class="form-control f-close" aria-label="Closes"></div></div></div>' +
+    '<div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input class="form-control f-ptype mb-2" maxlength="120" autocomplete="off" placeholder="Tap one or more below, or leave blank"><div class="chips ptype-chips"></div></div>' +
+    '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="d-flex align-items-center gap-2 hours-line"><label class="small text-muted mb-0">Open</label><input type="time" class="form-control f-open" aria-label="Open"><label class="small text-muted mb-0 ms-1">Close</label><input type="time" class="form-control f-close" aria-label="Close"></div></div>' +
     '<div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input class="form-control f-group" maxlength="100" autocomplete="off" placeholder="e.g. owner / chain / group name"></div>' +
-    '<div class="mb-3 hidden" data-fk="commune"><label class="form-label">Commune <span class="rq hidden">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label><div class="input-group"><input class="form-control f-commune" maxlength="80" autocomplete="off" placeholder="Filled from your location"><button type="button" class="btn btn-soft btn-commune" aria-label="Fill from my location" title="Fill from my location"><i class="bi bi-geo-alt"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="zone"><label class="form-label">Zone / Area <span class="rq hidden">*</span></label><input class="form-control f-zone" maxlength="80" autocomplete="off" placeholder="e.g. Zone A / Area name"></div>' +
     '<div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input class="form-control f-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="e.g. 012 345 678"></div>' +
     '<div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input class="form-control f-tag" maxlength="200" autocomplete="off" placeholder="Extra remark / tag"></div>' +
@@ -1347,15 +1387,14 @@ function addMerchant() {
     const inp = $('.f-btype', el); inp.value = b.dataset.t; syncBtype(el);
   });
   $('.f-btype', el).addEventListener('input', () => syncBtype(el));
-  $('.ptype-chips', el).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; $('.f-ptype', el).value = b.dataset.t; syncPtype(el); });
+  $('.ptype-chips', el).addEventListener('click', e => {       // tap to add, tap again to remove; none chosen = blank
+    const b = e.target.closest('.chip'); if (!b) return;
+    const cur = $('.f-ptype', el).value.split(',').map(x => x.trim()).filter(Boolean), at = cur.findIndex(x => x.toLowerCase() === b.dataset.t.toLowerCase());
+    if (at >= 0) cur.splice(at, 1); else cur.push(b.dataset.t);
+    const order = x => { const i = TYPES.findIndex(t => t.toLowerCase() === x.toLowerCase()); return i < 0 ? 999 : i; };      // keep the category order, typed extras last
+    $('.f-ptype', el).value = cur.sort((a, c) => order(a) - order(c)).join(', '); syncPtype(el);
+  });
   $('.f-ptype', el).addEventListener('input', () => syncPtype(el));
-  $('.f-commune', el).addEventListener('input', e => { e.target.dataset.touched = '1'; });
-  $('.btn-commune', el).onclick = async () => {
-    if (!geo.pos) await refreshGeo(8000);
-    try { await geo.lookup; } catch (e) {}
-    const c = geo.place && geo.place.commune, i = $('.f-commune', el);
-    if (c) { i.value = c; delete i.dataset.touched; } else toast('No commune found for this location. Type it.', 'warning');
-  };
   $('.act-chips', el).addEventListener('click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
     setAct(card, b.dataset.a);
@@ -1367,7 +1406,7 @@ function addMerchant() {
   $('.qr-file', el).onchange = async e => { await decodeFile(card, e.target.files[0]); e.target.value = ''; };
   $('.btn-photo', el).onclick = () => $('.photo-file', el).click();
   $('.photo-file', el).onchange = async e => { await addPhotos(card, Array.from(e.target.files), false); e.target.value = ''; };
-  $('.btn-cam', el).onclick = () => $('.cam-file', el).click();
+  $('.btn-cam', el).onclick = () => { if (stampOn && stampCfg.compass) startCompass(); $('.cam-file', el).click(); };
   $('.cam-file', el).onchange = async e => { await addPhotos(card, Array.from(e.target.files), true); e.target.value = ''; };
   $('.stamp-link', el).onclick = openStampSettings;
   const sw = $('.stamp-sw', el); sw.checked = stampOn;
@@ -1403,7 +1442,7 @@ $('#addMerchantBtn').addEventListener('click', () => {
 
 /* ---- photos ---- */
 /* ---- photo stamp: settings (all remembered on this phone) ---- */
-const STAMP_DEF = { logo: true, map: true, title: true, time: true, coords: true, addr: true, titleText: 'Merchant Support', user: true, logoData: '', fontScale: 100, mapScale: 20, mapZoom: 17, logoScale: 100 };
+const STAMP_DEF = { logo: true, map: true, title: true, time: true, coords: true, addr: true, titleText: 'Merchant Support', user: true, logoData: '', fontScale: 100, mapScale: 20, mapZoom: 17, logoScale: 100, compass: true, compassScale: 100, opCompass: 100, opText: 100, opMap: 100, opLogo: 100, fontColor: '#ffffff' };
 let stampOn = store.get('it_stamp') !== '0';          // on by default; remembered
 let stampCfg = (() => {
   let c = {}; try { c = JSON.parse(store.get('it_stamp_cfg') || '{}') || {}; } catch (e) {}
@@ -1443,11 +1482,11 @@ function readPosition(timeout) {
       () => res(null), { enableHighAccuracy: true, timeout: timeout || 10000, maximumAge: 30000 });
   });
 }
-/** A commune sits above the village, so village / hamlet are never used. Prefer a name that says Sangkat / Khum / Commune, then the suburb or quarter. */
-function communeOf(a) {
-  const skip = /^(country|country_code|postcode|road|house_number|village|hamlet|isolated_dwelling|neighbourhood|amenity|ISO3166.*)$/i;
-  const named = Object.keys(a).filter(k => !skip.test(k)).map(k => String(a[k])).find(v => /\b(sangkat|khum|commune)\b/i.test(v));
-  return named || a.suburb || a.quarter || '';
+/** The district (Khan / Srok / Krong): prefer a name that says so, else the address' city district, district or county. */
+function districtOf(a) {
+  const skip = /^(country|country_code|postcode|road|house_number|village|hamlet|isolated_dwelling|neighbourhood|suburb|quarter|amenity|ISO3166.*)$/i;
+  const named = Object.keys(a).filter(k => !skip.test(k)).map(k => String(a[k])).find(v => /\b(khan|srok|krong|district)\b/i.test(v));
+  return named || a.city_district || a.district || a.county || a.state_district || '';
 }
 function lookupPlace(p) {
   const key = p.lat.toFixed(3) + ',' + p.lon.toFixed(3);                 // ~100 m
@@ -1460,7 +1499,7 @@ function lookupPlace(p) {
       const a = j.address || {};
       const street = a.road || a.pedestrian || a.amenity || a.suburb || a.neighbourhood || a.village || '';
       const city = a.city || a.town || a.municipality || a.county || String(a.state || '').replace(/ Province$/i, '');
-      geo.place = { street, city, country: a.country || '', commune: communeOf(a) };
+      geo.place = { street, city, country: a.country || '', district: districtOf(a), commune: a.suburb || a.quarter || a.neighbourhood || a.village || a.hamlet || '' };
       fillCommuneAll(false, true);
     }).catch(() => { geo.place = null; geo.key = ''; }).then(() => { if (timer) clearTimeout(timer); });
   return geo.lookup;
@@ -1593,9 +1632,39 @@ function getLogo() {
   if (logoImg.src === stampCfg.logoData && logoImg.img) return Promise.resolve(logoImg.img);
   return new Promise(res => { const im = new Image(); im.onload = () => { logoImg.src = stampCfg.logoData; logoImg.img = im; res(im); }; im.onerror = () => res(null); im.src = stampCfg.logoData; });
 }
+
+/* ---- compass heading (phone sensor) ---- */
+const hdg = { v: null, on: false };
+const normDeg = d => ((d % 360) + 360) % 360;
+function onOrient(e) {
+  let v = null;
+  if (typeof e.webkitCompassHeading === 'number') v = e.webkitCompassHeading;          // iPhone: already degrees from north
+  else if (e.alpha != null && (e.absolute || e.type === 'deviceorientationabsolute')) v = 360 - e.alpha;   // Android
+  if (v == null || isNaN(v)) return;
+  const ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;   // phone turned sideways
+  hdg.v = normDeg(v + ang); hdg.t = Date.now();
+}
+/** Start listening. Must be called from a tap on iPhone (permission prompt). Safe to call many times. */
+async function startCompass() {
+  if (hdg.on) return;
+  try {
+    if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return;
+    }
+  } catch (e) { return; }
+  hdg.on = true;
+  window.addEventListener('deviceorientationabsolute', onOrient, true);
+  window.addEventListener('deviceorientation', onOrient, true);
+}
+const CARD8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const headText = v => Math.round(v) % 360 + '° ' + CARD8[Math.round(v / 45) % 8];
+/** The stamp's address: street, commune, district, city – no country. */
+const stampAddr = pl => { const seen = {}; return [pl && pl.street, pl && pl.commune, pl && pl.district, pl && pl.city].filter(v => { if (!v) return false; const k = v.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).join(', '); };
 /** Everything one stamp needs (the time is filled in per photo). */
 async function stampData() {
-  const d = { title: '', user: '', time: stampCfg.time, coords: '', addr: '', map: null, logo: null, fontScale: stampCfg.fontScale, mapScale: stampCfg.mapScale, logoScale: stampCfg.logoScale };
+  const d = { title: '', user: '', time: stampCfg.time, coords: '', addr: '', map: null, logo: null, fontScale: stampCfg.fontScale, mapScale: stampCfg.mapScale, logoScale: stampCfg.logoScale,
+    compass: null, compassScale: stampCfg.compassScale, opCompass: stampCfg.opCompass, opText: stampCfg.opText, opMap: stampCfg.opMap, opLogo: stampCfg.opLogo, fontColor: stampCfg.fontColor };
+  if (stampCfg.compass && hdg.v != null) d.compass = { deg: hdg.v };
   if (stampCfg.title && stampCfg.titleText) d.title = stampCfg.titleText;
   if (stampCfg.user && S.user) d.user = S.user.username;
   if (stampCfg.logo) d.logo = await getLogo();
@@ -1607,7 +1676,7 @@ async function stampData() {
       if (stampCfg.addr) {
         try { await geo.lookup; } catch (e) {}
         const pl = geo.place;
-        d.addr = [plusCode(p.lat, p.lon), pl && pl.street, pl && pl.city, pl && pl.country].filter(Boolean).join(', ');
+        d.addr = stampAddr(pl);
       }
       if (stampCfg.map) { try { loadMap(p); d.map = await geo.mapLookup; } catch (e) {} }   // loadMap is cached per spot + zoom
     }
@@ -1615,6 +1684,27 @@ async function stampData() {
   return d;
 }
 
+
+const opOf = v => { v = Number(v); return isNaN(v) ? 1 : Math.min(1, Math.max(0.1, v / 100)); };
+const shadowFor = c => { const m = /^#?([0-9a-f]{6})$/i.exec(c || ''); if (!m) return 'rgba(0,0,0,0.7)'; const n = parseInt(m[1], 16), l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; return l < 0.45 ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'; };
+/** Compass dial: red arrow points to north, so it turns against the phone's heading. */
+function drawCompass(ctx, x0, y0, size, deg, color, alpha, fs) {
+  const r = size / 2, cx = x0 + r, cy = y0 + r;
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.5, size * 0.03);
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.translate(cx, cy); ctx.rotate(-deg * Math.PI / 180);
+  const L = r * 0.72, W = r * 0.17;
+  ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.moveTo(0, -L); ctx.lineTo(W, 0); ctx.lineTo(-W, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, L); ctx.lineTo(W, 0); ctx.lineTo(-W, 0); ctx.closePath(); ctx.fill();
+  ctx.font = '700 ' + Math.max(8, Math.round(size * 0.17)) + 'px -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = color;
+  ctx.save(); ctx.translate(0, -r * 0.86); ctx.rotate(deg * Math.PI / 180); ctx.fillText('N', 0, 0); ctx.restore();   // letter stays upright
+  ctx.restore();
+  ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.shadowColor = shadowFor(color); ctx.shadowBlur = Math.max(2, fs * 0.16);
+  ctx.font = '600 ' + Math.max(9, Math.round(fs * 0.8)) + 'px -apple-system, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText(headText(deg), cx, cy + r + Math.max(2, size * 0.04)); ctx.restore();
+}
 /** Sample layout: logo top-right, map bottom-left, white right-aligned text bottom-right. Wraps long lines. */
 function drawStamp(ctx, w, h, d, ms) {
   const base = Math.min(w, h);
@@ -1648,23 +1738,28 @@ function drawStamp(ctx, w, h, d, ms) {
     if (ih > maxH) { ih = maxH; iw = ih * asp; }
     iw = Math.round(iw); ih = Math.round(ih);
     const bw = iw + pad * 2, bh = ih + pad * 2, x0 = w - mx - bw, y0 = my;
+    ctx.save(); ctx.globalAlpha = opOf(d.opLogo);
     ctx.fillStyle = '#fff'; ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, bw, bh, pad) : ctx.rect(x0, y0, bw, bh)); ctx.fill();
-    ctx.drawImage(d.logo, x0 + pad, y0 + pad, iw, ih);
+    ctx.drawImage(d.logo, x0 + pad, y0 + pad, iw, ih); ctx.restore();
   }
+  // compass, top-left
+  if (d.compass) drawCompass(ctx, mx, my, Math.round(base * 0.15 * (d.compassScale || 100) / 100), d.compass.deg, d.fontColor || '#ffffff', opOf(d.opCompass), fs);
   // map thumbnail, bottom-left
   if (d.map) {
     const x0 = mx, y0 = h - my - mapS;
-    ctx.save(); ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.clip();
+    ctx.save(); ctx.globalAlpha = opOf(d.opMap); ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.clip();
     ctx.drawImage(d.map, x0, y0, mapS, mapS); ctx.restore();
     ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = Math.max(1.5, base * 0.003);
-    ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.stroke();
+    ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.stroke(); ctx.restore();
   }
   ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-  ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = Math.max(2, fs * 0.16); ctx.shadowOffsetY = Math.max(1, fs * 0.04);
-  ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = opOf(d.opText);
+  ctx.shadowColor = shadowFor(d.fontColor); ctx.shadowBlur = Math.max(2, fs * 0.16); ctx.shadowOffsetY = Math.max(1, fs * 0.04);
+  ctx.fillStyle = d.fontColor || '#ffffff';
   lines.forEach((t, i) => ctx.fillText(t, w - mx, h - my - fs * 0.2 - (lines.length - 1 - i) * lh));
   ctx.restore();
 }
+const PQ = { '': { max: 1280, q: 0.72 }, high: { max: 2048, q: 0.85 }, max: { max: 2560, q: 0.9 } };      // photo quality set per activity
 function compress(file, opts) {
   opts = opts || {};
   const max = opts.max || 1280, q = opts.q || 0.72;
@@ -1702,6 +1797,7 @@ async function addPhotos(card, files, fromCamera) {
   const doStamp = !!(fromCamera && stampOn);
   const prog = $('.prog', card.el), bar = $('.progress-bar', card.el);
   show(prog, true); prog.style.display = 'flex'; bar.style.width = '5%';
+  const pq = PQ[((effDef(curType, $('.f-act', card.el).value, S.sub || '') || {}).pq) || ''] || PQ[''];      // the activity chosen now decides the photo quality
   const sd = doStamp ? await stampData() : null;       // GPS can take a few seconds the first time
   for (let i = 0; i < files.length; i++) {
     try {
@@ -1710,7 +1806,7 @@ async function addPhotos(card, files, fromCamera) {
         if (card.photos.filter(isVideoSrc).length >= MAX_VIDEOS) { toast('At most ' + MAX_VIDEOS + ' videos per merchant.', 'warning'); continue; }
         if (f.size > MAX_VIDEO_MB * 1048576) { toast('Video is ' + Math.round(f.size / 1048576) + ' MB; the limit is ' + MAX_VIDEO_MB + ' MB. Record a shorter clip or lower the video quality.', 'warning'); continue; }
         card.photos.push(await readVideo(f));
-      } else card.photos.push(await compress(f, { stamp: doStamp, data: sd }));   // each photo keeps its own time
+      } else card.photos.push(await compress(f, Object.assign({ stamp: doStamp, data: sd }, pq)));   // each photo keeps its own time
     } catch (e) { toast('Skipped an unreadable file.', 'warning'); }
     bar.style.width = Math.round(((i + 1) / files.length) * 100) + '%';
   }
@@ -1740,8 +1836,9 @@ $('#submitBtn').addEventListener('click', async () => {
     if (!g('.f-date')) { bad('pick the date.', '.f-date'); return; }
     const must = [['merchant', '.f-name', 'the merchant name'], ['mid', '.f-mid', 'the MID'], ['tid', '.f-tid', 'the TID'], ['business', '.f-biz', 'the business name'],
       ['serial', '.f-serial', 'the serial number'], ['oldSn', '.f-old', 'the Old S/N'], ['newSn', '.f-new', 'the New S/N'], ['btype', '.f-btype', 'the business type'],
-      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['commune', '.f-commune', 'the commune'], ['zone', '.f-zone', 'the Zone / Area'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
+      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['zone', '.f-zone', 'the Zone / Area'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
     for (const [k, sel, txt] of must) if (L(k) === 2 && !g(sel)) { bad('enter ' + txt + '.', sel); return; }
+    if (L('commune') === 2 && !$('#fDistrict').value.trim()) { bad('enter the District.'); $('#fDistrict').focus(); return; }
     if (L('hours') && ((L('hours') === 2 && !g('.f-open')) || (!!g('.f-open') !== !!g('.f-close')))) { bad('enter both opening and closing time.', g('.f-open') ? '.f-close' : '.f-open'); return; }
     if (L('phone') && g('.f-phone') && !PHONE_RE.test(g('.f-phone'))) { bad('the phone number looks wrong.', '.f-phone'); return; }
     const extra = {};
@@ -1753,14 +1850,14 @@ $('#submitBtn').addEventListener('click', async () => {
       if (f.kind === 'phone' && !PHONE_RE.test(v)) { bad(f.label + ' looks wrong.'); return; }
       extra[f.id] = v;
     }
-    const needPh = L('photo') ? Math.max(L('photo') === 2 ? 1 : 0, (ad && ad.minPh) || 0) : 0;
+    const needPh = L('photo') ? ((ad && ad.minPh) > 0 ? ad.minPh : (L('photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;
     if (c.photos.length < needPh) { bad(needPh > 1 ? 'attach at least ' + needPh + ' photos or videos (you have ' + c.photos.length + ').' : 'attach at least one photo.'); return; }
     if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone');
     const v = (k, sel) => L(k) ? g(sel) : '';
     items.push({ type: curType, activity: g('.f-act'), date: g('.f-date'), extra, locLv: L('location'),
       merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
-      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: v('commune', '.f-commune'), zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [] });
+      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [] });
   }
   const bytes = items.reduce((t, it) => t + it.photos.reduce((u, p) => u + p.length, 0), 0);
   if (bytes > 32e6) { toast('Photos and videos are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
@@ -2047,7 +2144,7 @@ const EXPORT_COLS = [
   ['Remarks', r => r.remarks], ['Installed/Action Date', r => fmtD(r.date || r.ts)], ['Photos', r => r.photos], ['Category', r => r.type], ['Activity', r => r.activity],
   ['Stamp', r => r.stamp], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Old S/N', r => r.oldSn], ['New S/N', r => r.newSn], ['Location', r => r.loc],
   ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Business Type', r => r.btype], ['Extra Fields', r => r.extra], ['Serial No', r => r.serial],
-  ['Product Type', r => r.ptype], ['Commune', r => r.commune], ['Zone/Area', r => r.zone], ['Sub Category', r => r.sub]
+  ['Product Type', r => r.ptype], ['District', r => r.commune], ['Zone/Area', r => r.zone], ['Sub Category', r => r.sub]
 ];
 /** The important columns for a KPI update, in this order. */
 const KPI_COLS = ['Category', 'Sub Category', 'Activity', 'MID', 'Merchant Name', 'Installed/Action Date'];
@@ -2295,9 +2392,10 @@ function renderCatEditor() {
         '<div class="mb-3 pb-2 border-bottom" data-ai="' + ai + '"><div class="d-flex gap-2 mb-1"><input class="form-control form-control-sm a-name" maxlength="40" placeholder="Activity" value="' + esc(a.n) + '"><input class="form-control form-control-sm a-code" maxlength="4" placeholder="Code" title="Optional code added to the stamp" style="max-width:76px" value="' + esc(a.code || '') + '">' +
         '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-del" aria-label="Remove activity"><i class="bi bi-x-lg"></i></button></div>' +
         '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button></div>' +
-        ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + [{ n: '', name: 'Stand-alone' }].concat(t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n }))).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
+        ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
         fieldRows(a) +
-        '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm a-minph" style="max-width:80px" value="' + (a.minPh || 0) + '"><span class="small text-muted">0 = follow the Photos box</span></div>' +
+        '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Photo quality</span><select class="form-select form-select-sm a-pq" style="max-width:150px"><option value="">Standard</option><option value="high"' + (a.pq === 'high' ? ' selected' : '') + '>High</option><option value="max"' + (a.pq === 'max' ? ' selected' : '') + '>Max</option></select><span class="small text-muted">sharper photos and PDF, bigger uploads</span></div>' +
+        '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm a-minph" style="max-width:80px" value="' + (a.minPh || 0) + '"><span class="small text-muted">0 = 2 when Photos is Required</span></div>' +
         '<details class="mt-2 a-tgbox"' + (a.tg ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Telegram message <span class="text-muted fw-normal">(' + (a.tg ? 'own message' : 'standard message') + ')</span></summary>' +
           '<textarea class="form-control form-control-sm a-tg mt-2" rows="6" spellcheck="false" placeholder="Leave empty to use the standard message (Telegram message box below). Example:&#10;🛠 <b>{title}</b>&#10;🧾 {merchant} · MID {mid}">' + esc(a.tg || '') + '</textarea>' +
           '<div class="chips mt-2 a-tgchips">' + (S.tgPlaceholders || []).map(k => '<button type="button" class="chip a-tgk" data-k="' + esc(k) + '">{' + esc(k) + '}</button>').join('') + '</div>' +
@@ -2332,6 +2430,7 @@ $('#catList').addEventListener('input', e => {
   else if (e.target.classList.contains('cf-label')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].label = e.target.value;
 });
 $('#catList').addEventListener('change', e => {
+  if (e.target.classList.contains('a-pq')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.pq = e.target.value; else delete a.pq; return; }
   if (e.target.classList.contains('a-minph')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); a.minPh = v; if (v && !a.f.photo) a.f.photo = 1; renderCatEditor(); return; }
   if (e.target.classList.contains('s-minph')) { const sr = e.target.closest('[data-sr]'), s = catDraft[+e.target.closest('[data-ti]').dataset.ti].subs[+sr.dataset.sr]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); if (v) s.minPh = v; else delete s.minPh; e.target.value = v; const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0); $('.s-count', sr).textContent = '(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')'; return; }
   if (e.target.classList.contains('cf-kind')) { const f = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.kind = e.target.value; if (f.kind === 'spin') { if (f.min == null) f.min = 0; if (f.max == null) f.max = 100; if (!f.step) f.step = 1; } renderCatEditor(); }
@@ -2348,11 +2447,11 @@ $('#catList').addEventListener('click', e => {
     api('previewTelegramTemplate', S.token, txt).then(r => { out.innerHTML = r; show(out, true); }).catch(ex => { out.textContent = ex.message; show(out, true); });
   }
   else if (e.target.closest('.a-subchip')) {
-    const a = t.acts[ai], cur = actSubs(a).slice(), v = e.target.closest('.a-subchip').dataset.s, at = cur.indexOf(v);
-    if (at >= 0) { if (cur.length === 1) { toast('An activity must appear under at least one place.', 'warning'); return; } cur.splice(at, 1); } else cur.push(v);
-    const names = (t.subs || []).map(s => s.n).filter(x => x && cur.includes(x)), all = names.concat(cur.includes('') ? [''] : []);
-    if (all.length === 1 && all[0] === '') delete a.subs; else a.subs = all;
-    e.target.closest('.a-subchip').classList.toggle('active', at < 0);
+    const a = t.acts[ai], cur = (a.subs || []).filter(Boolean), v = e.target.closest('.a-subchip').dataset.s, at = cur.indexOf(v);
+    if (at >= 0) { if (cur.length === 1) { toast('An activity must appear under at least one sub category.', 'warning'); return; } cur.splice(at, 1); } else cur.push(v);
+    a.subs = (t.subs || []).map(x => x.n).filter(x => x && cur.includes(x));
+    allocSubs(t);
+    $$('[data-ai]', e.target.closest('[data-ti]')).forEach(ab => { const aa = t.acts[+ab.dataset.ai]; $$('.a-subchip', ab).forEach(c => c.classList.toggle('active', actSubs(aa).includes(c.dataset.s))); });
   }
   else if (e.target.closest('.s-lv')) {
     const sr = e.target.closest('[data-sr]'), s = t.subs[+sr.dataset.sr], row = e.target.closest('.fl-row'), v = e.target.closest('.s-lv').dataset.v;
@@ -2364,7 +2463,7 @@ $('#catList').addEventListener('click', e => {
   else if (e.target.closest('.c-icon')) { t.icon = e.target.closest('.c-icon').dataset.i; renderCatEditor(); }
   else if (e.target.closest('.s-add')) { t.subs = t.subs || []; if (t.subs.length >= 12) { toast('At most 12 sub categories.', 'warning'); return; } t.subs.push({ n: '', code: '' }); renderCatEditor(); }
   else if (e.target.closest('.s-del')) { const gone = t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1)[0]; t.acts.forEach(a => { if (gone && a.subs) { a.subs = a.subs.filter(x => x !== gone.n); if (!a.subs.length) delete a.subs; } }); renderCatEditor(); }
-  else if (e.target.closest('.c-addact')) { t.acts.push(normAct({}, { n: '' })); renderCatEditor(); }
+  else if (e.target.closest('.c-addact')) { { const na = normAct({}, { n: '' }); na.f.photo = 2; t.acts.push(na); } renderCatEditor(); }
   else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
@@ -2410,7 +2509,8 @@ async function drawStampPreview() {
   drawStamp(x, w, hh, {
     title: c.title && c.titleText ? c.titleText : '', user: c.user ? (S.user ? S.user.username : 'Sok Dara') : '', time: c.time,
     coords: c.coords ? coordText({ lat, lon }) : '',
-    addr: c.addr ? plusCode(lat, lon) + ', Ring Road, Krong Siem Reap, Cambodia' : '',
+    addr: c.addr ? 'Ring Road, Svay Dangkum, Krong Siem Reap, Siem Reap' : '',
+    compass: c.compass ? { deg: hdg.v != null ? hdg.v : 325 } : null, compassScale: c.compassScale, opCompass: c.opCompass, opText: c.opText, opMap: c.opMap, opLogo: c.opLogo, fontColor: c.fontColor,
     map: c.map ? previewMap() : null, logo, fontScale: c.fontScale, mapScale: c.mapScale, logoScale: c.logoScale
   }, Date.now());
 }
@@ -2419,6 +2519,9 @@ function readStampForm() {
   $$('.st-size').forEach(el => { stDraft[el.dataset.k] = +el.value; });
   $('#stFontVal').textContent = stDraft.fontScale + '%'; $('#stMapVal').textContent = stDraft.mapScale + '%'; $('#stZoomVal').textContent = stDraft.mapZoom; $('#stLogoVal').textContent = stDraft.logoScale + '%';
   stDraft.titleText = $('#stTitle').value.trim().slice(0, 40);
+  $$('.st-pct').forEach(el => { const v = $('#' + el.id + 'Val'); if (v) v.textContent = stDraft[el.dataset.k] + '%'; });
+  $$('.st-col').forEach(el => el.classList.toggle('on', el.dataset.c.toLowerCase() === String(stDraft.fontColor).toLowerCase()));
+  $('#stColor').value = /^#[0-9a-f]{6}$/i.test(stDraft.fontColor) ? stDraft.fontColor : '#ffffff';
 }
 function openStampSettings() {
   stDraft = Object.assign({}, stampCfg);
@@ -2431,6 +2534,9 @@ function openStampSettings() {
 }
 $$('.st-opt').forEach(el => el.addEventListener('change', () => { readStampForm(); drawStampPreview(); }));
 $$('.st-size').forEach(el => el.addEventListener('input', () => { readStampForm(); drawStampPreview(); }));
+$$('.st-col').forEach(b => b.addEventListener('click', () => { stDraft.fontColor = b.dataset.c; readStampForm(); drawStampPreview(); }));
+$('#stColor').addEventListener('input', e => { stDraft.fontColor = e.target.value; readStampForm(); drawStampPreview(); });
+$('#stCompass').addEventListener('change', e => { if (e.target.checked) startCompass(); });
 $('#stTitle').addEventListener('input', () => { readStampForm(); drawStampPreview(); });
 /** Cuts empty margins off a logo (transparent edges, or white edges when the picture has no transparency) so it fills its box. */
 function trimLogo(c) {
@@ -2462,7 +2568,7 @@ $('#stLogoFile').addEventListener('change', e => {
 $('#stLogoClear').addEventListener('click', () => { stDraft.logoData = ''; $('#stLogoNote').textContent = 'Logo removed. Press Save to keep this.'; drawStampPreview(); });
 $('#stSave').addEventListener('click', () => {
   readStampForm(); stampCfg = Object.assign({}, STAMP_DEF, stDraft); saveStampCfg();
-  stampModal.hide(); toast('Photo stamp saved.', 'success');
+  stampModal.hide(); toast('Photo stamp saved.', 'success'); if (stampCfg.compass) startCompass();
   if (geo.pos) { loadMap(geo.pos); try { geo.mapLookup.then(paintLoc); } catch (e) {} }   // new zoom: redraw the map picture
   if (stampOn && needGeo()) refreshGeo(10000);
 });
@@ -2501,7 +2607,7 @@ function openEdit() {
   show($('#eError'), false);
   $('#eCat').textContent = r.type;
   $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + ' · edit ' + ((r.edits || 0) + 1) + ' of ' + S.rules.max;
-  const rt = typeDef(r.type), list = rt && isLinked(rt) ? rt.acts.filter(a => actSubs(a).includes(r.sub || '')).map(a => a.n) : (ACTIVITIES[r.type] || [r.activity]), single = list.length === 1;
+  const rt = typeDef(r.type), list = rt && isLinked(rt) && r.sub ? rt.acts.filter(a => actSubs(a).includes(r.sub)).map(a => a.n) : (ACTIVITIES[r.type] || [r.activity]), single = list.length === 1;
   $('#eAct').innerHTML = (single ? '' : '<option value="">Select activity…</option>') + list.map(a => '<option>' + esc(a) + '</option>').join('');
   $('#eAct').value = list.includes(r.activity) ? r.activity : (single ? list[0] : '');
   show($('#eActWrap'), !single);
