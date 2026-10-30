@@ -1693,7 +1693,7 @@ async function stampData() {
 }
 
 
-const STAMP_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, Roboto, sans-serif';      // the stamp's default font (the look of the sample photo)
+const STAMP_FONT = '-apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';      // the stamp's font, as before
 const opOf = v => { v = Number(v); return isNaN(v) ? 1 : Math.min(1, Math.max(0.1, v / 100)); };
 const shadowFor = c => { const m = /^#?([0-9a-f]{6})$/i.exec(c || ''); if (!m) return 'rgba(0,0,0,0.7)'; const n = parseInt(m[1], 16), l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; return l < 0.45 ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'; };
 /** Compass dial: red arrow points to north, so it turns against the phone's heading. */
@@ -1707,19 +1707,19 @@ function drawCompass(ctx, x0, y0, size, deg, color, alpha, fs) {
   const L = r * 0.72, W = r * 0.17;
   ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.moveTo(0, -L); ctx.lineTo(W, 0); ctx.lineTo(-W, 0); ctx.closePath(); ctx.fill();
   ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, L); ctx.lineTo(W, 0); ctx.lineTo(-W, 0); ctx.closePath(); ctx.fill();
-  ctx.font = '600 ' + Math.max(8, Math.round(size * 0.17)) + 'px ' + STAMP_FONT;
+  ctx.font = '700 ' + Math.max(8, Math.round(size * 0.17)) + 'px ' + STAMP_FONT;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = color;
   ctx.save(); ctx.translate(0, -r * 0.86); ctx.rotate(deg * Math.PI / 180); ctx.fillText('N', 0, 0); ctx.restore();   // letter stays upright
   ctx.restore();
   ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.shadowColor = shadowFor(color); ctx.shadowBlur = Math.max(2, fs * 0.16);
-  ctx.font = '500 ' + Math.max(9, Math.round(fs * 0.8)) + 'px ' + STAMP_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.font = '600 ' + Math.max(9, Math.round(fs * 0.8)) + 'px ' + STAMP_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   ctx.fillText(none ? '--' : headText(deg), cx, cy + r + Math.max(2, size * 0.04)); ctx.restore();
 }
 /** Sample layout: logo top-right, map bottom-left, white right-aligned text bottom-right. Wraps long lines. */
 function drawStamp(ctx, w, h, d, ms) {
   const base = Math.min(w, h);
   let fs = Math.max(10, Math.round(base * 0.034 * (d.fontScale || 100) / 100));
-  const font = s => '500 ' + s + 'px ' + STAMP_FONT;
+  const font = s => '600 ' + s + 'px ' + STAMP_FONT;
   const mx = Math.round(w * 0.035), my = Math.round(base * 0.03);
   const mapS = d.map ? Math.round(base * (d.mapScale || 20) / 100) : 0, gap = d.map ? Math.round(base * 0.02) : 0;
   const maxW = w - mx * 2 - mapS - gap;
@@ -1760,9 +1760,9 @@ function drawStamp(ctx, w, h, d, ms) {
     ctx.save(); ctx.globalAlpha = opOf(d.opMap); ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.clip();
     ctx.drawImage(d.map, x0, y0, mapS, mapS); ctx.restore();
     ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = Math.max(1.5, base * 0.003);
-    ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.stroke(); ctx.restore();
+    ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, mapS, mapS, mapS * 0.06) : ctx.rect(x0, y0, mapS, mapS)); ctx.stroke();
   }
-  ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+  ctx.font = font(fs); ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';      // set again: the text size must follow the Text size slider
   ctx.globalAlpha = opOf(d.opText);
   ctx.shadowColor = shadowFor(d.fontColor); ctx.shadowBlur = Math.max(2, fs * 0.16); ctx.shadowOffsetY = Math.max(1, fs * 0.04);
   ctx.fillStyle = d.fontColor || '#ffffff';
