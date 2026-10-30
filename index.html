@@ -1494,11 +1494,17 @@ function lookupPlace(p) {
   geo.key = key; geo.place = null; fillCommuneAll(false, true);
   const ctl = window.AbortController ? new AbortController() : null;
   const timer = ctl ? setTimeout(() => ctl.abort(), 6000) : null;
-  geo.lookup = fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=en&lat=' + p.lat + '&lon=' + p.lon, ctl ? { signal: ctl.signal } : {})
-    .then(r => r.json()).then(j => {
+  const rev = layer => fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=en' + (layer ? '&layer=address' : '') + '&lat=' + p.lat + '&lon=' + p.lon, ctl ? { signal: ctl.signal } : {}).then(r => r.json());
+  geo.lookup = rev(true).then(j => j && j.address ? j : rev(false))      // street and area names only; if that finds nothing, the plain lookup
+    .then(j => {
       const a = j.address || {};
-      const street = a.road || a.pedestrian || a.amenity || a.suburb || a.neighbourhood || a.village || '';
-      const city = a.city || a.town || a.municipality || a.county || String(a.state || '').replace(/ Province$/i, '');
+      // a business / shop / office name is not part of an address
+      const POI = ['amenity', 'office', 'shop', 'tourism', 'leisure', 'craft', 'building', 'healthcare', 'historic', 'man_made', 'name', 'brand', 'club'];
+      const poi = POI.map(k => String(a[k] || '').toLowerCase()).filter(Boolean), BIZ = /\b(services?|consult\w*|company|co\.?,? ?ltd|ltd|bank|hotel|villa|guesthouse|restaurant|cafe|shop|mart|market|pharmacy|clinic|hospital|school|office|center|centre|spa|salon)\b/i;
+      const ok = v => v && !poi.includes(String(v).toLowerCase()) && !BIZ.test(v);
+      const first = (...v) => v.find(ok) || '';
+      const street = first(a.road, a.pedestrian, a.path, a.footway, a.suburb, a.neighbourhood, a.village);
+      const city = first(a.city, a.town, a.municipality, a.county, String(a.state || '').replace(/ Province$/i, ''));
       geo.place = { street, city, country: a.country || '', district: districtOf(a), commune: a.suburb || a.quarter || a.neighbourhood || a.village || a.hamlet || '' };
       fillCommuneAll(false, true);
     }).catch(() => { geo.place = null; geo.key = ''; }).then(() => { if (timer) clearTimeout(timer); });
