@@ -1660,12 +1660,8 @@ async function startCompass() {
 }
 const CARD8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const headText = v => Math.round(v) % 360 + '° ' + CARD8[Math.round(v / 45) % 8];
-/** The stamp's address: plus code, street, city, then commune and district in place of the country - or the country when no commune was found. */
-const stampAddr = (pl, p) => {
-  const pc = p && plusCode(p.lat, p.lon), st = pl && pl.street, cm = pl && pl.commune && pl.commune.toLowerCase() !== String(st || '').toLowerCase() ? pl.commune : '';      // a commune that is only the street fallback does not count
-  const parts = cm ? [pc, st, pl.city, cm, pl.district] : [pc, st, pl && pl.city, pl && pl.country];      // commune found: it and the district replace the country; else the usual address with the country
-  const seen = {}; return parts.filter(v => { if (!v) return false; const k = v.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).join(', ');
-};
+/** The stamp's address, as at the start: plus code, street, city, country. */
+const stampAddr = (pl, p) => [p && plusCode(p.lat, p.lon), pl && pl.street, pl && pl.city, pl && pl.country].filter(Boolean).join(', ');      // the original address: plus code, street, city, country
 /** Everything one stamp needs (the time is filled in per photo). */
 async function stampData() {
   const d = { title: '', user: '', time: stampCfg.time, coords: '', addr: '', map: null, logo: null, fontScale: stampCfg.fontScale, mapScale: stampCfg.mapScale, logoScale: stampCfg.logoScale,
@@ -2517,7 +2513,7 @@ async function drawStampPreview() {
   drawStamp(x, w, hh, {
     title: c.title && c.titleText ? c.titleText : '', user: c.user ? (S.user ? S.user.username : 'Sok Dara') : '', time: c.time,
     coords: c.coords ? coordText({ lat, lon }) : '',
-    addr: c.addr ? '7PQ8+2X, Ring Road, Siem Reap, Svay Dangkum, Krong Siem Reap' : '',
+    addr: c.addr ? '7PQ8+2X, Ring Road, Siem Reap, Cambodia' : '',
     compass: c.compass ? { deg: hdg.v != null ? hdg.v : 325 } : null, compassScale: c.compassScale, opCompass: c.opCompass, opText: c.opText, opMap: c.opMap, opLogo: c.opLogo, fontColor: c.fontColor,
     map: c.map ? previewMap() : null, logo, fontScale: c.fontScale, mapScale: c.mapScale, logoScale: c.logoScale
   }, Date.now());
