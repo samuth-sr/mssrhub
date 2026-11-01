@@ -363,7 +363,8 @@
       </div>
       <div class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-box-arrow-in-down me-1"></i>Stock in</div>
-        <div class="mb-2"><label class="form-label">Item</label><select id="siItem" class="form-select"></select></div>
+        <div class="mb-2"><label class="form-label">Item <span class="text-muted fw-normal small">(type a name, or pick from the list)</span></label><input id="siItem" class="form-control" maxlength="40" list="siItemList" autocomplete="off" placeholder="e.g. Pax A920, SIM, Battery"><datalist id="siItemList"></datalist>
+          <div class="chips mt-2 hidden" id="siKindWrap"><span class="small text-muted me-1">New item. It has:</span><button type="button" class="chip" data-k="serial">Serial numbers</button><button type="button" class="chip" data-k="qty">Quantity</button></div></div>
         <div class="mb-2 hidden" id="siBranchWrap"><label class="form-label">Branch</label><input id="siBranch" class="form-control" maxlength="10" placeholder="Branch code, e.g. PP" style="text-transform:uppercase"></div>
         <div class="mb-2"><label class="form-label">Supplier / PO / batch <span class="text-muted fw-normal small">(optional)</span></label><input id="siBatch" class="form-control" maxlength="40"></div>
         <div class="mb-2" id="siSnWrap"><label class="form-label">Serial numbers <span class="text-muted fw-normal small">(one per line, or paste a list)</span></label><textarea id="siSns" class="form-control" rows="4" style="text-transform:uppercase"></textarea></div>
@@ -2864,7 +2865,7 @@ async function loadStock() {
     $('#stByBranch').innerHTML = stBars(d.byBranch); $('#stByStaff').innerHTML = stBars(d.byStaff, 'g'); $('#stByMer').innerHTML = stBars(d.byMerchant, 'o'); $('#stByItem').innerHTML = stBars(d.byItem);
     $('#stRecent').innerHTML = d.recent.length ? d.recent.map(l => '<div class="py-1 border-top"><b>' + esc(l.action) + '</b> · ' + esc(l.item) + (l.sn ? ' ' + esc(l.sn) : ' ×' + l.qty) + ' <span class="text-muted">· ' + esc(l.branch) + ' · ' + esc(l.by) + (l.merchant ? ' · ' + esc(l.merchant) : '') + (l.reason ? ' · ' + esc(l.reason) : '') + ' · ' + esc(fmtTs(l.ts)) + '</span></div>').join('') : '<div class="text-muted">Nothing yet</div>';
     const opts = d.items.map(i => '<option value="' + esc(i.name) + '">' + esc(i.name) + (i.kind === 'qty' ? ' (qty)' : '') + '</option>').join('');
-    const cur = $('#siItem').value; $('#siItem').innerHTML = opts; if (cur) $('#siItem').value = cur;
+    $('#siItemList').innerHTML = d.items.map(i => '<option value="' + esc(i.name) + '">' + (i.kind === 'qty' ? 'quantity' : 'serial numbers') + '</option>').join('');
     const rc = $('#rsItem').value; $('#rsItem').innerHTML = '<option value="">Any item</option>' + d.items.filter(i => i.kind !== 'qty').map(i => '<option>' + esc(i.name) + '</option>').join(''); if (rc) $('#rsItem').value = rc;
     $('#aqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join('');
     show($('#siBranchWrap'), admin); siKind(); paintStatusChips(); loadSnRows(); loadPending();
@@ -2904,16 +2905,24 @@ $('#rsSave').addEventListener('click', async () => {
   } catch (ex) { msg.textContent = ex.message; msg.className = 'small mt-2 text-danger'; }
   busy(btn, false);
 });
-function siKind() { const it = (S.stockItems || []).find(i => i.name === $('#siItem').value); const q = it && it.kind === 'qty'; show($('#siSnWrap'), !q); show($('#siQtyWrap'), !!q); }
-$('#siItem').addEventListener('change', siKind);
+S.siNew = '';
+const siFind = () => (S.stockItems || []).find(i => i.name.toLowerCase() === $('#siItem').value.trim().toLowerCase());
+function siKind() {
+  const it = siFind(), nm = $('#siItem').value.trim(), isNew = !!nm && !it && S.user.role === 'Admin';
+  show($('#siKindWrap'), isNew); $$('#siKindWrap .chip').forEach(b => b.classList.toggle('active', b.dataset.k === S.siNew));
+  const q = it ? it.kind === 'qty' : (isNew && S.siNew === 'qty'); show($('#siSnWrap'), !q); show($('#siQtyWrap'), !!q);
+}
+$('#siItem').addEventListener('input', siKind); $('#siItem').addEventListener('change', siKind);
+$('#siKindWrap').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.siNew = b.dataset.k; siKind(); });
 $('#siSave').addEventListener('click', async () => {
-  const btn = $('#siSave'), msg = $('#siMsg'), it = (S.stockItems || []).find(i => i.name === $('#siItem').value);
-  if (!it) { toast('Add a stock item first (Stock items below).', 'warning'); return; }
+  const btn = $('#siSave'), msg = $('#siMsg'), it = siFind(), nm = $('#siItem').value.trim();
+  if (!nm) { toast('Type or choose the item.', 'warning'); return; }
+  if (!it && S.user.role === 'Admin' && !S.siNew) { toast('New item: choose Serial numbers or Quantity.', 'warning'); return; }
   busy(btn, true, 'Saving…');
   try {
-    const r = await api('stockIn', S.token, { item: it.name, branch: $('#siBranch').value.trim(), batch: $('#siBatch').value.trim(), sns: $('#siSns').value, qty: $('#siQty').value });
+    const r = await api('stockIn', S.token, { item: it ? it.name : nm, newKind: it ? '' : S.siNew, branch: $('#siBranch').value.trim(), batch: $('#siBatch').value.trim(), sns: $('#siSns').value, qty: $('#siQty').value });
     msg.className = 'small mt-2 text-success'; msg.textContent = 'Added ' + r.added + (r.skipped.length ? '. Skipped (already listed): ' + r.skipped.join(', ') : '.');
-    $('#siSns').value = ''; $('#siQty').value = ''; loadStock();
+    $('#siSns').value = ''; $('#siQty').value = ''; S.siNew = ''; loadStock();
   } catch (e) { msg.className = 'small mt-2 text-danger'; msg.textContent = e.message; }
   busy(btn, false);
 });
