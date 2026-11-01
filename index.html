@@ -194,6 +194,15 @@
     .login-theme { position: absolute; top: 14px; right: 14px; }
   .st-col{width:28px;height:28px;border-radius:50%;border:2px solid #cfd6e0;padding:0}.st-col.on{border-color:#0d6efd;box-shadow:0 0 0 2px #0d6efd55}
 .hours-line .form-control{flex:1 1 0;min-width:0}
+.rec-table th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;font-weight:700;white-space:nowrap}
+.rec-table td{vertical-align:middle}.rec-row{cursor:pointer}.rec-sub{font-size:.74rem;color:#6b7280}
+.rec-row .rec-go i{transition:transform .15s;color:#6b7280}.rec-row.open .rec-go i{transform:rotate(180deg)}.rec-row.open{background:rgba(79,70,229,.06)}
+.stk-line{border:1px solid rgba(128,128,128,.28);border-radius:12px;padding:8px;margin-bottom:6px}.stk-bar{height:10px;border-radius:6px;background:#4f46e5;min-width:2px}.stk-bar.o{background:#eb6834}.stk-bar.g{background:#1baf7a}.stk-bar.r{background:#dc2626}.sn-row{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid rgba(128,128,128,.28);border-radius:10px;padding:7px 10px;margin-bottom:5px;cursor:pointer}.sn-row.off{opacity:.45;pointer-events:none}.kpi-s{flex:1 1 90px;border-radius:12px;padding:8px 10px;background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.25)}.kpi-s b{display:block;font-size:1.25rem}.kpi-s span{font-size:.72rem;opacity:.7}.st-i{background:#d1fae5;color:#065f46}.st-u{background:#e0e7ff;color:#4338ca}.st-f{background:#fee2e2;color:#991b1b}.st-h{background:#fef3c7;color:#92400e}
+.st-pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.68rem;font-weight:800;white-space:nowrap}.st-p{background:#fef3c7;color:#92400e}.st-a{background:#d1fae5;color:#065f46}.st-r{background:#fee2e2;color:#991b1b}.rv-note{background:#fef2f2;border-left:4px solid #dc2626;border-radius:8px;padding:6px 9px;font-size:.8rem;margin-top:6px}.rv-item{border:1px solid rgba(128,128,128,.25);border-radius:14px;padding:10px;margin-bottom:8px}.rv-badge{display:inline-block;min-width:18px;padding:0 6px;border-radius:999px;background:#dc2626;color:#fff;font-size:.68rem;font-weight:800;line-height:18px;text-align:center;vertical-align:middle}
+.rec-detail>td{background:rgba(79,70,229,.04);padding:10px 12px}.rd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 14px}
+.rd-i span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:#6b7280}.rd-i b{font-size:.85rem;font-weight:600;word-break:break-word}
+.info-lbl{background:#eef2ff;border-left:4px solid #4f46e5;border-radius:10px;padding:8px 12px;color:#1e1b4b}
+.spin-v{display:inline-flex;flex-direction:column;width:96px;gap:4px}.spin-v .btn{padding:.35rem 0}.opt-v{flex-direction:column;align-items:stretch}.opt-v .chip{text-align:left;width:100%}
 </style>
 </head>
 <body>
@@ -283,6 +292,7 @@
 
     <!-- RECORDS -->
     <section id="pane-records" class="hidden">
+      <button type="button" class="btn btn-primary w-100 mb-3 hidden" id="reviewBtn"><i class="bi bi-patch-check me-1"></i>Review queue <span class="rv-badge hidden" id="rvBadge">0</span></button>
       <div class="card-x">
         <div class="mb-3 hidden" id="branchWrap"><div class="form-label">Branch <span class="text-muted fw-normal small">(tap to leave one out, tap again to bring it back)</span></div><div class="chips" id="slBranch"></div></div>
         <div class="mb-3" id="userFilterWrap"><div class="form-label">Staff</div><div class="chips" id="slUser"></div><input type="hidden" id="fUser" value=""></div>
@@ -294,6 +304,7 @@
         <div class="mb-3"><div class="form-label">Category</div><div class="chips" id="slType"></div><input type="hidden" id="fType" value=""></div>
         <div class="mb-3 hidden" id="subFilterWrap"><div class="form-label">Sub category</div><div class="chips" id="slSub"></div><input type="hidden" id="fSub" value=""></div>
         <div class="mb-3"><div class="form-label">Activity</div><div class="chips" id="slActivity"></div><input type="hidden" id="fActivity" value=""></div>
+        <div class="mb-3 hidden" id="statusWrap"><div class="form-label">Review status</div><div class="chips" id="slStatus"></div><input type="hidden" id="fStatus" value=""></div>
         <input id="fSearch" class="form-control" placeholder="Search merchant, MID, TID, phone, remarks…">
       </div>
 
@@ -322,8 +333,8 @@
           <div class="d-flex gap-2"><button class="btn btn-soft btn-sm" id="copyKpiBtn" title="Copy only the important columns, in activity order, for a KPI update"><i class="bi bi-clipboard-data me-1"></i>Copy KPI</button><button class="btn btn-soft btn-sm" id="copyTgBtn" title="Copy the KPI table as text that looks like a table in a Telegram message"><i class="bi bi-telegram me-1"></i>Telegram</button><button class="btn btn-soft btn-sm" id="copyBtn" title="Copy every column"><i class="bi bi-clipboard me-1"></i>Copy all</button><button class="btn btn-soft btn-sm" id="csvBtn"><i class="bi bi-download me-1"></i>CSV</button></div>
         </div>
         <div class="table-responsive">
-          <table class="table table-hover mb-0">
-            <thead><tr><th>Category</th><th>Activity</th><th>Stamp</th><th>Date</th><th>Staff</th><th>Merchant</th><th>MID</th><th>TID</th><th>Business</th><th>Type</th><th>Hours</th><th>Group</th><th>Product type</th><th>District</th><th>Zone</th><th>Sub category</th><th>Extra</th><th>Phone</th><th>Tag</th><th>Serial No</th><th>Old S/N</th><th>New S/N</th><th>Remarks</th><th>Location</th><th>📷</th></tr></thead>
+          <table class="table table-hover mb-0 rec-table">
+            <thead><tr><th>Date</th><th>Activity</th><th>Merchant</th><th>Staff</th><th class="text-center">📷</th><th></th></tr></thead>
             <tbody id="recBody"></tbody>
           </table>
         </div>
@@ -331,6 +342,68 @@
     </section>
 
     <!-- USERS (admin) -->
+    <section id="pane-stock" class="hidden">
+      <div class="card-x hidden" id="stPendCard">
+        <div class="fw-bold mb-1"><i class="bi bi-arrow-return-left me-1"></i>Returns waiting for your decision <span class="rv-badge" id="stPendN">0</span></div>
+        <div class="small text-muted mb-2">Staff brought these back. Choose one: <b>In stock</b>, <b>Faulty</b> (with a reason) or <b>Send to HO</b>.</div>
+        <div id="stPend"></div>
+      </div>
+      <div class="card-x">
+        <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="stPeriod"></div></div>
+        <div class="mb-3 hidden" id="stBranchWrap"><div class="form-label">Branch</div><div class="chips" id="stBranch"></div></div>
+        <div class="mb-0"><div class="form-label">Item</div><div class="chips" id="stItem"></div></div>
+      </div>
+      <div class="card-x">
+        <div class="fw-bold mb-2"><i class="bi bi-speedometer2 me-1"></i>Stock dashboard</div>
+        <div class="d-flex flex-wrap gap-2 mb-3" id="stKpi"></div>
+        <div class="form-label">Remaining now</div><div id="stRemain" class="mb-3"></div>
+        <div class="form-label">Stock in vs used (per week)</div><div id="stWeeks" class="mb-3"></div>
+        <div class="row g-3"><div class="col-12 col-md-6"><div class="form-label">Used by branch</div><div id="stByBranch"></div></div><div class="col-12 col-md-6"><div class="form-label">Used by staff</div><div id="stByStaff"></div></div>
+        <div class="col-12 col-md-6"><div class="form-label">Top merchants</div><div id="stByMer"></div></div><div class="col-12 col-md-6"><div class="form-label">Most used items</div><div id="stByItem"></div></div></div>
+      </div>
+      <div class="card-x">
+        <div class="fw-bold mb-2"><i class="bi bi-box-arrow-in-down me-1"></i>Stock in</div>
+        <div class="mb-2"><label class="form-label">Item</label><select id="siItem" class="form-select"></select></div>
+        <div class="mb-2 hidden" id="siBranchWrap"><label class="form-label">Branch</label><input id="siBranch" class="form-control" maxlength="10" placeholder="Branch code, e.g. PP" style="text-transform:uppercase"></div>
+        <div class="mb-2"><label class="form-label">Supplier / PO / batch <span class="text-muted fw-normal small">(optional)</span></label><input id="siBatch" class="form-control" maxlength="40"></div>
+        <div class="mb-2" id="siSnWrap"><label class="form-label">Serial numbers <span class="text-muted fw-normal small">(one per line, or paste a list)</span></label><textarea id="siSns" class="form-control" rows="4" style="text-transform:uppercase"></textarea></div>
+        <div class="mb-2 hidden" id="siQtyWrap"><label class="form-label">Quantity</label><input id="siQty" type="number" min="1" class="form-control"></div>
+        <button class="btn btn-primary" id="siSave" type="button">Save stock in</button>
+        <div class="small mt-2" id="siMsg"></div>
+        <hr><div class="fw-bold small mb-1">Correct a quantity <span class="text-muted fw-normal">(count check, + or −)</span></div>
+        <div class="d-flex gap-2 flex-wrap"><select id="aqItem" class="form-select form-select-sm" style="max-width:180px"></select><input id="aqNum" type="number" class="form-control form-control-sm" style="max-width:90px" placeholder="+/−"><input id="aqWhy" class="form-control form-control-sm" style="max-width:200px" placeholder="Reason" maxlength="100"><button class="btn btn-soft btn-sm" id="aqSave" type="button">Save</button></div>
+      </div>
+      <div class="card-x">
+        <div class="fw-bold mb-1"><i class="bi bi-bookmark-check me-1"></i>Reserve a SIM / pair with a terminal</div>
+        <div class="small text-muted mb-2">Set S/Ns aside <b>before</b> the installation. Staff just scan as usual: the reserved S/N is used by that merchant's record, or goes out together with the paired terminal. Nobody else can use it.</div>
+        <div class="row g-2">
+          <div class="col-12 col-md-4"><label class="form-label">Item</label><select id="rsItem" class="form-select"></select></div>
+          <div class="col-12 col-md-8"><label class="form-label">Serial numbers <span class="text-muted fw-normal">(one per line)</span></label><textarea id="rsSns" class="form-control" rows="2" placeholder="8985501234567890123" style="text-transform:uppercase"></textarea></div>
+          <div class="col-8"><label class="form-label">For merchant</label><input id="rsMer" class="form-control" maxlength="60" placeholder="Merchant name"></div>
+          <div class="col-4"><label class="form-label">MID</label><input id="rsMid" class="form-control" maxlength="20" inputmode="numeric"></div>
+          <div class="col-12"><label class="form-label">or pair with terminal S/N <span class="text-muted fw-normal">(one S/N: it is used together with that terminal)</span></label><input id="rsPair" class="form-control" maxlength="40" autocapitalize="characters" style="text-transform:uppercase"></div>
+          <div class="col-12"><input id="rsNote" class="form-control" maxlength="100" placeholder="Note (optional)"></div>
+        </div>
+        <button class="btn btn-primary mt-2" id="rsSave" type="button">Reserve</button><div class="small mt-2" id="rsMsg"></div>
+        <div class="small text-muted mt-1">To undo a reservation: Serial numbers below → filter <b>Reserved</b> → Release.</div>
+      </div>
+      <div class="card-x">
+        <div class="fw-bold mb-2"><i class="bi bi-upc-scan me-1"></i>Serial numbers</div>
+        <div class="chips mb-2" id="snStatus"></div>
+        <input id="snFind" class="form-control mb-2" placeholder="Search S/N, merchant, MID, TID…">
+        <div id="snRows"></div>
+      </div>
+      <div class="card-x"><div class="fw-bold mb-2"><i class="bi bi-clock-history me-1"></i>Recent movements</div><div id="stRecent" class="small"></div></div>
+      <div class="card-x hidden" id="stItemsCard">
+        <div class="fw-bold mb-2"><i class="bi bi-sliders me-1"></i>Stock items &amp; alert</div>
+        <div id="itList"></div>
+        <div class="d-flex gap-2 mt-2"><input id="itName" class="form-control form-control-sm" maxlength="40" placeholder="New item, e.g. Pax A920"><select id="itKind" class="form-select form-select-sm" style="max-width:150px"><option value="serial">With S/N</option><option value="qty">Quantity</option></select><button class="btn btn-soft btn-sm" id="itAdd" type="button">Add</button></div>
+        <div class="mt-3"><div class="small fw-semibold">Low-stock alert goes to <span class="text-muted fw-normal">(blank = the staff member's own Telegram group)</span></div>
+        <div class="d-flex gap-2 mt-1"><input id="alChat" class="form-control form-control-sm" placeholder="Group ID, e.g. -1001234567890"><input id="alTopic" class="form-control form-control-sm" style="max-width:110px" placeholder="Topic ID"></div></div>
+        <button class="btn btn-primary btn-sm mt-3" id="itSave" type="button">Save items</button>
+      </div>
+    </section>
+
     <section id="pane-users" class="hidden">
       <div class="card-x" id="catCard">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -402,6 +475,7 @@
   <nav class="bottom-nav">
     <button data-tab="new" class="active"><i class="bi bi-plus-circle-fill"></i>New</button>
     <button data-tab="records"><i class="bi bi-table"></i>Records</button>
+    <button data-tab="stock" id="navStock" class="hidden"><i class="bi bi-box-seam-fill"></i>Stock</button>
     <button data-tab="users" id="navUsers" class="hidden"><i class="bi bi-people-fill"></i>Staff</button>
   </nav>
 </div>
@@ -474,7 +548,7 @@
         <div class="row g-2">
           <div class="col-6">
             <label class="form-label">Role</label>
-            <select id="uRole" class="form-select"><option>User</option><option>Admin</option></select>
+            <select id="uRole" class="form-select"><option>User</option><option>Supervisor</option><option>Admin</option></select>
           </div>
           <div class="col-6">
             <label class="form-label">Telegram Topic ID</label>
@@ -522,6 +596,26 @@
 </div>
 
 <!-- Edit last record -->
+<div class="modal fade" id="adjModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:20px">
+    <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">Change status · <span id="adjSn"></span></h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="chips mb-2" id="adjChips"></div><input id="adjWhy" class="form-control mb-2" maxlength="100" placeholder="Reason (needed for Faulty)"><button class="btn btn-primary" id="adjSave" type="button">Save</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade" id="reviewModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold"><i class="bi bi-patch-check me-1"></i>Review queue</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="chips mb-2" id="rvChips"></div>
+        <div class="small text-muted mb-2">The photos are in the Telegram message: tap <b>Photos</b> to open it.</div>
+        <div id="rvList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="editModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <form class="modal-content" id="editForm" style="border-radius:20px">
@@ -729,7 +823,7 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.review) o.review = true; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); });
@@ -867,10 +961,15 @@ function customFieldHtml(f) {
   const lab = '<label class="form-label">' + esc(f.label) + (f.req ? ' <span class="rq">*</span>' : '') + '</label>';
   if (f.kind === 'select') return '<div class="mb-3">' + lab + '<select class="form-select" data-fid="' + esc(f.id) + '" data-kind="select"><option value="">Select…</option>' +
     (f.opts || []).map(o => '<option value="' + esc(o) + '">' + esc(o) + '</option>').join('') + '</select></div>';
-  if (f.kind === 'radio') return '<div class="mb-3">' + lab + '<div class="chips" data-fid="' + esc(f.id) + '" data-kind="radio">' +
+  if (f.kind === 'info') return '<div class="mb-3 info-lbl">' + (f.label ? '<div class="fw-semibold">' + esc(f.label) + '</div>' : '') + '<div class="small" style="white-space:pre-wrap">' + esc(f.text || '') + '</div></div>';
+  const vert = cfDir(f) === 'v';
+  if (f.kind === 'radio') return '<div class="mb-3">' + lab + '<div class="chips' + (vert ? ' opt-v' : '') + '" data-fid="' + esc(f.id) + '" data-kind="radio">' +
     (f.opts || []).map(o => '<button type="button" class="chip rc-chip" data-v="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div></div>';
   if (f.kind === 'check') return '<div class="mb-3">' + lab + '<div data-fid="' + esc(f.id) + '" data-kind="check">' +
-    (f.opts || []).map(o => '<div class="form-check"><label class="form-check-label"><input class="form-check-input" type="checkbox" value="' + esc(o) + '"> ' + esc(o) + '</label></div>').join('') + '</div></div>';
+    (f.opts || []).map(o => '<div class="form-check' + (vert ? '' : ' form-check-inline') + '"><label class="form-check-label"><input class="form-check-input" type="checkbox" value="' + esc(o) + '"> ' + esc(o) + '</label></div>').join('') + '</div></div>';
+  if (f.kind === 'spin' && vert) return '<div class="mb-3">' + lab + '<div class="spin spin-v" data-fid="' + esc(f.id) + '" data-kind="spin" data-min="' + (f.min == null ? 0 : f.min) + '" data-max="' + (f.max == null ? 100 : f.max) + '" data-step="' + (f.step || 1) + '">' +
+    '<button type="button" class="btn btn-soft spin-up" aria-label="More"><i class="bi bi-plus-lg"></i></button><input class="form-control text-center spin-in" inputmode="decimal" autocomplete="off" placeholder="' + (f.min == null ? 0 : f.min) + ' – ' + (f.max == null ? 100 : f.max) + '">' +
+    '<button type="button" class="btn btn-soft spin-dn" aria-label="Less"><i class="bi bi-dash-lg"></i></button></div></div>';
   if (f.kind === 'spin') return '<div class="mb-3">' + lab + '<div class="input-group spin" style="max-width:220px" data-fid="' + esc(f.id) + '" data-kind="spin" data-min="' + (f.min == null ? 0 : f.min) + '" data-max="' + (f.max == null ? 100 : f.max) + '" data-step="' + (f.step || 1) + '">' +
     '<button type="button" class="btn btn-soft spin-dn" aria-label="Less"><i class="bi bi-dash-lg"></i></button><input class="form-control text-center spin-in" inputmode="decimal" autocomplete="off" placeholder="' + (f.min == null ? 0 : f.min) + ' – ' + (f.max == null ? 100 : f.max) + '">' +
     '<button type="button" class="btn btn-soft spin-up" aria-label="More"><i class="bi bi-plus-lg"></i></button></div></div>';
@@ -914,6 +1013,58 @@ function applyLevels(root, d) {
   const mp = lvl(d, 'photo') ? ((d.minPh || 0) > 0 ? d.minPh : (lvl(d, 'photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;       // the admin's minimum number of photos / videos (2 when Photos is required and none is set)
   $$('[data-fk="photo"]', root).forEach(w => { if (mp) $$('.rq', w).forEach(x => show(x, true)); const pm = $('.ph-min', w); if (pm) { pm.textContent = mp > 1 ? '(at least ' + mp + ')' : ''; show(pm, mp > 1); } });
 }
+/* ---- Stock lines on the activity form (activities that take items out of stock, or take them back) ---- */
+S.stockItems = []; S.stockAlert = null;
+async function loadStockItems() { try { const r = await api('getStockItems', S.token); S.stockItems = r.items || []; S.stockAlert = r.alert; } catch (e) { S.stockItems = []; } }
+const stkAllowed = d => S.stockItems.filter(it => !d.stock.items.length || d.stock.items.some(n => n.toLowerCase() === it.name.toLowerCase()));
+const stkDirOf = (rule, l) => rule.mode === 'both' ? (l.dir === 'out' ? 'out' : 'return') : rule.mode;
+const stkKind = n => (S.stockItems.find(x => x.name === n) || {}).kind;
+/* Serial numbers need no stock box: the S/N is scanned or typed in its box and the system finds it in stock. The box is only for quantity items and for things taken back. */
+const stkQtyItems = d => stkAllowed(d).filter(it => it.kind === 'qty');
+const stkNeedsBox = d => !!(d && d.stock && (d.stock.mode !== 'out' || stkQtyItems(d).length));
+function stkNewLine(rule, items, mode) { const dir = mode === 'return' ? 'return' : 'out', it = dir === 'out' ? items.filter(x => x.kind === 'qty') : items; return { item: it[0] ? it[0].name : '', dir, sn: '', qty: 1, cond: '', reason: '' }; }
+function renderStockBox(card, d) {
+  const box = $('.stock-wrap', card.el), rule = d && d.stock;
+  if (!rule || !stkNeedsBox(d)) { card.stock = []; card.stockMode = rule ? rule.mode : ''; box.innerHTML = ''; show(box, false); return; }
+  if (card.stockMode !== rule.mode) card.stock = [];
+  card.stockMode = rule.mode;
+  const items = stkAllowed(d), req = rule.mode === 'return';
+  const title = rule.mode === 'out' ? 'Items used (quantity)' : rule.mode === 'return' ? 'Items brought back' : 'Items used / old unit brought back';
+  if (!card.stock.length && (req || rule.mode === 'both') && items.length) card.stock.push(stkNewLine(rule, items, rule.mode === 'both' ? 'return' : rule.mode));
+  box.innerHTML = '<label class="form-label"><i class="bi bi-box-seam me-1"></i>' + title + (req ? ' <span class="rq">*</span>' : '') + '</label>' +
+    card.stock.map((l, i) => {
+      const dir = stkDirOf(rule, l), out = dir === 'out', its = out ? items.filter(x => x.kind === 'qty') : items, serial = stkKind(l.item) !== 'qty';
+      return '<div class="stk-line" data-li="' + i + '">' +
+        (rule.mode === 'both' ? '<div class="chips mb-1">' + [['return', 'Old unit back'], ['out', 'Quantity used']].map(c => '<button type="button" class="chip stk-dir' + (dir === c[0] ? ' active' : '') + '" data-d="' + c[0] + '">' + c[1] + '</button>').join('') + '</div>' : '') +
+        '<div class="d-flex gap-2 mb-1"><select class="form-select form-select-sm stk-item">' + its.map(it => '<option' + (it.name === l.item ? ' selected' : '') + '>' + esc(it.name) + '</option>').join('') + '</select>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger border-0 stk-del" aria-label="Remove"><i class="bi bi-x-lg"></i></button></div>' +
+        (serial ? '<input class="form-control form-control-sm stk-sn" placeholder="Serial number (scan or type)" value="' + esc(l.sn) + '" autocomplete="off" style="text-transform:uppercase">'
+                : '<div class="d-flex align-items-center gap-2"><span class="small">Quantity</span><input type="number" min="1" max="9999" class="form-control form-control-sm stk-qty" style="max-width:100px" value="' + (l.qty || 1) + '"></div>') +
+        (out ? '' : '<input class="form-control form-control-sm mt-2 stk-reason" maxlength="100" placeholder="Note (optional): condition, why it comes back" value="' + esc(l.reason) + '">') + '</div>';
+    }).join('') + '<button type="button" class="btn btn-soft btn-sm stk-add"><i class="bi bi-plus-lg me-1"></i>Add item</button>';
+  show(box, true);
+}
+$('#merchantList').addEventListener('click', e => {
+  const w = e.target.closest('.stock-wrap'); if (!w) return;
+  const card = S.cards.find(c => c.el.contains(w)); if (!card) return;
+  const ln = e.target.closest('[data-li]'), li = ln ? +ln.dataset.li : -1, d = effDef(curType, $('.f-act', card.el).value, S.sub || '');
+  if (e.target.closest('.stk-del')) { card.stock.splice(li, 1); renderStockBox(card, d); }
+  else if (e.target.closest('.stk-add')) { card.stock.push(stkNewLine(d.stock, stkAllowed(d), d.stock.mode === 'both' ? 'return' : d.stock.mode)); renderStockBox(card, d); }
+  else if (e.target.closest('.stk-dir')) { const l = card.stock[li]; l.dir = e.target.closest('.stk-dir').dataset.d; const its = stkAllowed(d).filter(x => l.dir === 'out' ? x.kind === 'qty' : true); l.item = (its[0] || {}).name || ''; l.sn = ''; l.cond = ''; renderStockBox(card, d); }
+});
+$('#merchantList').addEventListener('input', e => {
+  const w = e.target.closest('.stock-wrap'); if (!w) return;
+  const card = S.cards.find(c => c.el.contains(w)), ln = e.target.closest('[data-li]'); if (!card || !ln) return;
+  const l = card.stock[+ln.dataset.li];
+  if (e.target.classList.contains('stk-sn')) l.sn = e.target.value.toUpperCase().replace(/\s+/g, '');
+  else if (e.target.classList.contains('stk-qty')) l.qty = Math.floor(+e.target.value) || 0;
+  else if (e.target.classList.contains('stk-reason')) l.reason = e.target.value;
+});
+$('#merchantList').addEventListener('change', e => {
+  if (!e.target.classList.contains('stk-item')) return;
+  const card = S.cards.find(c => c.el.contains(e.target)), ln = e.target.closest('[data-li]'); if (!card || !ln) return;
+  const l = card.stock[+ln.dataset.li]; l.item = e.target.value; l.sn = ''; renderStockBox(card, effDef(curType, $('.f-act', card.el).value, S.sub || ''));
+});
 /** Selects an activity: highlights it and shows the extra boxes it needs (phone/tag, old/new S/N). */
 function setAct(card, a) {
   $('.f-act', card.el).value = a;
@@ -927,6 +1078,7 @@ function setAct(card, a) {
   }
   show($('.act-hint', card.el), !d);
   renderCustom($('.custom-wrap', card.el), d);
+  renderStockBox(card, d);
   updateDateLabel(card); updateLocCard(); fillCommuneAll();
 }
 /** The location card is shown while some merchant card still needs a location (admin: Location box = optional or must). */
@@ -956,7 +1108,7 @@ function setType(t) {
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbyoDWRf7bGWfedw0Pug7D9aHMI4S-Y_oJb2xZ4dJAedG_UB0xT1syRmdM3PNFYSbBo0/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwI7OeBLm3LGDkr9aBUvstmKUnYVJWtaHqyqthII-g3HOg_rRHKARf__QV_PrjonFyf/exec';
 
 async function api(fn, ...args) {
   let json;
@@ -1020,14 +1172,17 @@ if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change'
 /* ============================ Auth ============================ */
 function showLogin() { show($('#appView'), false); show($('#loginView'), true); $('#loginUser').focus(); }
 
+/** Admin or Supervisor: may look at other people's records (a supervisor: the staff of their branch, read-only). */
+const isWide = () => !!(S.user && (S.user.role === 'Admin' || S.user.role === 'Supervisor'));
 async function showApp() {
   show($('#loginView'), false); show($('#appView'), true);
   try { setCatalog(await api('getCatalog', S.token)); } catch (e) {}
+  await loadStockItems();
   const admin = S.user.role === 'Admin';
   $('#whoName').textContent = S.user.username;
   $('#whoRole').textContent = ' · ' + S.user.role;
-  show($('#navUsers'), admin);
-  show($('#userFilterWrap'), admin); show($('#branchWrap'), admin);
+  show($('#navUsers'), admin); show($('#navStock'), isWide());
+  show($('#userFilterWrap'), isWide()); show($('#branchWrap'), admin); show($('#reviewBtn'), admin);
   show($('#chartCard'), false);
   show($('#catCard'), admin); show($('#rulesCard'), admin);
   if (!S.cards.length) addMerchant();
@@ -1076,10 +1231,11 @@ $('#pinForm').addEventListener('submit', async e => {
 
 /* ============================ Tabs ============================ */
 function switchTab(name) {
-  ['new', 'records', 'users'].forEach(t => show($('#pane-' + t), t === name));
+  ['new', 'records', 'stock', 'users'].forEach(t => show($('#pane-' + t), t === name));
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (name === 'records') loadRecords();
+  if (name === 'stock') loadStock();
   if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
 }
 $$('.bottom-nav button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -1094,6 +1250,8 @@ async function loadSummary() {
     const bt = s.byType || [];
     $('#sumBreak').innerHTML = bt.map(t => '<span class="sum-cat' + (t.count ? ' on' : '') + '">' + esc(shortName(t.type)) + ' <b>' + t.count + '</b></span>').join('');
     show($('#sumBreak'), bt.length > 0);
+    if (s.isSup) $('#sumLabel').textContent = 'Activities today · branch ' + (s.branch || '');
+    S.pending = s.pending || 0; paintPending();
   } catch (e) { /* non-fatal */ }
 }
 
@@ -1363,6 +1521,7 @@ function addMerchant() {
     '<div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input class="form-control f-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="e.g. 012 345 678"></div>' +
     '<div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input class="form-control f-tag" maxlength="200" autocomplete="off" placeholder="Extra remark / tag"></div>' +
     '<div class="custom-wrap hidden"></div>' +
+    '<div class="stock-wrap hidden mb-3"></div>' +
     '<div class="mb-3 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea class="form-control f-rem" rows="2"></textarea></div>' +
     '<div class="hidden" data-fk="photo"><label class="form-label">Photos / videos <span class="rq hidden">*</span> <span class="ph-min fw-semibold hidden"></span> <span class="text-lowercase fw-normal">(max ' + MAX_PHOTOS + ', videos ≤ ' + MAX_VIDEOS + ' × ' + MAX_VIDEO_MB + ' MB)</span></label>' +
     '<div class="row g-2">' +
@@ -1442,12 +1601,13 @@ $('#addMerchantBtn').addEventListener('click', () => {
 
 /* ---- photos ---- */
 /* ---- photo stamp: settings (all remembered on this phone) ---- */
-const STAMP_DEF = { logo: true, map: true, title: true, time: true, coords: true, addr: true, titleText: 'Merchant Support', user: true, logoData: '', fontScale: 100, mapScale: 20, mapZoom: 17, logoScale: 100, compass: true, compassScale: 100, opCompass: 100, opText: 100, opMap: 100, opLogo: 100, fontColor: '#ffffff' };
+const STAMP_DEF = { logo: true, map: true, title: true, time: true, coords: true, addr: true, titleText: 'Merchant Support', user: true, logoData: '', fontScale: 100, mapScale: 20, mapZoom: 17, logoScale: 100, compass: false, cv: 2, compassScale: 100, opCompass: 100, opText: 100, opMap: 100, opLogo: 100, fontColor: '#ffffff' };
 let stampOn = store.get('it_stamp') !== '0';          // on by default; remembered
 let stampCfg = (() => {
   let c = {}; try { c = JSON.parse(store.get('it_stamp_cfg') || '{}') || {}; } catch (e) {}
   const old = store.get('it_stamp_title'); if (c.titleText === undefined && old !== null) c.titleText = old;
   if (c.coords === undefined && store.get('it_stamp_geo') === '0') { c.coords = false; c.addr = false; c.map = false; }
+  if (c.cv !== 2) { c.compass = false; c.cv = 2; }      // the compass is off for everyone by default; anyone can switch it on in the stamp settings
   return Object.assign({}, STAMP_DEF, c);
 })();
 const saveStampCfg = () => store.set('it_stamp_cfg', JSON.stringify(stampCfg));
@@ -1860,6 +2020,17 @@ $('#submitBtn').addEventListener('click', async () => {
       if (f.kind === 'phone' && !PHONE_RE.test(v)) { bad(f.label + ' looks wrong.'); return; }
       extra[f.id] = v;
     }
+    let stockLines;
+    if (ad && ad.stock) {
+      stockLines = c.stock || [];
+      if (ad.stock.mode === 'return' && !stockLines.length) { bad('add the stock item taken back.'); return; }
+      for (const l of stockLines) {
+        const k = stkKind(l.item), dir = stkDirOf(ad.stock, l);
+        if (!l.item) { bad('choose the stock item.'); return; }
+        if (k !== 'qty' && !l.sn) { bad(l.item + ': enter the serial number.'); return; }
+        if (k === 'qty' && !(l.qty >= 1)) { bad(l.item + ': enter the quantity.'); return; }
+      }
+    }
     const needPh = L('photo') ? ((ad && ad.minPh) > 0 ? ad.minPh : (L('photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;
     if (c.photos.length < needPh) { bad(needPh > 1 ? 'attach at least ' + needPh + ' photos or videos (you have ' + c.photos.length + ').' : 'attach at least one photo.'); return; }
     if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone');
@@ -1867,7 +2038,7 @@ $('#submitBtn').addEventListener('click', async () => {
     items.push({ type: curType, activity: g('.f-act'), date: g('.f-date'), extra, locLv: L('location'),
       merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
-      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [] });
+      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
   }
   const bytes = items.reduce((t, it) => t + it.photos.reduce((u, p) => u + p.length, 0), 0);
   if (bytes > 32e6) { toast('Photos and videos are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
@@ -1882,6 +2053,7 @@ $('#submitBtn').addEventListener('click', async () => {
     const r = await api('submitInstallations', S.token, items, S.batchId);
     S.batchId = null;
     toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + '). Telegram: ' + r.telegram, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
+    if (r.stock) toast(r.stock, 'warning');
     Object.assign(keep, keepNew);
     if (items[0] && items[0].activity) rememberAct(items[0].activity);
     $('#merchantList').innerHTML = ''; S.cards = []; addMerchant();
@@ -1947,15 +2119,16 @@ $('#slBranch').addEventListener('click', e => {
   paintBranches(); loadRecords();
 });
 async function loadRecords() {
-  const r = range(), admin = S.user.role === 'Admin';
-  $('#recBody').innerHTML = '<tr><td colspan="25" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+  const r = range(), admin = S.user.role === 'Admin', wide = isWide();
+  $('#recBody').innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
   try {
-    const f = { user: $('#fUser').value, type: $('#fType').value, sub: $('#fSub').value, activity: $('#fActivity').value, from: r.from, to: r.to };
+    const f = { user: $('#fUser').value, type: $('#fType').value, sub: $('#fSub').value, activity: $('#fActivity').value, status: $('#fStatus').value, from: r.from, to: r.to };
     if (admin && S.branchOff.size) f.branches = S.branches.filter(b => !S.branchOff.has(b));
     const data = await api('getRecords', S.token, f);
     S.rows = data.rows;
+    S.pending = data.pending || 0; paintPending(); paintStatus(data);
+    if (wide) slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }].concat(data.users.map(u => ({ v: u, l: u }))));
     if (admin) {
-      slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }].concat(data.users.map(u => ({ v: u, l: u }))));
       S.branches = data.branches || []; S.branchOff = new Set(Array.from(S.branchOff).filter(b => S.branches.includes(b))); paintBranches();
     }
     S.byUserCat = data.byUserCat || {}; S.agg = data.agg || []; S.period = data.period || { from: '', to: '' };
@@ -1963,6 +2136,58 @@ async function loadRecords() {
     renderRows();
   } catch (e) { toast(e.message, 'danger'); }
 }
+const STATUS_OPTS = [{ v: '', l: 'All' }, { v: 'Pending', l: 'Pending' }, { v: 'Returned', l: 'Returned' }, { v: 'Approved', l: 'Approved' }, { v: 'None', l: 'No review' }];
+function paintStatus(data) {
+  const any = (CATALOG || []).some(t => t.acts.some(a => a.review)) || (data && data.rows.some(r => r.review && r.review.status)) || $('#fStatus').value;
+  show($('#statusWrap'), !!any);
+  if (any) slicer('slStatus', 'fStatus', STATUS_OPTS);
+}
+bindSlicer('slStatus', 'fStatus', () => loadRecords());
+function paintPending() {
+  const n = S.pending || 0, b = $('#rvBadge'); b.textContent = n; show(b, n > 0);
+}
+const stPill = st => st ? '<span class="st-pill ' + (st === 'Pending' ? 'st-p' : st === 'Approved' ? 'st-a' : 'st-r') + '">' + esc(st) + '</span>' : '';
+/* ---- Review queue (admin) ---- */
+const reviewModal = new bootstrap.Modal($('#reviewModal'));
+S.rvStatus = 'Pending'; S.rvRows = [];
+async function loadReview() {
+  $('#rvList').innerHTML = '<div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div>';
+  try {
+    const d = await api('getReviewQueue', S.token, S.rvStatus);
+    S.rvRows = d.rows; S.pending = d.counts.Pending; paintPending();
+    $('#rvChips').innerHTML = ['Pending', 'Returned', 'Approved', 'All'].map(x => '<button type="button" class="chip' + (x === S.rvStatus ? ' active' : '') + '" data-v="' + x + '">' + x + (x !== 'All' ? ' <b>' + d.counts[x] + '</b>' : '') + '</button>').join('');
+    $('#rvList').innerHTML = d.rows.length ? d.rows.map(r => rvItem(r)).join('') : '<div class="empty"><i class="bi bi-inbox"></i>Nothing here</div>';
+  } catch (e) { $('#rvList').innerHTML = ''; toast(e.message, 'danger'); }
+}
+function rvItem(r) {
+  const rv = r.review || {}, bits = [['Merchant', r.merchant], ['MID', r.mid], ['TID', r.tid], ['Staff', r.user + (r.branch && r.branch !== '(none)' ? ' · ' + r.branch : '')], ['Photos', r.photos]].concat(Object.keys(r.fields || {}).map(k => [k, r.fields[k]])).filter(x => x[1] !== '' && x[1] != null);
+  return '<div class="rv-item" data-stamp="' + esc(r.stamp) + '"><div class="d-flex justify-content-between gap-2"><b>' + esc(r.merchant || r.mid || r.stamp) + '</b>' + stPill(rv.status) + '</div>' +
+    '<div class="small text-muted">' + esc(r.type + (r.sub ? ' · ' + r.sub : '') + ' · ' + r.activity + ' · ' + fmtTs(r.ts)) + '</div>' +
+    '<div class="rd-grid mt-2">' + bits.map(x => '<div class="rd-i"><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>').join('') + '</div>' +
+    (r.tgLink ? '<div class="mt-2"><a class="btn btn-soft btn-sm" href="' + esc(r.tgLink) + '" target="_blank" rel="noopener"><i class="bi bi-images me-1"></i>Photos</a></div>' : '') +
+    (rv.status !== 'Pending' && (rv.by || rv.note) ? '<div class="small text-muted mt-2">' + esc(rv.status + ' by ' + rv.by + (rv.time ? ' · ' + rv.time : '')) + '</div>' : '') +
+    (rv.status === 'Returned' && rv.note ? '<div class="rv-note">' + esc(rv.note) + '</div>' : '') +
+    (rv.status === 'Pending' ? '<div class="mt-2 rv-act"><div class="d-flex gap-2"><button type="button" class="btn btn-success btn-sm rv-ok"><i class="bi bi-check-lg me-1"></i>Approve</button><button type="button" class="btn btn-outline-danger btn-sm rv-ret"><i class="bi bi-arrow-return-left me-1"></i>Return…</button></div>' +
+      '<div class="hidden rv-note-box mt-2"><textarea class="form-control form-control-sm rv-note-in" rows="2" maxlength="300" placeholder="What should ' + esc(r.user) + ' fix?"></textarea><button type="button" class="btn btn-danger btn-sm mt-2 rv-send">Send back</button></div></div>' : '') + '</div>';
+}
+$('#reviewBtn').addEventListener('click', () => { S.rvStatus = 'Pending'; reviewModal.show(); loadReview(); });
+$('#rvChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.rvStatus = b.dataset.v; loadReview(); });
+$('#rvList').addEventListener('click', async e => {
+  const item = e.target.closest('.rv-item'); if (!item) return;
+  const stamp = item.dataset.stamp;
+  if (e.target.closest('.rv-ret')) { show($('.rv-note-box', item), true); $('.rv-note-in', item).focus(); return; }
+  const ok = e.target.closest('.rv-ok'), send = e.target.closest('.rv-send');
+  if (!ok && !send) return;
+  const btn = ok || send, note = send ? $('.rv-note-in', item).value.trim() : '';
+  if (send && !note) { toast('Write what the staff member should fix.', 'warning'); return; }
+  busy(btn, true, 'Saving…');
+  try {
+    const r = await api('reviewRecord', S.token, stamp, ok ? 'approve' : 'return', note);
+    toast((ok ? 'Approved' : 'Returned') + '. Telegram: ' + r.telegram, r.telegram === 'updated' ? 'success' : 'warning');
+    loadReview(); loadSummary();
+    if (!$('#pane-records').classList.contains('hidden')) loadRecords();
+  } catch (ex) { toast(ex.message, 'danger'); busy(btn, false); }
+});
 function filtered() {
   const q = $('#fSearch').value.trim().toLowerCase();
   if (!q) return S.rows;
@@ -1972,15 +2197,35 @@ function locLink(t) {
   const m = /(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(String(t || ''));
   return m ? '<a href="https://maps.google.com/?q=' + m[1] + ',' + m[2] + '" target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i></a>' : '';
 }
+/** The less important details of a record, shown when its row is opened (empty ones are left out). */
+function recDetail(r) {
+  const it = [['Time', fmtTs(r.ts)], ['Stamp', r.stamp], ['Business', r.business], ['Business type', r.btype], ['Hours', r.hours], ['Group', r.group], ['Product type', r.ptype], ['District', r.commune], ['Zone', r.zone],
+    ['Phone', r.phone], ['Tag', r.tag], ['Serial No', r.serial], ['Old S/N', r.oldSn], ['New S/N', r.newSn], ['Remarks', r.remarks]]
+    .concat(r.review && r.review.status ? [['Review', r.review.status + (r.review.by ? ' · ' + r.review.by : '') + (r.review.time ? ' · ' + r.review.time : '')], ['Review note', r.review.note]] : []);
+  const fl = r.fields && Object.keys(r.fields).length ? Object.keys(r.fields).map(k => [k, r.fields[k]]) : (r.extra ? [['Fields', r.extra]] : []);
+  const cells = it.concat(fl).filter(x => x[1] !== '' && x[1] != null).map(x => '<div class="rd-i"><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>');
+  const loc = locLink(r.loc); if (loc) cells.push('<div class="rd-i"><span>Location</span><b>' + loc + ' ' + esc(String(r.loc).split(' | ')[0].replace(/,?\s*-?\d+(\.\d+)?,-?\d+(\.\d+)?$/, '')) + '</b></div>');
+  return cells.length ? '<div class="rd-grid">' + cells.join('') + '</div>' : '<div class="text-muted small">No more details.</div>';
+}
 function renderRows() {
   const rows = filtered();
   $('#recCount').textContent = rows.length;
-  $('#recBody').innerHTML = rows.length ? rows.map(r =>
-    '<tr><td><span class="pill">' + esc(r.type) + '</span></td><td>' + esc(r.activity) + '</td><td class="text-nowrap small">' + esc(r.stamp) +
-    '</td><td class="text-nowrap">' + esc(fmtD(r.date || r.ts)) + '</td><td><span class="pill">' + esc(r.user) + '</span></td><td class="fw-semibold">' + esc(r.merchant) +
-    '</td><td class="text-nowrap">' + esc(r.mid) + '</td><td class="text-nowrap">' + esc(r.tid) + '</td><td>' + esc(r.business) + '</td><td>' + esc(r.btype) + '</td><td class="text-nowrap">' + esc(r.hours) + '</td><td>' + esc(r.group) + '</td><td>' + esc(r.ptype) + '</td><td>' + esc(r.commune) + '</td><td>' + esc(r.zone) + '</td><td>' + esc(r.sub) + '</td><td>' + esc(r.extra) + '</td><td class="text-nowrap">' + esc(r.phone) + '</td><td>' + esc(r.tag) + '</td><td class="text-nowrap">' + esc(r.serial) + '</td><td class="text-nowrap">' + esc(r.oldSn) + '</td><td class="text-nowrap">' + esc(r.newSn) + '</td><td>' + esc(r.remarks) + '</td><td>' + locLink(r.loc) + '</td><td>' + (r.photos || '') + '</td></tr>'
-  ).join('') : '<tr><td colspan="25"><div class="empty"><i class="bi bi-inbox"></i>No records for this filter</div></td></tr>';
+  $('#recBody').innerHTML = rows.length ? rows.map((r, i) =>
+    '<tr class="rec-row" data-i="' + i + '"><td class="text-nowrap"><div class="fw-semibold">' + esc(fmtD(r.date || r.ts)) + '</div><div class="rec-sub">' + esc(r.stamp) + '</div></td>' +
+    '<td><span class="pill">' + esc(shortName(r.type)) + '</span>' + (r.sub ? ' <span class="rec-sub">' + esc(r.sub) + '</span>' : '') + '<div class="fw-semibold">' + esc(r.activity) + (r.review && r.review.status ? ' ' + stPill(r.review.status) : '') + '</div></td>' +
+    '<td><div class="fw-semibold">' + esc(r.merchant) + '</div><div class="rec-sub">' + esc([r.mid ? 'MID ' + r.mid : '', r.tid ? 'TID ' + r.tid : ''].filter(Boolean).join(' · ')) + '</div></td>' +
+    '<td><span class="pill">' + esc(r.user) + '</span></td>' +
+    '<td class="text-center text-nowrap">' + (r.photos || '') + '</td>' +
+    '<td class="text-end text-nowrap rec-go"><i class="bi bi-chevron-down"></i></td></tr>' +
+    '<tr class="rec-detail hidden"><td colspan="6">' + recDetail(r) + '</td></tr>'
+  ).join('') : '<tr><td colspan="6"><div class="empty"><i class="bi bi-inbox"></i>No records for this filter</div></td></tr>';
 }
+$('#recBody').addEventListener('click', e => {      // tap a row: its details open under it
+  if (e.target.closest('a')) return;
+  const tr = e.target.closest('.rec-row'); if (!tr) return;
+  const d = tr.nextElementSibling, open = d.classList.contains('hidden');
+  d.classList.toggle('hidden', !open); tr.classList.toggle('open', open);
+});
 /* ---- Dashboard: summary tiles + one chart. Admin picks the grouping (activities / sub categories / categories) and the view (totals / by staff). ---- */
 // Colour by category for totals; by position for the by-staff series (first four are the validated slots; the rest are extras).
 const SLOT_LIGHT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#8a5cd0', '#d6458a', '#14a3b8', '#7a8190', '#a3b21a', '#c0392b', '#34495e', '#e67ebf'];
@@ -2012,7 +2257,7 @@ function catalogItems(g) {
   return out;
 }
 function dashModel() {
-  const admin = S.user && S.user.role === 'Admin', g = S.group, view = admin ? S.view : 'total', agg = S.agg || [];
+  const admin = isWide(), g = S.group, view = admin ? S.view : 'total', agg = S.agg || [];
   const items = new Map(), per = new Map();         // item key -> { label, type, total }, staff -> { item key -> count }
   catalogItems(g).forEach(i => items.set(i.key, Object.assign({ total: 0 }, i)));
   let total = 0, skipped = 0;
@@ -2070,7 +2315,7 @@ function buildChart(canvas, m, o) {
   });
 }
 function paintDashControls() {
-  const admin = S.user && S.user.role === 'Admin';
+  const admin = isWide();
   show($('#dashCtl'), true); show($('#viewWrap'), !!admin);
   $('#slGroup').innerHTML = GROUPS.map(o => '<button type="button" class="chip' + (o.v === S.group ? ' active' : '') + '" data-v="' + o.v + '">' + o.l + '</button>').join('');
   $('#slView').innerHTML = VIEWS.map(o => '<button type="button" class="chip' + (o.v === S.view ? ' active' : '') + '" data-v="' + o.v + '">' + o.l + '</button>').join('');
@@ -2081,13 +2326,13 @@ $('#slGroup').addEventListener('click', e => { const b = e.target.closest('.chip
 $('#slView').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.view = b.dataset.v; drawChart(); } });
 /** Who the graph is about: the staff member (their own screen) or the staff / branches the admin is looking at. */
 function whoText() {
-  const admin = S.user && S.user.role === 'Admin';
+  const admin = isWide();
   if (!admin) return 'Staff: ' + S.user.username + (S.user.staffId ? ' (' + S.user.staffId + ')' : '') + (S.user.branch ? ' · Branch ' + S.user.branch : '');
   const br = S.branchOff.size ? S.branches.filter(b => !S.branchOff.has(b)).join(', ') : 'all branches';
   return 'Staff: ' + ($('#fUser').value || 'All staff') + ' · Branch: ' + br;
 }
 function drawChart() {
-  const m = S.chartModel = dashModel(), admin = S.user && S.user.role === 'Admin';
+  const m = S.chartModel = dashModel(), admin = isWide();
   show($('#chartCard'), (S.agg || []).length > 0);
   $('#chartTitleTxt').textContent = admin ? 'Dashboard' : 'My dashboard';
   paintDashControls();
@@ -2104,7 +2349,7 @@ function drawChart() {
   S.chart = buildChart($('#chart'), m, { dark: isDark() });
 }
 function chartTitle() {
-  const m = S.chartModel, admin = S.user && S.user.role === 'Admin';
+  const m = S.chartModel, admin = isWide();
   const what = { act: 'activity', sub: 'sub category', cat: 'category', cs: 'category and sub category' }[m.g];
   const parts = [];
   if (S.period.from) parts.push(fmtD(S.period.from) + ' to ' + fmtD(S.period.to));
@@ -2151,11 +2396,13 @@ $('#fSearch').addEventListener('input', () => { clearTimeout(recTimer); recTimer
 /** Header + rows of the records currently shown (same for CSV and Copy). */
 const EXPORT_COLS = [
   ['Timestamp', r => fmtTs(r.ts)], ['Staff', r => r.user], ['Merchant Name', r => r.merchant], ['MID', r => r.mid], ['TID', r => r.tid], ['Business Name', r => r.business],
-  ['Remarks', r => r.remarks], ['Installed/Action Date', r => fmtD(r.date || r.ts)], ['Photos', r => r.photos], ['Category', r => r.type], ['Activity', r => r.activity],
+  ['Remarks', r => r.remarks], ['Installed/Action Date', r => fmtD(r.date || r.ts)], ['Photos', r => r.photos], ['Category', r => r.type], ['Sub Category', r => r.sub], ['Activity', r => r.activity],
   ['Stamp', r => r.stamp], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Old S/N', r => r.oldSn], ['New S/N', r => r.newSn], ['Location', r => r.loc],
-  ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Business Type', r => r.btype], ['Extra Fields', r => r.extra], ['Serial No', r => r.serial],
-  ['Product Type', r => r.ptype], ['District', r => r.commune], ['Zone/Area', r => r.zone], ['Sub Category', r => r.sub]
+  ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Business Type', r => r.btype], ['Serial No', r => r.serial],
+  ['Product Type', r => r.ptype], ['District', r => r.commune], ['Zone/Area', r => r.zone]
 ];
+/** The export columns plus one column per added field (the same names as the sheet's headers). */
+const exportCols = () => { const seen = [], names = []; filtered().forEach(r => Object.keys(r.fields || {}).forEach(k => { if (!seen.includes(k.toLowerCase())) { seen.push(k.toLowerCase()); names.push(k); } })); return EXPORT_COLS.concat(names.map(n => [n, r => (r.fields || {})[n] || ''])); };
 /** The important columns for a KPI update, in this order. */
 const KPI_COLS = ['Category', 'Sub Category', 'Activity', 'MID', 'Merchant Name', 'Installed/Action Date'];
 /** Position of a record's category + activity in the admin's list (unknown ones go last). */
@@ -2175,7 +2422,7 @@ function kpiTable() {
 }
 /** Header + rows of the records currently shown (same for CSV and Copy). cols = column names to keep (default: all). */
 function exportTable(cols) {
-  const use = cols ? cols.map(n => EXPORT_COLS.find(c => c[0] === n)).filter(Boolean) : EXPORT_COLS;
+  const all = exportCols(), use = cols ? cols.map(n => all.find(c => c[0] === n)).filter(Boolean) : all;
   return [use.map(c => c[0])].concat(filtered().map(r => use.map(c => c[1](r))));
 }
 $('#csvBtn').addEventListener('click', () => {
@@ -2326,9 +2573,9 @@ async function tplPreview() {
 async function loadTemplate() {
   try {
     const t = await api('getTelegramTemplate', S.token);
-    S.tgPlaceholders = t.placeholders; tplDefault = t.defaultTemplate; $('#tplText').value = t.template;
+    S.tgPlaceholders = t.placeholders; S.tgFieldLabels = t.fieldLabels || {}; tplDefault = t.defaultTemplate; $('#tplText').value = t.template;
     $('#tplStatus').textContent = t.isDefault ? 'Default' : 'Custom';
-    $('#tplChips').innerHTML = t.placeholders.map(k => '<button type="button" class="chip" data-k="' + esc(k) + '">{' + esc(k) + '}</button>').join('');
+    $('#tplChips').innerHTML = t.placeholders.map(k => '<button type="button" class="chip" data-k="' + esc(k) + '"' + (S.tgFieldLabels[k] ? ' title="Field: ' + esc(S.tgFieldLabels[k]) + '"' : '') + '>{' + esc(k) + '}</button>').join('');
     tplPreview();
   } catch (e) { tplNote(e.message, false); }
 }
@@ -2369,7 +2616,9 @@ $('#ruleSave').addEventListener('click', async () => {
 /* ============================ Categories editor (admin) ============================ */
 const catModal = new bootstrap.Modal($('#catModal'));
 let catDraft = [], catSeq = 0;
-const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes'], ['spin', 'Spin number']];
+/** Layout of a field on the form: 'h' (in a row) or 'v' (one under the other). Tick boxes were always listed one per line; the rest were in a row. */
+const cfDir = f => f.dir === 'v' || f.dir === 'h' ? f.dir : (f.kind === 'check' ? 'v' : 'h');
+const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes'], ['spin', 'Spin number'], ['info', 'Info label (not saved)']];
 /** One row per box: Off / Optional / Must (red). */
 function fieldRows(a) {
   return '<details class="mt-2 a-fields"><summary class="small fw-semibold" style="cursor:pointer">Boxes to fill <span class="text-muted fw-normal">(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')</span></summary>' +
@@ -2401,25 +2650,29 @@ function renderCatEditor() {
       t.acts.map((a, ai) =>
         '<div class="mb-3 pb-2 border-bottom" data-ai="' + ai + '"><div class="d-flex gap-2 mb-1"><input class="form-control form-control-sm a-name" maxlength="40" placeholder="Activity" value="' + esc(a.n) + '"><input class="form-control form-control-sm a-code" maxlength="4" placeholder="Code" title="Optional code added to the stamp" style="max-width:76px" value="' + esc(a.code || '') + '">' +
         '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-del" aria-label="Remove activity"><i class="bi bi-x-lg"></i></button></div>' +
-        '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button></div>' +
+        '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button></div>' +
         ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
         fieldRows(a) +
+        '<div class="d-flex align-items-center gap-2 mt-2 flex-wrap"><span class="small"><i class="bi bi-box-seam me-1"></i>Stock</span><select class="form-select form-select-sm a-stock" style="max-width:260px"><option value="">Not used</option><option value="out"' + (a.stock && a.stock.mode === 'out' ? ' selected' : '') + '>Take out of stock (deploy / install)</option><option value="both"' + (a.stock && a.stock.mode === 'both' ? ' selected' : '') + '>Replace: new one out + old one back</option><option value="return"' + (a.stock && a.stock.mode === 'return' ? ' selected' : '') + '>Take back (return / terminate / removal)</option></select></div>' +
+        (a.stock ? '<div class="mt-1"><div class="small text-muted">Items this activity uses <span class="fw-normal">(none ticked = any item)</span></div><div class="chips mt-1">' + ((S.stockItems || []).length ? S.stockItems.map(it => '<button type="button" class="chip a-stk-item' + ((a.stock.items || []).some(n => n.toLowerCase() === it.name.toLowerCase()) ? ' active' : '') + '" data-n="' + esc(it.name) + '">' + esc(it.name) + '</button>').join('') : '<span class="small text-muted">Add stock items in the Stock tab first.</span>') + '</div></div>' : '') +
         '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Photo quality</span><select class="form-select form-select-sm a-pq" style="max-width:150px"><option value="">Standard</option><option value="high"' + (a.pq === 'high' ? ' selected' : '') + '>High</option><option value="max"' + (a.pq === 'max' ? ' selected' : '') + '>Max</option></select><span class="small text-muted">sharper photos and PDF, bigger uploads</span></div>' +
         '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm a-minph" style="max-width:80px" value="' + (a.minPh || 0) + '"><span class="small text-muted">0 = 2 when Photos is Required</span></div>' +
         '<details class="mt-2 a-tgbox"' + (a.tg ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Telegram message <span class="text-muted fw-normal">(' + (a.tg ? 'own message' : 'standard message') + ')</span></summary>' +
           '<textarea class="form-control form-control-sm a-tg mt-2" rows="6" spellcheck="false" placeholder="Leave empty to use the standard message (Telegram message box below). Example:&#10;🛠 <b>{title}</b>&#10;🧾 {merchant} · MID {mid}">' + esc(a.tg || '') + '</textarea>' +
-          '<div class="chips mt-2 a-tgchips">' + (S.tgPlaceholders || []).map(k => '<button type="button" class="chip a-tgk" data-k="' + esc(k) + '">{' + esc(k) + '}</button>').join('') + '</div>' +
+          '<div class="chips mt-2 a-tgchips">' + (S.tgPlaceholders || []).map(k => '<button type="button" class="chip a-tgk" data-k="' + esc(k) + '"' + ((S.tgFieldLabels || {})[k] ? ' title="Field: ' + esc(S.tgFieldLabels[k]) + '"' : '') + '>{' + esc(k) + '}</button>').join('') + '</div>' +
           '<div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-soft btn-sm a-tgprev">Preview</button><button type="button" class="btn btn-soft btn-sm a-tgclear">Use standard</button></div>' +
           '<div class="small mt-2 a-tgout hidden" style="white-space:pre-wrap"></div></details>' +
-        '<div class="small text-muted mt-2">Extra boxes</div>' +
+        '<div class="small mt-2"><b>Fields</b> <span class="text-muted">(each field name becomes a column in the sheet)</span></div>' +
         (a.custom || []).map((f, ci) =>
-          '<div class="d-flex gap-1 mb-1 align-items-center" data-ci="' + ci + '"><input class="form-control form-control-sm cf-label" maxlength="30" placeholder="Box name" value="' + esc(f.label) + '">' +
+          '<div class="d-flex gap-1 mb-1 align-items-center" data-ci="' + ci + '"><input class="form-control form-control-sm cf-label" maxlength="30" placeholder="' + (f.kind === 'info' ? 'Title (optional)' : 'Field name') + '" value="' + esc(f.label) + '">' +
           '<select class="form-select form-select-sm cf-kind" style="max-width:112px">' + CF_KINDS.map(k => '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + k[1] + '</option>').join('') + '</select>' +
-          '<button type="button" class="chip cf-req' + (f.req ? ' active' : '') + '">Must</button>' +
-          '<button type="button" class="btn btn-sm btn-outline-danger border-0 cf-del" aria-label="Remove box"><i class="bi bi-x"></i></button></div>' +
+          (f.kind === 'info' ? '' : '<button type="button" class="chip cf-req' + (f.req ? ' active' : '') + '">Must</button>') +
+          '<button type="button" class="btn btn-sm btn-outline-danger border-0 cf-del" aria-label="Remove field"><i class="bi bi-x"></i></button></div>' +
+          (f.kind === 'info' ? '<textarea class="form-control form-control-sm cf-text mb-2" rows="3" maxlength="600" data-ci="' + ci + '" placeholder="Text shown on the form for this activity (nothing is saved)">' + esc(f.text || '') + '</textarea>' : '') +
           (f.kind === 'select' || f.kind === 'check' || f.kind === 'radio' ? '<input class="form-control form-control-sm cf-opts mb-2" data-ci="' + ci + '" placeholder="Values, separated by commas (e.g. Small, Medium, Large)" value="' + esc((f.opts || []).join(', ')) + '">' : '') +
+          (['spin', 'check', 'radio'].includes(f.kind) ? '<div class="d-flex gap-1 mb-1 align-items-center small text-muted" data-ci="' + ci + '">Layout <button type="button" class="chip cf-dir' + (cfDir(f) === 'h' ? ' active' : '') + '" data-d="h">Horizontal</button><button type="button" class="chip cf-dir' + (cfDir(f) === 'v' ? ' active' : '') + '" data-d="v">Vertical</button></div>' : '') +
           (f.kind === 'spin' ? '<div class="d-flex gap-1 mb-2 align-items-center small text-muted" data-ci="' + ci + '">Min <input class="form-control form-control-sm cf-min" type="number" style="max-width:80px" value="' + (f.min == null ? 0 : f.min) + '"> Max <input class="form-control form-control-sm cf-max" type="number" style="max-width:80px" value="' + (f.max == null ? 100 : f.max) + '"> Step <input class="form-control form-control-sm cf-step" type="number" min="0" step="any" style="max-width:70px" value="' + (f.step || 1) + '"></div>' : '')).join('') +
-        '<button type="button" class="btn btn-soft btn-sm cf-add mt-1"><i class="bi bi-plus-lg me-1"></i>Box</button></div>').join('') +
+        '<button type="button" class="btn btn-soft btn-sm cf-add mt-1"><i class="bi bi-plus-lg me-1"></i>Field</button></div>').join('') +
       '<button type="button" class="btn btn-soft btn-sm c-addact"><i class="bi bi-plus-lg me-1"></i>Activity</button></div>').join('');
 }
 $('#catEditBtn').addEventListener('click', () => {
@@ -2436,10 +2689,12 @@ $('#catList').addEventListener('input', e => {
   else if (e.target.classList.contains('s-name')) { const s = t.subs[+e.target.closest('[data-si]').dataset.si], old = s.n; s.n = e.target.value; t.acts.forEach(a => { if (a.subs) a.subs = a.subs.map(x => x === old ? s.n : x); }); }
   else if (e.target.classList.contains('s-code')) t.subs[+e.target.closest('[data-si]').dataset.si].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   else if (/\bcf-(min|max|step)\b/.test(e.target.className)) { const f = t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f[/cf-(min|max|step)/.exec(e.target.className)[1]] = e.target.value === '' ? '' : +e.target.value; }
+  else if (e.target.classList.contains('cf-text')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.dataset.ci].text = e.target.value;
   else if (e.target.classList.contains('cf-opts')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.dataset.ci].opts = e.target.value.split(',').map(x => x.trim()).filter(Boolean);
   else if (e.target.classList.contains('cf-label')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].label = e.target.value;
 });
 $('#catList').addEventListener('change', e => {
+  if (e.target.classList.contains('a-stock')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.stock = { mode: e.target.value, items: (a.stock && a.stock.items) || [] }; else delete a.stock; renderCatEditor(); return; }
   if (e.target.classList.contains('a-pq')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.pq = e.target.value; else delete a.pq; return; }
   if (e.target.classList.contains('a-minph')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); a.minPh = v; if (v && !a.f.photo) a.f.photo = 1; renderCatEditor(); return; }
   if (e.target.classList.contains('s-minph')) { const sr = e.target.closest('[data-sr]'), s = catDraft[+e.target.closest('[data-ti]').dataset.ti].subs[+sr.dataset.sr]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); if (v) s.minPh = v; else delete s.minPh; e.target.value = v; const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0); $('.s-count', sr).textContent = '(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')'; return; }
@@ -2475,13 +2730,15 @@ $('#catList').addEventListener('click', e => {
   else if (e.target.closest('.s-del')) { const gone = t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1)[0]; t.acts.forEach(a => { if (gone && a.subs) { a.subs = a.subs.filter(x => x !== gone.n); if (!a.subs.length) delete a.subs; } }); renderCatEditor(); }
   else if (e.target.closest('.c-addact')) { { const na = normAct({}, { n: '' }); na.f.photo = 2; t.acts.push(na); } renderCatEditor(); }
   else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); renderCatEditor(); }
+  else if (e.target.closest('.a-stk-item')) { const b = e.target.closest('.a-stk-item'), a = t.acts[ai], n = b.dataset.n, l = a.stock.items || []; a.stock.items = l.some(x => x.toLowerCase() === n.toLowerCase()) ? l.filter(x => x.toLowerCase() !== n.toLowerCase()) : l.concat(n); b.classList.toggle('active'); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
     const row = e.target.closest('.fl-row'), a = t.acts[ai]; a.f[row.dataset.k] = +e.target.closest('.a-lv').dataset.v; if (row.dataset.k === 'photo' && !a.f.photo) { a.minPh = 0; const mi = $('.a-minph', ab); if (mi) mi.value = 0; }
     $$('.a-lv', row).forEach(b => b.classList.toggle('active', +b.dataset.v === a.f[row.dataset.k]));
     $('summary span', e.target.closest('.a-fields')).textContent = '(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')';
   }
-  else if (e.target.closest('.cf-add')) { const a = t.acts[ai]; a.custom = a.custom || []; if (a.custom.length >= 20) { toast('At most 20 extra boxes per activity.', 'warning'); return; } a.custom.push({ id: 'f' + (++catSeq).toString(36) + Math.random().toString(36).slice(2, 6), label: '', kind: 'text', req: false }); renderCatEditor(); }
+  else if (e.target.closest('.cf-dir')) { const f = t.acts[ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.dir = e.target.closest('.cf-dir').dataset.d; renderCatEditor(); }
+  else if (e.target.closest('.cf-add')) { const a = t.acts[ai]; a.custom = a.custom || []; if (a.custom.length >= 20) { toast('At most 20 fields per activity.', 'warning'); return; } a.custom.push({ id: 'f' + (++catSeq).toString(36) + Math.random().toString(36).slice(2, 6), label: '', kind: 'text', req: false }); renderCatEditor(); }
   else if (e.target.closest('.cf-del')) { t.acts[ai].custom.splice(+e.target.closest('[data-ci]').dataset.ci, 1); renderCatEditor(); }
   else if (e.target.closest('.cf-req')) { const f = t.acts[ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.req = !f.req; e.target.closest('.cf-req').classList.toggle('active', f.req); }
 });
@@ -2489,7 +2746,7 @@ $('#catSave').addEventListener('click', async () => {
   const btn = $('#catSave'), err = $('#catError'); show(err, false); busy(btn, true, 'Saving…');
   try {
     const out = await api('saveCatalog', S.token, catDraft);
-    setCatalog(out); setType(curType); S.cards.forEach(applyType); renderCatSummary(); catModal.hide(); toast('Categories saved.', 'success');
+    setCatalog(out); setType(curType); S.cards.forEach(applyType); renderCatSummary(); catModal.hide(); toast('Categories saved.', 'success'); if (typeof loadTemplate === 'function') loadTemplate();      // new fields get their Telegram placeholders right away
   } catch (ex) { err.textContent = ex.message; show(err, true); }
   busy(btn, false);
 });
@@ -2583,23 +2840,137 @@ $('#stSave').addEventListener('click', () => {
   if (stampOn && needGeo()) refreshGeo(10000);
 });
 
+
+/* ============================ Stock tab (admin + supervisor) ============================ */
+S.st = { period: 'month', branch: '', item: '', status: 'In stock', data: null };
+const stFrom = () => { const n = new Date(); return S.st.period === 'month' ? ymd(new Date(n.getFullYear(), n.getMonth(), 1)) : S.st.period === '30' ? ymd(new Date(n.getTime() - 29 * 864e5)) : ''; };
+const stBars = (rows, cls) => { const mx = Math.max(1, ...rows.map(r => r.n)); return rows.length ? rows.map(r => '<div class="small d-flex justify-content-between"><span class="text-truncate">' + esc(r.name) + '</span><b>' + r.n + '</b></div><div class="stk-bar ' + (cls || '') + ' mb-1" style="width:' + Math.max(2, Math.round(r.n / mx * 100)) + '%"></div>').join('') : '<div class="small text-muted">No data</div>'; };
+const stPillOf = st => '<span class="st-pill ' + (st === 'In stock' || st === 'Reserved' ? 'st-i' : st === 'Used' ? 'st-u' : st === 'Faulty' ? 'st-f' : 'st-h') + '">' + esc(st) + '</span>';
+async function loadStock() {
+  const admin = S.user.role === 'Admin';
+  show($('#stBranchWrap'), admin); show($('#stItemsCard'), admin);
+  try {
+    const d = S.st.data = await api('getStockDash', S.token, { from: stFrom(), branch: admin ? S.st.branch : '', item: S.st.item });
+    S.stockItems = d.items;
+    $('#stPeriod').innerHTML = [['month', 'This month'], ['30', 'Last 30 days'], ['all', 'All time']].map(p => '<button type="button" class="chip' + (S.st.period === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('');
+    $('#stBranch').innerHTML = [''].concat(d.branches).map(b => '<button type="button" class="chip' + (S.st.branch === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (b || 'All') + '</button>').join('');
+    $('#stItem').innerHTML = [''].concat(d.items.map(i => i.name)).map(b => '<button type="button" class="chip' + (S.st.item === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (esc(b) || 'All') + '</button>').join('');
+    const t = d.totals, p = d.period;
+    $('#stKpi').innerHTML = [['In stock now', t.remaining], ['Stock in', p.stockIn], ['Used', p.out], ['Reserved', t.reserved], ['To decide', t.pending], ['Returned to stock', p.back], ['Faulty', t.faulty], ['Sent to HO', t.ho], ['Low items', t.low]].map(k => '<div class="kpi-s"' + (k[0] === 'Low items' && k[1] ? ' style="background:#fffbeb;border-color:#fcd34d"' : '') + '><b>' + k[1] + '</b><span>' + k[0] + '</span></div>').join('');
+    const mx = Math.max(1, ...d.stock.map(r => r.remaining));
+    $('#stRemain').innerHTML = d.stock.length ? d.stock.map(r => '<div class="d-flex justify-content-between small"><span>' + esc(r.item) + ' <span class="text-muted">· ' + esc(r.branch) + (r.kind === 'qty' ? ' · qty' : '') + '</span>' + (r.isLow ? ' <span class="st-pill st-h">Low</span>' : '') + '</span><span><b>' + r.remaining + '</b>' + (r.faulty ? ' <span class="text-muted">· faulty ' + r.faulty + '</span>' : '') + (r.ho ? ' <span class="text-muted">· HO ' + r.ho + '</span>' : '') + (r.oldest > 30 ? ' <span class="text-muted">· oldest ' + r.oldest + 'd</span>' : '') + '</span></div><div class="stk-bar ' + (r.isLow ? 'o' : '') + ' mb-2" style="width:' + Math.max(2, Math.round(Math.max(0, r.remaining) / mx * 100)) + '%"></div>').join('') : '<div class="small text-muted">No stock yet. Add items below, then stock in.</div>';
+    const wm = Math.max(1, ...d.weeks.map(w => Math.max(w.inn, w.out)));
+    $('#stWeeks').innerHTML = d.weeks.length ? d.weeks.map(w => '<div class="small d-flex justify-content-between"><span>Week of ' + esc(fmtD(w.week)) + '</span><span>in <b>' + w.inn + '</b> · used <b>' + w.out + '</b></span></div><div class="stk-bar mb-1" style="width:' + Math.max(2, Math.round(w.inn / wm * 100)) + '%"></div><div class="stk-bar g mb-2" style="width:' + Math.max(2, Math.round(w.out / wm * 100)) + '%"></div>').join('') + '<div class="small text-muted"><span style="color:#4f46e5">■</span> stock in &nbsp;<span style="color:#1baf7a">■</span> used</div>' : '<div class="small text-muted">No movements in this period.</div>';
+    $('#stByBranch').innerHTML = stBars(d.byBranch); $('#stByStaff').innerHTML = stBars(d.byStaff, 'g'); $('#stByMer').innerHTML = stBars(d.byMerchant, 'o'); $('#stByItem').innerHTML = stBars(d.byItem);
+    $('#stRecent').innerHTML = d.recent.length ? d.recent.map(l => '<div class="py-1 border-top"><b>' + esc(l.action) + '</b> · ' + esc(l.item) + (l.sn ? ' ' + esc(l.sn) : ' ×' + l.qty) + ' <span class="text-muted">· ' + esc(l.branch) + ' · ' + esc(l.by) + (l.merchant ? ' · ' + esc(l.merchant) : '') + (l.reason ? ' · ' + esc(l.reason) : '') + ' · ' + esc(fmtTs(l.ts)) + '</span></div>').join('') : '<div class="text-muted">Nothing yet</div>';
+    const opts = d.items.map(i => '<option value="' + esc(i.name) + '">' + esc(i.name) + (i.kind === 'qty' ? ' (qty)' : '') + '</option>').join('');
+    const cur = $('#siItem').value; $('#siItem').innerHTML = opts; if (cur) $('#siItem').value = cur;
+    const rc = $('#rsItem').value; $('#rsItem').innerHTML = '<option value="">Any item</option>' + d.items.filter(i => i.kind !== 'qty').map(i => '<option>' + esc(i.name) + '</option>').join(''); if (rc) $('#rsItem').value = rc;
+    $('#aqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join('');
+    show($('#siBranchWrap'), admin); siKind(); paintStatusChips(); loadSnRows(); loadPending();
+    if (admin) paintItems();
+  } catch (e) { toast(e.message, 'danger'); }
+}
+bindSlicer('stPeriod', 'fPeriodX', () => {});
+for (const [box, key] of [['stPeriod', 'period'], ['stBranch', 'branch'], ['stItem', 'item']]) $('#' + box).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.st[key] = b.dataset.v; loadStock(); });
+/* ---- returns waiting for a decision (admin / supervisor) ---- */
+async function loadPending() {
+  try {
+    const d = await api('getStockPending', S.token), n = d.sns.length + d.qty.reduce((a, q) => a + q.n, 0);
+    $('#stPendN').textContent = n; show($('#stPendCard'), n > 0);
+    const opts = '<div class="d-flex flex-wrap gap-2 mt-2 pd-act"><button type="button" class="btn btn-success btn-sm pd-in">In stock</button><button type="button" class="btn btn-outline-danger btn-sm pd-fa">Faulty…</button><button type="button" class="btn btn-outline-secondary btn-sm pd-ho">Send to HO</button></div><div class="hidden pd-why mt-2"><input class="form-control form-control-sm pd-reason" maxlength="100" placeholder="Reason it is faulty"><button type="button" class="btn btn-danger btn-sm mt-2 pd-fa-ok">Mark faulty</button></div>';
+    $('#stPend').innerHTML = d.sns.map(x => '<div class="rv-item" data-sn="' + esc(x.sn) + '"><div class="d-flex justify-content-between gap-2"><b>' + esc(x.sn) + '</b><span class="small text-muted">' + esc(x.item) + ' · ' + esc(x.branch) + '</span></div>' +
+        '<div class="small text-muted">' + esc([x.merchant ? 'from ' + x.merchant : '', x.mid ? 'MID ' + x.mid : '', x.by ? 'by ' + x.by : '', x.date ? fmtD(x.date) : ''].filter(Boolean).join(' · ')) + '</div>' + (x.note ? '<div class="rv-note">' + esc(x.note) + '</div>' : '') + opts + '</div>').join('') +
+      d.qty.map(q => '<div class="rv-item" data-item="' + esc(q.item) + '" data-branch="' + esc(q.branch) + '" data-max="' + q.n + '"><div class="d-flex justify-content-between gap-2"><b>' + esc(q.item) + '</b><span class="small text-muted">' + esc(q.branch) + ' · ' + q.n + ' waiting</span></div>' +
+        '<div class="small text-muted">' + esc([q.merchant ? 'last from ' + q.merchant : '', q.by ? 'by ' + q.by : ''].filter(Boolean).join(' · ')) + '</div>' + (q.note ? '<div class="rv-note">' + esc(q.note) + '</div>' : '') +
+        '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Quantity</span><input type="number" min="1" max="' + q.n + '" value="' + q.n + '" class="form-control form-control-sm pd-qty" style="max-width:90px"></div>' + opts + '</div>').join('');
+  } catch (e) { show($('#stPendCard'), false); }
+}
+$('#stPend').addEventListener('click', async e => {
+  const it = e.target.closest('.rv-item'); if (!it) return;
+  if (e.target.closest('.pd-fa')) { show($('.pd-why', it), true); $('.pd-reason', it).focus(); return; }
+  const dec = e.target.closest('.pd-in') ? 'in' : e.target.closest('.pd-ho') ? 'ho' : e.target.closest('.pd-fa-ok') ? 'faulty' : ''; if (!dec) return;
+  const f = { decision: dec, reason: dec === 'faulty' ? $('.pd-reason', it).value.trim() : '' };
+  if (it.dataset.sn) f.sn = it.dataset.sn; else { f.item = it.dataset.item; f.branch = it.dataset.branch; f.qty = +$('.pd-qty', it).value; }
+  if (dec === 'faulty' && !f.reason) { toast('Write the reason it is faulty.', 'warning'); return; }
+  busy(e.target.closest('button'), true, 'Saving…');
+  try { await api('stockDecide', S.token, f); toast('Saved', 'success'); loadStock(); } catch (ex) { toast(ex.message, 'danger'); busy(e.target.closest('button'), false); }
+});
+$('#rsSave').addEventListener('click', async () => {
+  const btn = $('#rsSave'), msg = $('#rsMsg'); busy(btn, true, 'Saving…'); msg.textContent = '';
+  try {
+    const r = await api('stockReserve', S.token, { item: $('#rsItem').value, sns: $('#rsSns').value, merchant: $('#rsMer').value.trim(), mid: $('#rsMid').value.trim(), pair: $('#rsPair').value.trim(), note: $('#rsNote').value.trim() });
+    msg.textContent = r.reserved + ' reserved.'; msg.className = 'small mt-2 text-success'; $('#rsSns').value = ''; $('#rsPair').value = ''; loadStock();
+  } catch (ex) { msg.textContent = ex.message; msg.className = 'small mt-2 text-danger'; }
+  busy(btn, false);
+});
+function siKind() { const it = (S.stockItems || []).find(i => i.name === $('#siItem').value); const q = it && it.kind === 'qty'; show($('#siSnWrap'), !q); show($('#siQtyWrap'), !!q); }
+$('#siItem').addEventListener('change', siKind);
+$('#siSave').addEventListener('click', async () => {
+  const btn = $('#siSave'), msg = $('#siMsg'), it = (S.stockItems || []).find(i => i.name === $('#siItem').value);
+  if (!it) { toast('Add a stock item first (Stock items below).', 'warning'); return; }
+  busy(btn, true, 'Saving…');
+  try {
+    const r = await api('stockIn', S.token, { item: it.name, branch: $('#siBranch').value.trim(), batch: $('#siBatch').value.trim(), sns: $('#siSns').value, qty: $('#siQty').value });
+    msg.className = 'small mt-2 text-success'; msg.textContent = 'Added ' + r.added + (r.skipped.length ? '. Skipped (already listed): ' + r.skipped.join(', ') : '.');
+    $('#siSns').value = ''; $('#siQty').value = ''; loadStock();
+  } catch (e) { msg.className = 'small mt-2 text-danger'; msg.textContent = e.message; }
+  busy(btn, false);
+});
+$('#aqSave').addEventListener('click', async () => {
+  try { await api('stockAdjustQty', S.token, $('#aqItem').value, $('#siBranch').value.trim(), +$('#aqNum').value, $('#aqWhy').value.trim()); toast('Saved', 'success'); $('#aqNum').value = ''; $('#aqWhy').value = ''; loadStock(); } catch (e) { toast(e.message, 'danger'); }
+});
+/* S/N list */
+const SN_STATUS = ['In stock', 'Reserved', 'Used', 'To decide', 'Faulty', 'Sent to HO', 'All'];
+function paintStatusChips() { $('#snStatus').innerHTML = SN_STATUS.map(x => '<button type="button" class="chip' + (S.st.status === x ? ' active' : '') + '" data-v="' + x + '">' + x + '</button>').join(''); }
+$('#snStatus').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.st.status = b.dataset.v; paintStatusChips(); loadSnRows(); });
+let snFindT = null; $('#snFind').addEventListener('input', () => { clearTimeout(snFindT); snFindT = setTimeout(loadSnRows, 300); });
+async function loadSnRows() {
+  try {
+    const d = await api('getStockSNs', S.token, { status: S.st.status, q: $('#snFind').value.trim(), item: S.st.item, branch: S.user.role === 'Admin' ? S.st.branch : '' });
+    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button></div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
+  } catch (e) { toast(e.message, 'danger'); }
+}
+const adjModal = new bootstrap.Modal($('#adjModal')); S.adj = { sn: '', status: 'In stock' };
+$('#snRows').addEventListener('click', e => { const b = e.target.closest('.sn-adj'); if (!b) return; S.adj = { sn: b.closest('[data-sn]').dataset.sn, status: 'In stock' }; $('#adjSn').textContent = S.adj.sn; $('#adjWhy').value = ''; paintAdj(); adjModal.show(); });
+function paintAdj() { $('#adjChips').innerHTML = ['In stock', 'Faulty', 'Sent to HO'].map(x => '<button type="button" class="chip' + (S.adj.status === x ? ' active' : '') + '" data-v="' + x + '">' + x + '</button>').join(''); }
+$('#adjChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.adj.status = b.dataset.v; paintAdj(); });
+$('#adjSave').addEventListener('click', async () => { try { await api('stockAdjust', S.token, S.adj.sn, S.adj.status, $('#adjWhy').value.trim()); adjModal.hide(); toast('Saved', 'success'); loadStock(); } catch (e) { toast(e.message, 'danger'); } });
+/* items + alert (admin) */
+S.itDraft = [];
+function paintItems() {
+  if (!S.itDirty) S.itDraft = (S.stockItems || []).map(i => Object.assign({}, i));
+  $('#itList').innerHTML = S.itDraft.length ? S.itDraft.map((i, n) => '<div class="d-flex align-items-center gap-2 mb-1" data-n="' + n + '"><span class="flex-grow-1 text-truncate">' + esc(i.name) + ' <span class="small text-muted">' + (i.kind === 'qty' ? 'quantity' : 'with S/N') + '</span></span><span class="small">Low at</span><input type="number" min="0" class="form-control form-control-sm it-low" style="max-width:80px" value="' + i.low + '"><button type="button" class="btn btn-sm btn-outline-danger border-0 it-del"><i class="bi bi-x-lg"></i></button></div>').join('') : '<div class="small text-muted">No items yet.</div>';
+  if (S.stockAlert) { $('#alChat').value = S.stockAlert.chat || ''; $('#alTopic').value = S.stockAlert.topic || ''; }
+}
+$('#itList').addEventListener('input', e => { if (e.target.classList.contains('it-low')) { S.itDraft[+e.target.closest('[data-n]').dataset.n].low = Math.max(0, Math.floor(+e.target.value) || 0); S.itDirty = true; } });
+$('#itList').addEventListener('click', e => { const b = e.target.closest('.it-del'); if (!b) return; S.itDraft.splice(+b.closest('[data-n]').dataset.n, 1); S.itDirty = true; paintItems(); });
+$('#itAdd').addEventListener('click', () => { const n = $('#itName').value.trim().replace(/\s+/g, ' '); if (!n) return; if (S.itDraft.some(i => i.name.toLowerCase() === n.toLowerCase())) { toast('That item is already listed.', 'warning'); return; } S.itDraft.push({ name: n, kind: $('#itKind').value, low: 0 }); S.itDirty = true; $('#itName').value = ''; paintItems(); });
+$('#itSave').addEventListener('click', async () => {
+  try { const r = await api('saveStockItems', S.token, S.itDraft, { chat: $('#alChat').value.trim(), topic: $('#alTopic').value.trim() }); S.stockItems = r.items; S.stockAlert = r.alert; S.itDirty = false; toast('Stock items saved.', 'success'); loadStock(); } catch (e) { toast(e.message, 'danger'); }
+});
+
 /* ============================ Last record + edit ============================ */
 S.rules = { enabled: true, max: 3, days: 1 };
 const ruleText = () => 'edit up to ' + S.rules.max + (S.rules.max === 1 ? ' time' : ' times') + (S.rules.days === 1 ? ', same day only' : ', within ' + S.rules.days + ' days');
 async function loadLast() {
   try { S.rules = await api('getMyEditRules', S.token); } catch (e) {}
-  try { S.today = S.rules.enabled ? await api('getTodayRecords', S.token) : []; } catch (e) { S.today = []; }
+  try { S.today = await api('getTodayRecords', S.token); } catch (e) { S.today = []; }
   renderLast();
 }
 function renderLast() {
   const list = S.today || [];
   show($('#lastCard'), list.length > 0);
   $('#todayTitle').innerHTML = (S.rules.days === 1 ? "Today's records" : 'Recent records') + ' <span class="text-muted">· ' + ruleText() + '</span>';
-  $('#todayList').innerHTML = list.map(r =>
-    '<div class="d-flex align-items-center gap-2 py-1 border-top" data-stamp="' + esc(r.stamp) + '"><div class="flex-grow-1 min-w-0">' +
+  $('#todayList').innerHTML = list.map(r => {
+    const rvs = r.review && r.review.status, canEdit = rvs === 'Returned' || (rvs !== 'Pending' && S.rules.enabled && r.editsLeft > 0);
+    return '<div class="d-flex align-items-center gap-2 py-1 border-top" data-stamp="' + esc(r.stamp) + '"><div class="flex-grow-1 min-w-0">' +
     '<div class="fw-semibold small text-truncate">' + esc(r.type + (r.activity && r.activity !== r.type ? ' · ' + r.activity : '') + ' — ' + (r.merchant || r.mid || r.stamp)) + '</div>' +
-    '<div class="small text-muted text-truncate">' + esc(r.stamp) + ' · ' + (r.editsLeft > 0 ? r.editsLeft + ' of ' + S.rules.max + ' edits left' : 'edit limit reached') + '</div></div>' +
-    '<button class="btn btn-soft btn-sm flex-none t-edit" type="button"' + (r.editsLeft > 0 ? '' : ' disabled') + '><i class="bi bi-pencil me-1"></i>Edit</button></div>').join('');
+    '<div class="small text-muted text-truncate">' + esc(r.stamp) + ' · ' + (rvs ? (rvs === 'Pending' ? 'waiting for the admin' : rvs === 'Returned' ? 'returned: fix and resubmit' : 'approved') : '') + (!rvs || rvs === 'Approved' ? (rvs ? ' · ' : '') + (r.editsLeft > 0 && S.rules.enabled ? r.editsLeft + ' of ' + S.rules.max + ' edits left' : (S.rules.enabled ? 'edit limit reached' : 'editing closed')) : '') + '</div>' +
+    (rvs === 'Returned' && r.review.note ? '<div class="rv-note"><b>Admin note:</b> ' + esc(r.review.note) + '</div>' : '') + '</div>' +
+    (rvs ? '<span class="flex-none">' + stPill(rvs) + '</span>' : '') +
+    '<button class="btn ' + (rvs === 'Returned' ? 'btn-primary' : 'btn-soft') + ' btn-sm flex-none t-edit" type="button"' + (canEdit ? '' : ' disabled') + '><i class="bi bi-pencil me-1"></i>' + (rvs === 'Returned' ? 'Fix' : 'Edit') + '</button></div>';
+  }).join('');
 }
 $('#todayList').addEventListener('click', e => {
   const b = e.target.closest('.t-edit'); if (!b) return;
@@ -2616,7 +2987,7 @@ function openEdit() {
   const r = S.last; if (!r) return;
   show($('#eError'), false);
   $('#eCat').textContent = r.type;
-  $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + ' · edit ' + ((r.edits || 0) + 1) + ' of ' + S.rules.max;
+  $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + (r.review && r.review.status === 'Returned' ? ' · fix and resubmit' : ' · edit ' + ((r.edits || 0) + 1) + ' of ' + S.rules.max);
   const rt = typeDef(r.type), list = rt && isLinked(rt) && r.sub ? rt.acts.filter(a => actSubs(a).includes(r.sub)).map(a => a.n) : (ACTIVITIES[r.type] || [r.activity]), single = list.length === 1;
   $('#eAct').innerHTML = (single ? '' : '<option value="">Select activity…</option>') + list.map(a => '<option>' + esc(a) + '</option>').join('');
   $('#eAct').value = list.includes(r.activity) ? r.activity : (single ? list[0] : '');
