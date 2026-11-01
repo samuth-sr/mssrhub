@@ -212,6 +212,9 @@
 .custom-wrap > .mb-3 > [data-kind="check"] { text-align: right; }
 .custom-wrap > .mb-3 > .spin-v { flex: 0 0 96px; margin-left: auto; }
 .custom-wrap .info-lbl { text-align: left; }
+.team-kpi{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}.team-kpi div{flex:1 1 90px;background:var(--bs-tertiary-bg,#f3f4f6);border-radius:12px;padding:8px 10px;text-align:center}.team-kpi b{display:block;font-size:1.25rem}.team-kpi span{font-size:.72rem;opacity:.7}
+.tm-row{display:flex;align-items:center;gap:8px;padding:9px 4px;border-top:1px solid rgba(128,128,128,.18);cursor:pointer}.tm-row .nm{flex:1;min-width:0}.tm-row .n{font-weight:700;min-width:28px;text-align:right}.tm-row.none .when{color:#b45309}
+.tr-row{display:grid;grid-template-columns:58px 1fr 64px;align-items:center;gap:8px;margin:5px 0;font-size:.85rem}.tr-bar{height:9px;border-radius:5px;background:#4f46e5}.tr-bar.p{background:#c7c9d9;height:6px;margin-top:3px}.tr-key{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px}.tr-now{background:#4f46e5}.tr-prev{background:#c7c9d9}.up{color:#059669}.dn{color:#dc2626}
 </style>
 </head>
 <body>
@@ -302,6 +305,19 @@
     <!-- RECORDS -->
     <section id="pane-records" class="hidden">
       <button type="button" class="btn btn-primary w-100 mb-3 hidden" id="reviewBtn"><i class="bi bi-patch-check me-1"></i>Review queue <span class="rv-badge hidden" id="rvBadge">0</span></button>
+      <div class="card-x hidden" id="teamCard">
+        <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold"><i class="bi bi-people me-1"></i>Team today</div><span class="small text-muted" id="teamDate"></span></div>
+        <div class="chips mb-2 hidden" id="teamBranch"></div>
+        <div class="team-kpi" id="teamKpi"></div>
+        <div id="teamNone" class="small mb-2"></div>
+        <div id="teamList"></div>
+      </div>
+      <div class="card-x hidden" id="trendCard">
+        <div class="fw-bold mb-1"><i class="bi bi-graph-up me-1"></i>Last 7 days</div>
+        <div class="small text-muted mb-2" id="trendSum"></div>
+        <div id="trendBars"></div>
+        <div class="small text-muted mt-1"><span class="tr-key tr-now"></span> this week <span class="tr-key tr-prev ms-2"></span> same day last week</div>
+      </div>
       <div class="card-x">
         <div class="mb-3 hidden" id="branchWrap"><div class="form-label">Branch <span class="text-muted fw-normal small">(tap to leave one out, tap again to bring it back)</span></div><div class="chips" id="slBranch"></div></div>
         <div class="mb-3" id="userFilterWrap"><div class="form-label">Staff</div><div class="chips" id="slUser"></div><input type="hidden" id="fUser" value=""></div>
@@ -537,7 +553,7 @@
         <input type="hidden" id="uOriginal">
         <div class="row g-2 mb-3">
           <div class="col-6"><label class="form-label">Staff ID <span class="text-muted text-lowercase">(sign-in)</span></label><input id="uStaffId" class="form-control" autocapitalize="characters" autocomplete="off" placeholder="e.g. S100"></div>
-          <div class="col-6"><label class="form-label">Branch code</label><input id="uBranch" class="form-control" autocapitalize="characters" autocomplete="off" maxlength="10" placeholder="e.g. PP"></div>
+          <div class="col-6"><label class="form-label">Branch code</label><input id="uBranch" class="form-control" autocapitalize="characters" autocomplete="off" maxlength="60" placeholder="e.g. PP (supervisor / viewer: PP, SR)"></div>
         </div>
         <label class="form-label">Staff name</label>
         <input id="uName" class="form-control mb-3" autocapitalize="none" required>
@@ -591,6 +607,14 @@
       </div>
     </div>
   </div>
+</div>
+
+<div class="modal fade" id="teamModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content" style="border-radius:20px">
+    <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold" id="tmName"></h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="team-kpi" id="tmKpi"></div><div class="form-label mt-2">This week by activity</div><div id="tmActs"></div><div class="form-label mt-3">Latest records <span class="text-muted fw-normal small">(read-only)</span></div><div id="tmRecs"></div>
+      <button type="button" class="btn btn-soft btn-sm mt-3" id="tmAll"><i class="bi bi-table me-1"></i>See all records of this person</button></div>
+  </div></div>
 </div>
 
 <!-- Edit last record -->
@@ -1239,7 +1263,7 @@ function switchTab(name) {
   ['new', 'records', 'stock', 'users'].forEach(t => show($('#pane-' + t), t === name));
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (name === 'records') loadRecords();
+  if (name === 'records') { loadRecords(); loadTeam(); }
   if (name === 'stock') loadStock();
   if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
 }
@@ -2231,8 +2255,46 @@ $('#recBody').addEventListener('click', e => {      // tap a row: its details op
   if (e.target.closest('a')) return;
   const tr = e.target.closest('.rec-row'); if (!tr) return;
   const d = tr.nextElementSibling, open = d.classList.contains('hidden');
+  $$('#recBody .rec-row.open').forEach(o => { if (o !== tr) { o.classList.remove('open'); o.nextElementSibling.classList.add('hidden'); } });      // only one record open at a time
   d.classList.toggle('hidden', !open); tr.classList.toggle('open', open);
 });
+/* ---- Team today / 7-day trend / staff drill-down (admin, supervisor, viewer: read-only) ---- */
+S.teamBranch = '';
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const dayLbl = d => { const t = new Date(d + 'T00:00:00'); return DOW[t.getDay()] + ' ' + d.slice(8); };
+const pctTxt = (a, b) => b ? (a >= b ? '+' : '') + Math.round((a - b) / b * 100) + '%' : (a ? 'new' : '–');
+async function loadTeam() {
+  const on = isWide(); show($('#teamCard'), on); show($('#trendCard'), on); if (!on) return;
+  try {
+    const d = await api('getTeam', S.token, { branch: S.teamBranch });
+    $('#teamDate').textContent = fmtD(d.today);
+    const bs = d.branches || []; show($('#teamBranch'), bs.length > 1);
+    $('#teamBranch').innerHTML = [''].concat(bs).map(b => '<button type="button" class="chip' + (S.teamBranch === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (esc(b) || 'All') + '</button>').join('');
+    $('#teamKpi').innerHTML = '<div><b>' + d.total + '</b><span>Records today</span></div><div><b>' + d.active + ' / ' + d.staff.length + '</b><span>Staff with a record</span></div><div><b>' + (d.staff.length - d.active) + '</b><span>No record yet</span></div>';
+    const none = d.staff.filter(m => !m.today).map(m => m.username);
+    $('#teamNone').innerHTML = none.length ? '<span class="text-muted">No record yet:</span> <b style="color:#b45309">' + none.map(esc).join(', ') + '</b>' : (d.staff.length ? '<span class="up fw-semibold">Everyone has a record today.</span>' : '');
+    const showBr = isAdminOrMulti(d);
+    $('#teamList').innerHTML = d.staff.length ? d.staff.map(m => '<div class="tm-row' + (m.today ? '' : ' none') + '" data-u="' + esc(m.username) + '"><div class="nm"><b>' + esc(m.username) + '</b>' + (showBr && m.branch ? ' <span class="small text-muted">· ' + esc(m.branch) + '</span>' : '') + '<div class="small when ' + (m.today ? 'text-muted' : '') + '">' + (m.today ? 'last record ' + esc((m.last.match(/(\d{2}:\d{2})/) || [])[1] || '') : 'no record yet') + ' · 7 days: ' + m.week + '</div></div><span class="n">' + m.today + '</span><i class="bi bi-chevron-right text-muted"></i></div>').join('') : '<div class="small text-muted">No staff in your team yet.</div>';
+    const mx = Math.max(1, ...d.days.map(x => Math.max(x.n, x.prev)));
+    $('#trendSum').innerHTML = 'This 7 days <b>' + d.week + '</b> · last 7 days <b>' + d.prevWeek + '</b> · <b class="' + (d.week >= d.prevWeek ? 'up' : 'dn') + '">' + pctTxt(d.week, d.prevWeek) + '</b>';
+    $('#trendBars').innerHTML = d.days.map(x => '<div class="tr-row"><span>' + dayLbl(x.date) + '</span><div><div class="tr-bar" style="width:' + Math.max(x.n ? 3 : 0, Math.round(x.n / mx * 100)) + '%"></div><div class="tr-bar p" style="width:' + Math.max(x.prev ? 3 : 0, Math.round(x.prev / mx * 100)) + '%"></div></div><span class="text-end"><b>' + x.n + '</b> <span class="text-muted small">vs ' + x.prev + '</span></span></div>').join('');
+  } catch (e) { show($('#teamCard'), false); show($('#trendCard'), false); }
+}
+const isAdminOrMulti = d => S.user.role === 'Admin' || /,/.test(S.user.branch || '');
+$('#teamBranch').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.teamBranch = b.dataset.v; loadTeam(); });
+const teamModal = new bootstrap.Modal($('#teamModal'));
+$('#teamList').addEventListener('click', async e => {
+  const row = e.target.closest('.tm-row'); if (!row) return;
+  try {
+    const d = await api('getTeamStaff', S.token, row.dataset.u);
+    $('#tmName').textContent = d.username + (d.branch ? ' · ' + d.branch : '');
+    $('#tmKpi').innerHTML = '<div><b>' + d.today + '</b><span>Today</span></div><div><b>' + d.week + '</b><span>Last 7 days</span></div>';
+    $('#tmActs').innerHTML = d.byActivity.length ? d.byActivity.map(a => '<div class="d-flex justify-content-between small py-1"><span><span class="pill">' + esc(shortName(a.type)) + '</span> ' + esc(a.activity) + '</span><b>' + a.n + '</b></div>').join('') : '<div class="small text-muted">Nothing in the last 7 days.</div>';
+    $('#tmRecs').innerHTML = d.latest.length ? d.latest.map(r => '<div class="py-1 border-top small"><div><b>' + esc(r.merchant || '—') + '</b>' + (r.mid ? ' <span class="text-muted">MID ' + esc(r.mid) + '</span>' : '') + '</div><div class="text-muted"><span class="pill">' + esc(shortName(r.type)) + '</span> ' + esc(r.activity) + ' · ' + esc(fmtTs(r.ts)) + (r.photos ? ' · ' + r.photos + ' photos' : '') + '</div></div>').join('') : '<div class="small text-muted">No records yet.</div>';
+    S.tmUser = d.username; teamModal.show();
+  } catch (ex) { toast(ex.message, 'danger'); }
+});
+$('#tmAll').addEventListener('click', () => { teamModal.hide(); $('#fUser').value = S.tmUser; $('#fPeriod').value = 'all'; slicer('slPeriod', 'fPeriod', PERIODS); loadRecords(); setTimeout(() => $('#recBody').scrollIntoView({ behavior: 'smooth' }), 300); });
 /* ---- Dashboard: summary tiles + one chart. Admin picks the grouping (activities / sub categories / categories) and the view (totals / by staff). ---- */
 // Colour by category for totals; by position for the by-staff series (first four are the validated slots; the rest are extras).
 const SLOT_LIGHT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#8a5cd0', '#d6458a', '#14a3b8', '#7a8190', '#a3b21a', '#c0392b', '#34495e', '#e67ebf'];
