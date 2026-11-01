@@ -203,14 +203,15 @@
 .rd-i span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:#6b7280}.rd-i b{font-size:.85rem;font-weight:600;word-break:break-word}
 .info-lbl{background:#eef2ff;border-left:4px solid #4f46e5;border-radius:10px;padding:8px 12px;color:#1e1b4b}
 .spin-v{display:inline-flex;flex-direction:column;width:96px;gap:4px}.spin-v .btn{padding:.35rem 0}.opt-v{flex-direction:column;align-items:stretch}.opt-v .chip{text-align:left;width:100%}
-/* extra (custom) fields: everything is justified to the right */
-.custom-wrap .form-label, .custom-wrap .info-lbl { display: block; text-align: right; }
-.custom-wrap input.form-control:not(.spin-in), .custom-wrap select.form-select { text-align: right; text-align-last: right; }
-.custom-wrap .chips { justify-content: flex-end; }
-.custom-wrap .form-check { text-align: right; }
-.custom-wrap > div > div[data-kind="check"] { text-align: right; }
-.custom-wrap .input-group.spin { margin-left: auto; }
-.custom-wrap .spin-v { margin-left: auto; }
+/* extra (custom) fields: the box name on the left, the box itself on the right (same row) */
+.custom-wrap > .mb-3:not(.info-lbl) { display: flex; align-items: center; gap: 12px; }
+.custom-wrap > .mb-3:not(.info-lbl) > .form-label { flex: 0 0 38%; max-width: 38%; margin: 0; text-align: left; font-weight: 600; }
+.custom-wrap > .mb-3:not(.info-lbl) > :not(.form-label) { flex: 1 1 0; min-width: 0; }
+.custom-wrap > .mb-3 > .input-group.spin { max-width: none !important; }
+.custom-wrap > .mb-3 > .chips { justify-content: flex-end; }
+.custom-wrap > .mb-3 > [data-kind="check"] { text-align: right; }
+.custom-wrap > .mb-3 > .spin-v { flex: 0 0 96px; margin-left: auto; }
+.custom-wrap .info-lbl { text-align: left; }
 </style>
 </head>
 <body>
@@ -402,11 +403,6 @@
     </section>
 
     <section id="pane-users" class="hidden">
-      <div class="card-x" id="supCard">
-        <div class="fw-bold mb-2"><i class="bi bi-person-badge me-1"></i>Supervisor access</div>
-        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="supStock" checked><label class="form-check-label" for="supStock">Supervisors can use the Stock tab</label></div>
-        <div class="small text-muted mt-1">Off = supervisors no longer see the Stock tab (they still see reports of their branch). Admin always sees it.</div>
-      </div>
       <div class="card-x" id="catCard">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="fw-bold"><i class="bi bi-diagram-3 me-1"></i>Categories &amp; activities</div>
@@ -550,7 +546,7 @@
         <div class="row g-2">
           <div class="col-6">
             <label class="form-label">Role</label>
-            <select id="uRole" class="form-select"><option>User</option><option>Supervisor</option><option>Admin</option></select>
+            <select id="uRole" class="form-select"><option>User</option><option>Supervisor</option><option value="Viewer">Viewer (reports only)</option><option>Admin</option></select>
           </div>
           <div class="col-6">
             <label class="form-label">Telegram Topic ID</label>
@@ -839,7 +835,7 @@ const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
 const typeDef = n => CATALOG.find(t => t.name === n) || null;
 /** Activities named like Deployment / Removal need no stock setup: staff pick the item type themselves (an admin stock rule, if set, wins). */
-const freeStock = n => /remov/i.test(n) ? { mode: 'return', kind: '', items: [], free: true } : /deploy/i.test(n) ? { mode: 'out', kind: '', items: [], free: true } : null;
+const freeStock = n => /remov/i.test(n) ? { mode: 'return', kind: '', items: [], free: true, auto: true } : /return|terminat/i.test(n) ? { mode: 'return', kind: '', items: [], auto: true } : /deploy/i.test(n) ? { mode: 'out', kind: '', items: [], free: true } : /replac/i.test(n) ? { mode: 'both', kind: '', items: [], auto: true } : /install/i.test(n) ? { mode: 'out', kind: '', items: [], auto: true } : null;
 const actDef = (t, a) => { const d = typeDef(t); const x = d ? (d.acts.find(y => y.n === a) || null) : null; if (!x || x.stock) return x; const fs = freeStock(x.n); return fs ? Object.assign({}, x, { stock: fs }) : x; };
 const actSubs = a => (a && a.subs && a.subs.length) ? a.subs : [''];      // the sub categories an activity appears under; [''] = not linked to any (category without links)
 /** Once any activity is linked to a sub category, every activity belongs to at least one: unlinked ones appear under all sub categories (there is no stand-alone group). */
@@ -1018,32 +1014,30 @@ function applyLevels(root, d) {
   $$('[data-fk="photo"]', root).forEach(w => { if (mp) $$('.rq', w).forEach(x => show(x, true)); const pm = $('.ph-min', w); if (pm) { pm.textContent = mp > 1 ? '(at least ' + mp + ')' : ''; show(pm, mp > 1); } });
 }
 /* ---- Stock lines on the activity form (activities that take items out of stock, or take them back) ---- */
-S.stockItems = []; S.stockAlert = null; S.supStock = true;
-async function loadStockItems() { try { const r = await api('getStockItems', S.token); S.stockItems = r.items || []; S.stockAlert = r.alert; S.supStock = r.supStock !== false; } catch (e) { S.stockItems = []; } }
+S.stockItems = []; S.stockAlert = null;
+async function loadStockItems() { try { const r = await api('getStockItems', S.token); S.stockItems = r.items || []; S.stockAlert = r.alert; } catch (e) { S.stockItems = []; } }
 const stkAllowed = d => S.stockItems.filter(it => (!d.stock.kind || d.stock.kind === it.kind) && (!d.stock.items.length || d.stock.items.some(n => n.toLowerCase() === it.name.toLowerCase())));
-const stkDirOf = (rule, l) => rule.mode === 'both' ? (l.dir === 'out' ? 'out' : 'return') : rule.mode;
+const stkDirOf = (rule, l) => rule.mode === 'return' ? 'return' : 'out';      // S/Ns going out or coming back are read from the S/N boxes by the system; the box here is only for quantities (and the free Deployment box)
 const stkKind = n => (S.stockItems.find(x => x.name === n) || {}).kind;
 /* Serial numbers need no stock box: the S/N is scanned or typed in its box and the system finds it in stock. The box is only for quantity items and for things taken back. */
 const stkQtyItems = d => stkAllowed(d).filter(it => it.kind === 'qty');
-const stkNeedsBox = d => !!(d && d.stock && (d.stock.free || d.stock.mode !== 'out' || stkQtyItems(d).length));
+const stkNeedsBox = d => !!(d && d.stock && (d.stock.free || (d.stock.mode !== 'return' && stkQtyItems(d).length)));
 function stkNewLine(rule, items, mode) {
   if (rule.free) { const it = items.filter(x => x.kind === 'serial')[0] || items[0]; return { item: it ? it.name : '', dir: rule.mode, kind: it ? it.kind : 'serial', sn: '', qty: 1, cond: '', reason: '' }; }
-  const dir = mode === 'return' ? 'return' : 'out', it = dir === 'out' ? items.filter(x => x.kind === 'qty') : items; return { item: it[0] ? it[0].name : '', dir, sn: '', qty: 1, cond: '', reason: '' }; }
+  const dir = 'out', it = items.filter(x => x.kind === 'qty'); return { item: it[0] ? it[0].name : '', dir, sn: '', qty: 1, cond: '', reason: '' }; }
 function renderStockBox(card, d) {
   const box = $('.stock-wrap', card.el), rule = d && d.stock;
   if (!rule || !stkNeedsBox(d)) { card.stock = []; card.stockMode = rule ? rule.mode : ''; box.innerHTML = ''; show(box, false); return; }
   if (card.stockMode !== rule.mode) card.stock = [];
   card.stockMode = rule.mode;
-  const items = stkAllowed(d), req = rule.mode === 'return';
+  const items = stkAllowed(d), req = false;
   if (rule.free && !card.stock.length && items.length) card.stock.push(stkNewLine(rule, items, rule.mode));
-  const title = rule.free ? (rule.mode === 'out' ? 'Items deployed' : 'Items removed') : rule.mode === 'out' ? 'Items used (quantity)' : rule.mode === 'return' ? 'Items brought back' : 'Items used / old unit brought back';
-  if (!card.stock.length && (req || rule.mode === 'both') && items.length) card.stock.push(stkNewLine(rule, items, rule.mode === 'both' ? 'return' : rule.mode));
+  const title = rule.free ? (rule.mode === 'return' ? 'Items removed (battery, charger, SIM ...)' : 'Items deployed') : 'Items used (quantity)';
   box.innerHTML = '<label class="form-label"><i class="bi bi-box-seam me-1"></i>' + title + (req ? ' <span class="rq">*</span>' : '') + '</label>' +
     card.stock.map((l, i) => {
       const dir = stkDirOf(rule, l), out = dir === 'out', its = rule.free ? items.filter(x => x.kind === (l.kind || 'serial')) : out ? items.filter(x => x.kind === 'qty') : items, serial = stkKind(l.item) !== 'qty';
       return '<div class="stk-line" data-li="' + i + '">' +
         (rule.free ? '<div class="chips mb-1">' + [['serial', 'With S/N'], ['qty', 'No S/N']].map(c => '<button type="button" class="chip stk-kind' + ((l.kind || 'serial') === c[0] ? ' active' : '') + '" data-k="' + c[0] + '">' + c[1] + '</button>').join('') + '</div>' : '') +
-        (rule.mode === 'both' ? '<div class="chips mb-1">' + [['return', 'Old unit back'], ['out', 'Quantity used']].map(c => '<button type="button" class="chip stk-dir' + (dir === c[0] ? ' active' : '') + '" data-d="' + c[0] + '">' + c[1] + '</button>').join('') + '</div>' : '') +
         '<div class="d-flex gap-2 mb-1"><select class="form-select form-select-sm stk-item">' + its.map(it => '<option' + (it.name === l.item ? ' selected' : '') + '>' + esc(it.name) + '</option>').join('') + '</select>' +
         '<button type="button" class="btn btn-sm btn-outline-danger border-0 stk-del" aria-label="Remove"><i class="bi bi-x-lg"></i></button></div>' +
         (serial ? '<div class="input-group input-group-sm"><input class="form-control stk-sn" placeholder="Serial number (scan or type)" value="' + esc(l.sn) + '" autocomplete="off" style="text-transform:uppercase"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div>'
@@ -1057,7 +1051,7 @@ $('#merchantList').addEventListener('click', e => {
   const card = S.cards.find(c => c.el.contains(w)); if (!card) return;
   const ln = e.target.closest('[data-li]'), li = ln ? +ln.dataset.li : -1, d = effDef(curType, $('.f-act', card.el).value, S.sub || '');
   if (e.target.closest('.stk-del')) { card.stock.splice(li, 1); renderStockBox(card, d); }
-  else if (e.target.closest('.stk-add')) { card.stock.push(stkNewLine(d.stock, stkAllowed(d), d.stock.mode === 'both' ? 'return' : d.stock.mode)); renderStockBox(card, d); }
+  else if (e.target.closest('.stk-add')) { card.stock.push(stkNewLine(d.stock, stkAllowed(d), 'out')); renderStockBox(card, d); }
   else if (e.target.closest('.stk-kind')) { const l = card.stock[li]; l.kind = e.target.closest('.stk-kind').dataset.k; l.item = (stkAllowed(d).filter(x => x.kind === l.kind)[0] || {}).name || ''; l.sn = ''; l.qty = 1; renderStockBox(card, d); }
   else if (e.target.closest('.stk-dir')) { const l = card.stock[li]; l.dir = e.target.closest('.stk-dir').dataset.d; const its = stkAllowed(d).filter(x => l.dir === 'out' ? x.kind === 'qty' : true); l.item = (its[0] || {}).name || ''; l.sn = ''; l.cond = ''; renderStockBox(card, d); }
 });
@@ -1182,7 +1176,8 @@ if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change'
 function showLogin() { show($('#appView'), false); show($('#loginView'), true); $('#loginUser').focus(); }
 
 /** Admin or Supervisor: may look at other people's records (a supervisor: the staff of their branch, read-only). */
-const isWide = () => !!(S.user && (S.user.role === 'Admin' || S.user.role === 'Supervisor'));
+const isWide = () => !!(S.user && (S.user.role === 'Admin' || S.user.role === 'Supervisor' || S.user.role === 'Viewer'));
+const isViewer = () => !!(S.user && S.user.role === 'Viewer');      // report viewer: Records tab only, read-only
 async function showApp() {
   show($('#loginView'), false); show($('#appView'), true);
   try { setCatalog(await api('getCatalog', S.token)); } catch (e) {}
@@ -1190,14 +1185,15 @@ async function showApp() {
   const admin = S.user.role === 'Admin';
   $('#whoName').textContent = S.user.username;
   $('#whoRole').textContent = ' · ' + S.user.role;
-  show($('#navUsers'), admin); show($('#navStock'), admin || (isWide() && S.supStock !== false)); $('#supStock').checked = S.supStock !== false;
+  show($('#navUsers'), admin); show($('#navStock'), admin || S.user.role === 'Supervisor');
   show($('#userFilterWrap'), isWide()); show($('#branchWrap'), admin); show($('#reviewBtn'), admin);
   show($('#chartCard'), false);
-  show($('#catCard'), admin); show($('#rulesCard'), admin); show($('#supCard'), admin);
+  show($('#catCard'), admin); show($('#rulesCard'), admin);
   if (!S.cards.length) addMerchant();
   setType(curType);
-  switchTab('new');
-  loadSummary(); loadLast();
+  const vw = isViewer(); show($('.bottom-nav button[data-tab="new"]'), !vw);
+  switchTab(vw ? 'records' : 'new');
+  loadSummary(); if (!vw) loadLast();
   refreshLocation();
 }
 
@@ -2034,8 +2030,7 @@ $('#submitBtn').addEventListener('click', async () => {
     let stockLines;
     if (ad && ad.stock) {
       stockLines = c.stock || [];
-      if (ad.stock.free && ad.stock.mode === 'out') stockLines = stockLines.filter(l => (stkKind(l.item) === 'qty' ? (l.qty >= 1 && l.qty !== undefined) : !!l.sn));      // a blank deployment line is just ignored
-      if (ad.stock.mode === 'return' && !stockLines.length) { bad('add the stock item taken back.'); return; }
+      if (ad.stock.free) stockLines = stockLines.filter(l => (stkKind(l.item) === 'qty' ? (l.qty >= 1 && l.qty !== undefined) : !!l.sn));      // a blank deployment line is just ignored
       for (const l of stockLines) {
         const k = stkKind(l.item), dir = stkDirOf(ad.stock, l);
         if (!l.item) { bad('choose the stock item.'); return; }
@@ -2854,7 +2849,6 @@ $('#stSave').addEventListener('click', () => {
 });
 
 
-$('#supStock').addEventListener('change', async e => { const on = e.target.checked; try { const r = await api('saveSupAccess', S.token, { stock: on }); S.supStock = r.stock; toast(on ? 'Supervisors can use Stock.' : 'Stock tab is hidden for supervisors.', 'success'); } catch (ex) { e.target.checked = !on; toast(ex.message, 'danger'); } });
 /* ============================ Stock tab (admin + supervisor) ============================ */
 S.st = { period: 'month', branch: '', item: '', user: '', status: 'In stock', data: null };
 const stFrom = () => { const n = new Date(); return S.st.period === 'month' ? ymd(new Date(n.getFullYear(), n.getMonth(), 1)) : S.st.period === '30' ? ymd(new Date(n.getTime() - 29 * 864e5)) : ''; };
