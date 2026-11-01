@@ -203,6 +203,14 @@
 .rd-i span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:#6b7280}.rd-i b{font-size:.85rem;font-weight:600;word-break:break-word}
 .info-lbl{background:#eef2ff;border-left:4px solid #4f46e5;border-radius:10px;padding:8px 12px;color:#1e1b4b}
 .spin-v{display:inline-flex;flex-direction:column;width:96px;gap:4px}.spin-v .btn{padding:.35rem 0}.opt-v{flex-direction:column;align-items:stretch}.opt-v .chip{text-align:left;width:100%}
+/* extra (custom) fields: everything is justified to the right */
+.custom-wrap .form-label, .custom-wrap .info-lbl { display: block; text-align: right; }
+.custom-wrap input.form-control:not(.spin-in), .custom-wrap select.form-select { text-align: right; text-align-last: right; }
+.custom-wrap .chips { justify-content: flex-end; }
+.custom-wrap .form-check { text-align: right; }
+.custom-wrap > div > div[data-kind="check"] { text-align: right; }
+.custom-wrap .input-group.spin { margin-left: auto; }
+.custom-wrap .spin-v { margin-left: auto; }
 </style>
 </head>
 <body>
@@ -351,7 +359,8 @@
       <div class="card-x">
         <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="stPeriod"></div></div>
         <div class="mb-3 hidden" id="stBranchWrap"><div class="form-label">Branch</div><div class="chips" id="stBranch"></div></div>
-        <div class="mb-0"><div class="form-label">Item</div><div class="chips" id="stItem"></div></div>
+        <div class="mb-3"><div class="form-label">Item</div><div class="chips" id="stItem"></div></div>
+        <div class="mb-0"><div class="form-label">Staff <span class="text-muted fw-normal small">(what this person took, returned or stocked in)</span></div><div class="chips" id="stStaff"></div></div>
       </div>
       <div class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-speedometer2 me-1"></i>Stock dashboard</div>
@@ -366,27 +375,14 @@
         <div class="mb-2"><label class="form-label">Item <span class="text-muted fw-normal small">(type a name, or pick from the list)</span></label><input id="siItem" class="form-control" maxlength="40" list="siItemList" autocomplete="off" placeholder="e.g. Pax A920, SIM, Battery"><datalist id="siItemList"></datalist>
           <div class="chips mt-2 hidden" id="siKindWrap"><span class="small text-muted me-1">New item. It has:</span><button type="button" class="chip" data-k="serial">Serial numbers</button><button type="button" class="chip" data-k="qty">Quantity</button></div></div>
         <div class="mb-2 hidden" id="siBranchWrap"><label class="form-label">Branch</label><input id="siBranch" class="form-control" maxlength="10" placeholder="Branch code, e.g. PP" style="text-transform:uppercase"></div>
+        <div class="mb-2"><label class="form-label">Company / brand <span class="text-muted fw-normal small">(who makes the product, e.g. PAX, Newland, Telcocom)</span></label><input id="siCompany" class="form-control" maxlength="40" autocomplete="off" placeholder="Company name"></div>
         <div class="mb-2"><label class="form-label">Supplier / PO / batch <span class="text-muted fw-normal small">(optional)</span></label><input id="siBatch" class="form-control" maxlength="40"></div>
-        <div class="mb-2" id="siSnWrap"><label class="form-label">Serial numbers <span class="text-muted fw-normal small">(one per line, or paste a list)</span></label><textarea id="siSns" class="form-control" rows="4" style="text-transform:uppercase"></textarea></div>
+        <div class="mb-2" id="siSnWrap"><div class="d-flex justify-content-between align-items-end mb-1"><label class="form-label mb-0">Serial numbers <span class="text-muted fw-normal small">(one per line, or paste a list)</span></label><button type="button" class="btn btn-soft btn-sm flex-none" id="siScan"><i class="bi bi-upc-scan me-1"></i>Scan S/N</button></div><textarea id="siSns" class="form-control" rows="4" style="text-transform:uppercase"></textarea></div>
         <div class="mb-2 hidden" id="siQtyWrap"><label class="form-label">Quantity</label><input id="siQty" type="number" min="1" class="form-control"></div>
         <button class="btn btn-primary" id="siSave" type="button">Save stock in</button>
         <div class="small mt-2" id="siMsg"></div>
         <hr><div class="fw-bold small mb-1">Correct a quantity <span class="text-muted fw-normal">(count check, + or −)</span></div>
         <div class="d-flex gap-2 flex-wrap"><select id="aqItem" class="form-select form-select-sm" style="max-width:180px"></select><input id="aqNum" type="number" class="form-control form-control-sm" style="max-width:90px" placeholder="+/−"><input id="aqWhy" class="form-control form-control-sm" style="max-width:200px" placeholder="Reason" maxlength="100"><button class="btn btn-soft btn-sm" id="aqSave" type="button">Save</button></div>
-      </div>
-      <div class="card-x">
-        <div class="fw-bold mb-1"><i class="bi bi-bookmark-check me-1"></i>Reserve a SIM / pair with a terminal</div>
-        <div class="small text-muted mb-2">Set S/Ns aside <b>before</b> the installation. Staff just scan as usual: the reserved S/N is used by that merchant's record, or goes out together with the paired terminal. Nobody else can use it.</div>
-        <div class="row g-2">
-          <div class="col-12 col-md-4"><label class="form-label">Item</label><select id="rsItem" class="form-select"></select></div>
-          <div class="col-12 col-md-8"><label class="form-label">Serial numbers <span class="text-muted fw-normal">(one per line)</span></label><textarea id="rsSns" class="form-control" rows="2" placeholder="8985501234567890123" style="text-transform:uppercase"></textarea></div>
-          <div class="col-8"><label class="form-label">For merchant</label><input id="rsMer" class="form-control" maxlength="60" placeholder="Merchant name"></div>
-          <div class="col-4"><label class="form-label">MID</label><input id="rsMid" class="form-control" maxlength="20" inputmode="numeric"></div>
-          <div class="col-12"><label class="form-label">or pair with terminal S/N <span class="text-muted fw-normal">(one S/N: it is used together with that terminal)</span></label><input id="rsPair" class="form-control" maxlength="40" autocapitalize="characters" style="text-transform:uppercase"></div>
-          <div class="col-12"><input id="rsNote" class="form-control" maxlength="100" placeholder="Note (optional)"></div>
-        </div>
-        <button class="btn btn-primary mt-2" id="rsSave" type="button">Reserve</button><div class="small mt-2" id="rsMsg"></div>
-        <div class="small text-muted mt-1">To undo a reservation: Serial numbers below → filter <b>Reserved</b> → Release.</div>
       </div>
       <div class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-upc-scan me-1"></i>Serial numbers</div>
@@ -406,6 +402,11 @@
     </section>
 
     <section id="pane-users" class="hidden">
+      <div class="card-x" id="supCard">
+        <div class="fw-bold mb-2"><i class="bi bi-person-badge me-1"></i>Supervisor access</div>
+        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="supStock" checked><label class="form-check-label" for="supStock">Supervisors can use the Stock tab</label></div>
+        <div class="small text-muted mt-1">Off = supervisors no longer see the Stock tab (they still see reports of their branch). Admin always sees it.</div>
+      </div>
       <div class="card-x" id="catCard">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="fw-bold"><i class="bi bi-diagram-3 me-1"></i>Categories &amp; activities</div>
@@ -600,7 +601,7 @@
 <div class="modal fade" id="adjModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:20px">
     <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">Change status · <span id="adjSn"></span></h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body"><div class="chips mb-2" id="adjChips"></div><input id="adjWhy" class="form-control mb-2" maxlength="100" placeholder="Reason (needed for Faulty)"><button class="btn btn-primary" id="adjSave" type="button">Save</button></div>
+    <div class="modal-body"><div class="chips mb-2" id="adjChips"></div><div id="adjResWrap" class="hidden mb-2"><input type="hidden" class="f-tid"><div class="small text-muted mb-1">Keep this S/N aside. Merchant name and MID are optional: with them, only that merchant's record can use it.</div><input id="adjMer" class="form-control mb-2 f-name" maxlength="60" placeholder="Merchant name"><div class="input-group"><input id="adjMid" class="form-control f-mid" maxlength="20" inputmode="numeric" placeholder="MID"><button type="button" class="btn btn-soft" id="adjScan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button></div></div><input id="adjWhy" class="form-control mb-2" maxlength="100" placeholder="Reason (needed for Faulty)"><button class="btn btn-primary" id="adjSave" type="button">Save</button></div>
   </div></div>
 </div>
 
@@ -824,7 +825,7 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.review) o.review = true; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.review) o.review = true; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); });
@@ -837,7 +838,9 @@ const lvl = (d, k) => (d && d.f && d.f[k]) || 0;
 const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
 const typeDef = n => CATALOG.find(t => t.name === n) || null;
-const actDef = (t, a) => { const d = typeDef(t); return d ? (d.acts.find(x => x.n === a) || null) : null; };
+/** Activities named like Deployment / Removal need no stock setup: staff pick the item type themselves (an admin stock rule, if set, wins). */
+const freeStock = n => /remov/i.test(n) ? { mode: 'return', kind: '', items: [], free: true } : /deploy/i.test(n) ? { mode: 'out', kind: '', items: [], free: true } : null;
+const actDef = (t, a) => { const d = typeDef(t); const x = d ? (d.acts.find(y => y.n === a) || null) : null; if (!x || x.stock) return x; const fs = freeStock(x.n); return fs ? Object.assign({}, x, { stock: fs }) : x; };
 const actSubs = a => (a && a.subs && a.subs.length) ? a.subs : [''];      // the sub categories an activity appears under; [''] = not linked to any (category without links)
 /** Once any activity is linked to a sub category, every activity belongs to at least one: unlinked ones appear under all sub categories (there is no stand-alone group). */
 function allocSubs(t) {
@@ -1015,31 +1018,35 @@ function applyLevels(root, d) {
   $$('[data-fk="photo"]', root).forEach(w => { if (mp) $$('.rq', w).forEach(x => show(x, true)); const pm = $('.ph-min', w); if (pm) { pm.textContent = mp > 1 ? '(at least ' + mp + ')' : ''; show(pm, mp > 1); } });
 }
 /* ---- Stock lines on the activity form (activities that take items out of stock, or take them back) ---- */
-S.stockItems = []; S.stockAlert = null;
-async function loadStockItems() { try { const r = await api('getStockItems', S.token); S.stockItems = r.items || []; S.stockAlert = r.alert; } catch (e) { S.stockItems = []; } }
-const stkAllowed = d => S.stockItems.filter(it => !d.stock.items.length || d.stock.items.some(n => n.toLowerCase() === it.name.toLowerCase()));
+S.stockItems = []; S.stockAlert = null; S.supStock = true;
+async function loadStockItems() { try { const r = await api('getStockItems', S.token); S.stockItems = r.items || []; S.stockAlert = r.alert; S.supStock = r.supStock !== false; } catch (e) { S.stockItems = []; } }
+const stkAllowed = d => S.stockItems.filter(it => (!d.stock.kind || d.stock.kind === it.kind) && (!d.stock.items.length || d.stock.items.some(n => n.toLowerCase() === it.name.toLowerCase())));
 const stkDirOf = (rule, l) => rule.mode === 'both' ? (l.dir === 'out' ? 'out' : 'return') : rule.mode;
 const stkKind = n => (S.stockItems.find(x => x.name === n) || {}).kind;
 /* Serial numbers need no stock box: the S/N is scanned or typed in its box and the system finds it in stock. The box is only for quantity items and for things taken back. */
 const stkQtyItems = d => stkAllowed(d).filter(it => it.kind === 'qty');
-const stkNeedsBox = d => !!(d && d.stock && (d.stock.mode !== 'out' || stkQtyItems(d).length));
-function stkNewLine(rule, items, mode) { const dir = mode === 'return' ? 'return' : 'out', it = dir === 'out' ? items.filter(x => x.kind === 'qty') : items; return { item: it[0] ? it[0].name : '', dir, sn: '', qty: 1, cond: '', reason: '' }; }
+const stkNeedsBox = d => !!(d && d.stock && (d.stock.free || d.stock.mode !== 'out' || stkQtyItems(d).length));
+function stkNewLine(rule, items, mode) {
+  if (rule.free) { const it = items.filter(x => x.kind === 'serial')[0] || items[0]; return { item: it ? it.name : '', dir: rule.mode, kind: it ? it.kind : 'serial', sn: '', qty: 1, cond: '', reason: '' }; }
+  const dir = mode === 'return' ? 'return' : 'out', it = dir === 'out' ? items.filter(x => x.kind === 'qty') : items; return { item: it[0] ? it[0].name : '', dir, sn: '', qty: 1, cond: '', reason: '' }; }
 function renderStockBox(card, d) {
   const box = $('.stock-wrap', card.el), rule = d && d.stock;
   if (!rule || !stkNeedsBox(d)) { card.stock = []; card.stockMode = rule ? rule.mode : ''; box.innerHTML = ''; show(box, false); return; }
   if (card.stockMode !== rule.mode) card.stock = [];
   card.stockMode = rule.mode;
   const items = stkAllowed(d), req = rule.mode === 'return';
-  const title = rule.mode === 'out' ? 'Items used (quantity)' : rule.mode === 'return' ? 'Items brought back' : 'Items used / old unit brought back';
+  if (rule.free && !card.stock.length && items.length) card.stock.push(stkNewLine(rule, items, rule.mode));
+  const title = rule.free ? (rule.mode === 'out' ? 'Items deployed' : 'Items removed') : rule.mode === 'out' ? 'Items used (quantity)' : rule.mode === 'return' ? 'Items brought back' : 'Items used / old unit brought back';
   if (!card.stock.length && (req || rule.mode === 'both') && items.length) card.stock.push(stkNewLine(rule, items, rule.mode === 'both' ? 'return' : rule.mode));
   box.innerHTML = '<label class="form-label"><i class="bi bi-box-seam me-1"></i>' + title + (req ? ' <span class="rq">*</span>' : '') + '</label>' +
     card.stock.map((l, i) => {
-      const dir = stkDirOf(rule, l), out = dir === 'out', its = out ? items.filter(x => x.kind === 'qty') : items, serial = stkKind(l.item) !== 'qty';
+      const dir = stkDirOf(rule, l), out = dir === 'out', its = rule.free ? items.filter(x => x.kind === (l.kind || 'serial')) : out ? items.filter(x => x.kind === 'qty') : items, serial = stkKind(l.item) !== 'qty';
       return '<div class="stk-line" data-li="' + i + '">' +
+        (rule.free ? '<div class="chips mb-1">' + [['serial', 'With S/N'], ['qty', 'No S/N']].map(c => '<button type="button" class="chip stk-kind' + ((l.kind || 'serial') === c[0] ? ' active' : '') + '" data-k="' + c[0] + '">' + c[1] + '</button>').join('') + '</div>' : '') +
         (rule.mode === 'both' ? '<div class="chips mb-1">' + [['return', 'Old unit back'], ['out', 'Quantity used']].map(c => '<button type="button" class="chip stk-dir' + (dir === c[0] ? ' active' : '') + '" data-d="' + c[0] + '">' + c[1] + '</button>').join('') + '</div>' : '') +
         '<div class="d-flex gap-2 mb-1"><select class="form-select form-select-sm stk-item">' + its.map(it => '<option' + (it.name === l.item ? ' selected' : '') + '>' + esc(it.name) + '</option>').join('') + '</select>' +
         '<button type="button" class="btn btn-sm btn-outline-danger border-0 stk-del" aria-label="Remove"><i class="bi bi-x-lg"></i></button></div>' +
-        (serial ? '<input class="form-control form-control-sm stk-sn" placeholder="Serial number (scan or type)" value="' + esc(l.sn) + '" autocomplete="off" style="text-transform:uppercase">'
+        (serial ? '<div class="input-group input-group-sm"><input class="form-control stk-sn" placeholder="Serial number (scan or type)" value="' + esc(l.sn) + '" autocomplete="off" style="text-transform:uppercase"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div>'
                 : '<div class="d-flex align-items-center gap-2"><span class="small">Quantity</span><input type="number" min="1" max="9999" class="form-control form-control-sm stk-qty" style="max-width:100px" value="' + (l.qty || 1) + '"></div>') +
         (out ? '' : '<input class="form-control form-control-sm mt-2 stk-reason" maxlength="100" placeholder="Note (optional): condition, why it comes back" value="' + esc(l.reason) + '">') + '</div>';
     }).join('') + '<button type="button" class="btn btn-soft btn-sm stk-add"><i class="bi bi-plus-lg me-1"></i>Add item</button>';
@@ -1051,6 +1058,7 @@ $('#merchantList').addEventListener('click', e => {
   const ln = e.target.closest('[data-li]'), li = ln ? +ln.dataset.li : -1, d = effDef(curType, $('.f-act', card.el).value, S.sub || '');
   if (e.target.closest('.stk-del')) { card.stock.splice(li, 1); renderStockBox(card, d); }
   else if (e.target.closest('.stk-add')) { card.stock.push(stkNewLine(d.stock, stkAllowed(d), d.stock.mode === 'both' ? 'return' : d.stock.mode)); renderStockBox(card, d); }
+  else if (e.target.closest('.stk-kind')) { const l = card.stock[li]; l.kind = e.target.closest('.stk-kind').dataset.k; l.item = (stkAllowed(d).filter(x => x.kind === l.kind)[0] || {}).name || ''; l.sn = ''; l.qty = 1; renderStockBox(card, d); }
   else if (e.target.closest('.stk-dir')) { const l = card.stock[li]; l.dir = e.target.closest('.stk-dir').dataset.d; const its = stkAllowed(d).filter(x => l.dir === 'out' ? x.kind === 'qty' : true); l.item = (its[0] || {}).name || ''; l.sn = ''; l.cond = ''; renderStockBox(card, d); }
 });
 $('#merchantList').addEventListener('input', e => {
@@ -1182,10 +1190,10 @@ async function showApp() {
   const admin = S.user.role === 'Admin';
   $('#whoName').textContent = S.user.username;
   $('#whoRole').textContent = ' · ' + S.user.role;
-  show($('#navUsers'), admin); show($('#navStock'), isWide());
+  show($('#navUsers'), admin); show($('#navStock'), admin || (isWide() && S.supStock !== false)); $('#supStock').checked = S.supStock !== false;
   show($('#userFilterWrap'), isWide()); show($('#branchWrap'), admin); show($('#reviewBtn'), admin);
   show($('#chartCard'), false);
-  show($('#catCard'), admin); show($('#rulesCard'), admin);
+  show($('#catCard'), admin); show($('#rulesCard'), admin); show($('#supCard'), admin);
   if (!S.cards.length) addMerchant();
   setType(curType);
   switchTab('new');
@@ -1312,7 +1320,9 @@ function openSnScan(inp, ret) {
 }
 function applySn(text) {
   const inp = S.snInput; if (!inp) return;
-  inp.value = String(text || '').trim().toUpperCase().slice(0, 60);
+  const v = String(text || '').trim().toUpperCase().slice(0, 60);
+  if (inp.tagName === 'TEXTAREA') { const have = inp.value.split(/[\n,;]+/).map(x => x.trim().toUpperCase()); if (have.includes(v)) toast(v + ' is already in the list.', 'warning'); else { inp.value = (inp.value.trim() ? inp.value.replace(/\s+$/, '') + '\n' : '') + v; toast('Added ' + v + '. Tap Scan S/N for the next one.', 'success'); } }
+  else inp.value = v;
   inp.dispatchEvent(new Event('input', { bubbles: true }));
   scanModal.hide();
 }
@@ -2024,6 +2034,7 @@ $('#submitBtn').addEventListener('click', async () => {
     let stockLines;
     if (ad && ad.stock) {
       stockLines = c.stock || [];
+      if (ad.stock.free && ad.stock.mode === 'out') stockLines = stockLines.filter(l => (stkKind(l.item) === 'qty' ? (l.qty >= 1 && l.qty !== undefined) : !!l.sn));      // a blank deployment line is just ignored
       if (ad.stock.mode === 'return' && !stockLines.length) { bad('add the stock item taken back.'); return; }
       for (const l of stockLines) {
         const k = stkKind(l.item), dir = stkDirOf(ad.stock, l);
@@ -2655,7 +2666,7 @@ function renderCatEditor() {
         ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
         fieldRows(a) +
         '<div class="d-flex align-items-center gap-2 mt-2 flex-wrap"><span class="small"><i class="bi bi-box-seam me-1"></i>Stock</span><select class="form-select form-select-sm a-stock" style="max-width:260px"><option value="">Not used</option><option value="out"' + (a.stock && a.stock.mode === 'out' ? ' selected' : '') + '>Take out of stock (deploy / install)</option><option value="both"' + (a.stock && a.stock.mode === 'both' ? ' selected' : '') + '>Replace: new one out + old one back</option><option value="return"' + (a.stock && a.stock.mode === 'return' ? ' selected' : '') + '>Take back (return / terminate / removal)</option></select></div>' +
-        (a.stock ? '<div class="mt-1"><div class="small text-muted">Items this activity uses <span class="fw-normal">(none ticked = any item)</span></div><div class="chips mt-1">' + ((S.stockItems || []).length ? S.stockItems.map(it => '<button type="button" class="chip a-stk-item' + ((a.stock.items || []).some(n => n.toLowerCase() === it.name.toLowerCase()) ? ' active' : '') + '" data-n="' + esc(it.name) + '">' + esc(it.name) + '</button>').join('') : '<span class="small text-muted">Add stock items in the Stock tab first.</span>') + '</div></div>' : '') +
+        (a.stock ? '<div class="mt-1"><div class="small text-muted">Item type</div><div class="chips mt-1">' + [['', 'With S/N + no S/N'], ['serial', 'With S/N only'], ['qty', 'No S/N only']].map(k => '<button type="button" class="chip a-stk-kind' + ((a.stock.kind || '') === k[0] ? ' active' : '') + '" data-k="' + k[0] + '">' + k[1] + '</button>').join('') + '</div><div class="small text-muted mt-2">Items this activity uses <span class="fw-normal">(none ticked = every item of that type)</span></div><div class="chips mt-1">' + ((S.stockItems || []).filter(it => !a.stock.kind || a.stock.kind === it.kind).length ? S.stockItems.filter(it => !a.stock.kind || a.stock.kind === it.kind).map(it => '<button type="button" class="chip a-stk-item' + ((a.stock.items || []).some(n => n.toLowerCase() === it.name.toLowerCase()) ? ' active' : '') + '" data-n="' + esc(it.name) + '">' + esc(it.name) + '</button>').join('') : '<span class="small text-muted">Add stock items in the Stock tab first.</span>') + '</div></div>' : '') +
         '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Photo quality</span><select class="form-select form-select-sm a-pq" style="max-width:150px"><option value="">Standard</option><option value="high"' + (a.pq === 'high' ? ' selected' : '') + '>High</option><option value="max"' + (a.pq === 'max' ? ' selected' : '') + '>Max</option></select><span class="small text-muted">sharper photos and PDF, bigger uploads</span></div>' +
         '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm a-minph" style="max-width:80px" value="' + (a.minPh || 0) + '"><span class="small text-muted">0 = 2 when Photos is Required</span></div>' +
         '<details class="mt-2 a-tgbox"' + (a.tg ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Telegram message <span class="text-muted fw-normal">(' + (a.tg ? 'own message' : 'standard message') + ')</span></summary>' +
@@ -2695,7 +2706,7 @@ $('#catList').addEventListener('input', e => {
   else if (e.target.classList.contains('cf-label')) t.acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci].label = e.target.value;
 });
 $('#catList').addEventListener('change', e => {
-  if (e.target.classList.contains('a-stock')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.stock = { mode: e.target.value, items: (a.stock && a.stock.items) || [] }; else delete a.stock; renderCatEditor(); return; }
+  if (e.target.classList.contains('a-stock')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.stock = { mode: e.target.value, kind: (a.stock && a.stock.kind) || '', items: (a.stock && a.stock.items) || [] }; else delete a.stock; renderCatEditor(); return; }
   if (e.target.classList.contains('a-pq')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.pq = e.target.value; else delete a.pq; return; }
   if (e.target.classList.contains('a-minph')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); a.minPh = v; if (v && !a.f.photo) a.f.photo = 1; renderCatEditor(); return; }
   if (e.target.classList.contains('s-minph')) { const sr = e.target.closest('[data-sr]'), s = catDraft[+e.target.closest('[data-ti]').dataset.ti].subs[+sr.dataset.sr]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); if (v) s.minPh = v; else delete s.minPh; e.target.value = v; const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0); $('.s-count', sr).textContent = '(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')'; return; }
@@ -2731,6 +2742,7 @@ $('#catList').addEventListener('click', e => {
   else if (e.target.closest('.s-del')) { const gone = t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1)[0]; t.acts.forEach(a => { if (gone && a.subs) { a.subs = a.subs.filter(x => x !== gone.n); if (!a.subs.length) delete a.subs; } }); renderCatEditor(); }
   else if (e.target.closest('.c-addact')) { { const na = normAct({}, { n: '' }); na.f.photo = 2; t.acts.push(na); } renderCatEditor(); }
   else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); renderCatEditor(); }
+  else if (e.target.closest('.a-stk-kind')) { const a = t.acts[ai]; a.stock.kind = e.target.closest('.a-stk-kind').dataset.k; const keep = (S.stockItems || []).filter(it => !a.stock.kind || a.stock.kind === it.kind).map(it => it.name.toLowerCase()); a.stock.items = (a.stock.items || []).filter(n => keep.includes(n.toLowerCase())); renderCatEditor(); }
   else if (e.target.closest('.a-stk-item')) { const b = e.target.closest('.a-stk-item'), a = t.acts[ai], n = b.dataset.n, l = a.stock.items || []; a.stock.items = l.some(x => x.toLowerCase() === n.toLowerCase()) ? l.filter(x => x.toLowerCase() !== n.toLowerCase()) : l.concat(n); b.classList.toggle('active'); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
@@ -2842,8 +2854,9 @@ $('#stSave').addEventListener('click', () => {
 });
 
 
+$('#supStock').addEventListener('change', async e => { const on = e.target.checked; try { const r = await api('saveSupAccess', S.token, { stock: on }); S.supStock = r.stock; toast(on ? 'Supervisors can use Stock.' : 'Stock tab is hidden for supervisors.', 'success'); } catch (ex) { e.target.checked = !on; toast(ex.message, 'danger'); } });
 /* ============================ Stock tab (admin + supervisor) ============================ */
-S.st = { period: 'month', branch: '', item: '', status: 'In stock', data: null };
+S.st = { period: 'month', branch: '', item: '', user: '', status: 'In stock', data: null };
 const stFrom = () => { const n = new Date(); return S.st.period === 'month' ? ymd(new Date(n.getFullYear(), n.getMonth(), 1)) : S.st.period === '30' ? ymd(new Date(n.getTime() - 29 * 864e5)) : ''; };
 const stBars = (rows, cls) => { const mx = Math.max(1, ...rows.map(r => r.n)); return rows.length ? rows.map(r => '<div class="small d-flex justify-content-between"><span class="text-truncate">' + esc(r.name) + '</span><b>' + r.n + '</b></div><div class="stk-bar ' + (cls || '') + ' mb-1" style="width:' + Math.max(2, Math.round(r.n / mx * 100)) + '%"></div>').join('') : '<div class="small text-muted">No data</div>'; };
 const stPillOf = st => '<span class="st-pill ' + (st === 'In stock' || st === 'Reserved' ? 'st-i' : st === 'Used' ? 'st-u' : st === 'Faulty' ? 'st-f' : 'st-h') + '">' + esc(st) + '</span>';
@@ -2851,11 +2864,13 @@ async function loadStock() {
   const admin = S.user.role === 'Admin';
   show($('#stBranchWrap'), admin); show($('#stItemsCard'), admin);
   try {
-    const d = S.st.data = await api('getStockDash', S.token, { from: stFrom(), branch: admin ? S.st.branch : '', item: S.st.item });
+    const d = S.st.data = await api('getStockDash', S.token, { from: stFrom(), branch: admin ? S.st.branch : '', item: S.st.item, user: S.st.user });
     S.stockItems = d.items;
     $('#stPeriod').innerHTML = [['month', 'This month'], ['30', 'Last 30 days'], ['all', 'All time']].map(p => '<button type="button" class="chip' + (S.st.period === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('');
     $('#stBranch').innerHTML = [''].concat(d.branches).map(b => '<button type="button" class="chip' + (S.st.branch === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (b || 'All') + '</button>').join('');
     $('#stItem').innerHTML = [''].concat(d.items.map(i => i.name)).map(b => '<button type="button" class="chip' + (S.st.item === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (esc(b) || 'All') + '</button>').join('');
+    if (S.st.user && !d.users.includes(S.st.user)) S.st.user = '';
+    $('#stStaff').innerHTML = [''].concat(d.users).map(b => '<button type="button" class="chip' + (S.st.user === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (esc(b) || 'All staff') + '</button>').join('');
     const t = d.totals, p = d.period;
     $('#stKpi').innerHTML = [['In stock now', t.remaining], ['Stock in', p.stockIn], ['Used', p.out], ['Reserved', t.reserved], ['To decide', t.pending], ['Returned to stock', p.back], ['Faulty', t.faulty], ['Sent to HO', t.ho], ['Low items', t.low]].map(k => '<div class="kpi-s"' + (k[0] === 'Low items' && k[1] ? ' style="background:#fffbeb;border-color:#fcd34d"' : '') + '><b>' + k[1] + '</b><span>' + k[0] + '</span></div>').join('');
     const mx = Math.max(1, ...d.stock.map(r => r.remaining));
@@ -2866,14 +2881,13 @@ async function loadStock() {
     $('#stRecent').innerHTML = d.recent.length ? d.recent.map(l => '<div class="py-1 border-top"><b>' + esc(l.action) + '</b> · ' + esc(l.item) + (l.sn ? ' ' + esc(l.sn) : ' ×' + l.qty) + ' <span class="text-muted">· ' + esc(l.branch) + ' · ' + esc(l.by) + (l.merchant ? ' · ' + esc(l.merchant) : '') + (l.reason ? ' · ' + esc(l.reason) : '') + ' · ' + esc(fmtTs(l.ts)) + '</span></div>').join('') : '<div class="text-muted">Nothing yet</div>';
     const opts = d.items.map(i => '<option value="' + esc(i.name) + '">' + esc(i.name) + (i.kind === 'qty' ? ' (qty)' : '') + '</option>').join('');
     $('#siItemList').innerHTML = d.items.map(i => '<option value="' + esc(i.name) + '">' + (i.kind === 'qty' ? 'quantity' : 'serial numbers') + '</option>').join('');
-    const rc = $('#rsItem').value; $('#rsItem').innerHTML = '<option value="">Any item</option>' + d.items.filter(i => i.kind !== 'qty').map(i => '<option>' + esc(i.name) + '</option>').join(''); if (rc) $('#rsItem').value = rc;
     $('#aqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join('');
     show($('#siBranchWrap'), admin); siKind(); paintStatusChips(); loadSnRows(); loadPending();
     if (admin) paintItems();
   } catch (e) { toast(e.message, 'danger'); }
 }
 bindSlicer('stPeriod', 'fPeriodX', () => {});
-for (const [box, key] of [['stPeriod', 'period'], ['stBranch', 'branch'], ['stItem', 'item']]) $('#' + box).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.st[key] = b.dataset.v; loadStock(); });
+for (const [box, key] of [['stPeriod', 'period'], ['stBranch', 'branch'], ['stItem', 'item'], ['stStaff', 'user']]) $('#' + box).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.st[key] = b.dataset.v; loadStock(); });
 /* ---- returns waiting for a decision (admin / supervisor) ---- */
 async function loadPending() {
   try {
@@ -2897,14 +2911,6 @@ $('#stPend').addEventListener('click', async e => {
   busy(e.target.closest('button'), true, 'Saving…');
   try { await api('stockDecide', S.token, f); toast('Saved', 'success'); loadStock(); } catch (ex) { toast(ex.message, 'danger'); busy(e.target.closest('button'), false); }
 });
-$('#rsSave').addEventListener('click', async () => {
-  const btn = $('#rsSave'), msg = $('#rsMsg'); busy(btn, true, 'Saving…'); msg.textContent = '';
-  try {
-    const r = await api('stockReserve', S.token, { item: $('#rsItem').value, sns: $('#rsSns').value, merchant: $('#rsMer').value.trim(), mid: $('#rsMid').value.trim(), pair: $('#rsPair').value.trim(), note: $('#rsNote').value.trim() });
-    msg.textContent = r.reserved + ' reserved.'; msg.className = 'small mt-2 text-success'; $('#rsSns').value = ''; $('#rsPair').value = ''; loadStock();
-  } catch (ex) { msg.textContent = ex.message; msg.className = 'small mt-2 text-danger'; }
-  busy(btn, false);
-});
 S.siNew = '';
 const siFind = () => (S.stockItems || []).find(i => i.name.toLowerCase() === $('#siItem').value.trim().toLowerCase());
 function siKind() {
@@ -2914,13 +2920,14 @@ function siKind() {
 }
 $('#siItem').addEventListener('input', siKind); $('#siItem').addEventListener('change', siKind);
 $('#siKindWrap').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.siNew = b.dataset.k; siKind(); });
+$('#siScan').addEventListener('click', () => openSnScan($('#siSns')));
 $('#siSave').addEventListener('click', async () => {
   const btn = $('#siSave'), msg = $('#siMsg'), it = siFind(), nm = $('#siItem').value.trim();
   if (!nm) { toast('Type or choose the item.', 'warning'); return; }
   if (!it && S.user.role === 'Admin' && !S.siNew) { toast('New item: choose Serial numbers or Quantity.', 'warning'); return; }
   busy(btn, true, 'Saving…');
   try {
-    const r = await api('stockIn', S.token, { item: it ? it.name : nm, newKind: it ? '' : S.siNew, branch: $('#siBranch').value.trim(), batch: $('#siBatch').value.trim(), sns: $('#siSns').value, qty: $('#siQty').value });
+    const r = await api('stockIn', S.token, { item: it ? it.name : nm, newKind: it ? '' : S.siNew, branch: $('#siBranch').value.trim(), batch: $('#siBatch').value.trim(), company: $('#siCompany').value.trim(), sns: $('#siSns').value, qty: $('#siQty').value });
     msg.className = 'small mt-2 text-success'; msg.textContent = 'Added ' + r.added + (r.skipped.length ? '. Skipped (already listed): ' + r.skipped.join(', ') : '.');
     $('#siSns').value = ''; $('#siQty').value = ''; S.siNew = ''; loadStock();
   } catch (e) { msg.className = 'small mt-2 text-danger'; msg.textContent = e.message; }
@@ -2936,15 +2943,36 @@ $('#snStatus').addEventListener('click', e => { const b = e.target.closest('.chi
 let snFindT = null; $('#snFind').addEventListener('input', () => { clearTimeout(snFindT); snFindT = setTimeout(loadSnRows, 300); });
 async function loadSnRows() {
   try {
-    const d = await api('getStockSNs', S.token, { status: S.st.status, q: $('#snFind').value.trim(), item: S.st.item, branch: S.user.role === 'Admin' ? S.st.branch : '' });
-    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button></div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
+    const d = await api('getStockSNs', S.token, { status: S.st.status, q: $('#snFind').value.trim(), item: S.st.item, user: S.st.user, branch: S.user.role === 'Admin' ? S.st.branch : '' });
+    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" data-st="' + esc(r.status) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + (r.company ? ' · ' + esc(r.company) : '') + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button></div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
   } catch (e) { toast(e.message, 'danger'); }
 }
 const adjModal = new bootstrap.Modal($('#adjModal')); S.adj = { sn: '', status: 'In stock' };
-$('#snRows').addEventListener('click', e => { const b = e.target.closest('.sn-adj'); if (!b) return; S.adj = { sn: b.closest('[data-sn]').dataset.sn, status: 'In stock' }; $('#adjSn').textContent = S.adj.sn; $('#adjWhy').value = ''; paintAdj(); adjModal.show(); });
-function paintAdj() { $('#adjChips').innerHTML = ['In stock', 'Faulty', 'Sent to HO'].map(x => '<button type="button" class="chip' + (S.adj.status === x ? ' active' : '') + '" data-v="' + x + '">' + x + '</button>').join(''); }
+$('#snRows').addEventListener('click', e => {
+  const b = e.target.closest('.sn-adj'); if (!b) return; const row = b.closest('[data-sn]');
+  S.adj = { sn: row.dataset.sn, status: row.dataset.st === 'Reserved' ? 'In stock' : 'In stock', cur: row.dataset.st };
+  $('#adjSn').textContent = S.adj.sn; $('#adjWhy').value = ''; $('#adjMer').value = ''; $('#adjMid').value = ''; paintAdj(); adjModal.show();
+});
+function paintAdj() {
+  const list = ['In stock', 'Faulty', 'Sent to HO'].concat(S.adj.cur === 'In stock' ? ['Reserved'] : []);
+  $('#adjChips').innerHTML = list.map(x => '<button type="button" class="chip' + (S.adj.status === x ? ' active' : '') + '" data-v="' + x + '">' + (x === 'Reserved' ? 'Keep as reserved' : x) + '</button>').join('');
+  const r = S.adj.status === 'Reserved'; show($('#adjResWrap'), r); $('#adjWhy').placeholder = r ? 'Note (optional)' : 'Reason (needed for Faulty)';
+}
 $('#adjChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.adj.status = b.dataset.v; paintAdj(); });
-$('#adjSave').addEventListener('click', async () => { try { await api('stockAdjust', S.token, S.adj.sn, S.adj.status, $('#adjWhy').value.trim()); adjModal.hide(); toast('Saved', 'success'); loadStock(); } catch (e) { toast(e.message, 'danger'); } });
+/* scan the merchant's KHQR to fill the name and MID of a reservation */
+$('#adjScan').addEventListener('click', () => {
+  S.snInput = null; S.scanTarget = { el: $('#adjResWrap') }; S.scanReturn = adjModal; scanMode(false);
+  adjModal.hide(); setTimeout(() => scanModal.show(), 350);
+});
+$('#adjSave').addEventListener('click', async () => {
+  try {
+    if (S.adj.status === 'Reserved') {
+      const mer = $('#adjMer').value.trim(), mid = $('#adjMid').value.trim();
+      await api('stockReserve', S.token, { sns: S.adj.sn, merchant: mer, mid: mid, note: $('#adjWhy').value.trim() });
+    } else await api('stockAdjust', S.token, S.adj.sn, S.adj.status, $('#adjWhy').value.trim());
+    adjModal.hide(); toast('Saved', 'success'); loadStock();
+  } catch (e) { toast(e.message, 'danger'); }
+});
 /* items + alert (admin) */
 S.itDraft = [];
 function paintItems() {
