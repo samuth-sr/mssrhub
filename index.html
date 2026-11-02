@@ -215,6 +215,7 @@
 .team-kpi{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}.team-kpi div{flex:1 1 90px;background:var(--bs-tertiary-bg,#f3f4f6);border-radius:12px;padding:8px 10px;text-align:center}.team-kpi b{display:block;font-size:1.25rem}.team-kpi span{font-size:.72rem;opacity:.7}
 .tm-row{display:flex;align-items:center;gap:8px;padding:9px 4px;border-top:1px solid rgba(128,128,128,.18);cursor:pointer}.tm-row .nm{flex:1;min-width:0}.tm-row .n{font-weight:700;min-width:28px;text-align:right}.tm-row.none .when{color:#b45309}
 .tr-row{display:grid;grid-template-columns:58px 1fr 64px;align-items:center;gap:8px;margin:5px 0;font-size:.85rem}.tr-bar{height:9px;border-radius:5px;background:#4f46e5}.tr-bar.p{background:#c7c9d9;height:6px;margin-top:3px}.tr-key{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px}.tr-now{background:#4f46e5}.tr-prev{background:#c7c9d9}.up{color:#059669}.dn{color:#dc2626}
+.viewer-only > :not(#teamCard):not(#trendCard){display:none !important}
 </style>
 </head>
 <body>
@@ -259,7 +260,7 @@
 
   <main class="wrap">
     <!-- Summary -->
-    <div class="card-x">
+    <div class="card-x" id="sumCard">
       <div class="summary">
         <div class="ico"><i class="bi bi-calendar-check"></i></div>
         <div class="flex-grow-1">
@@ -313,9 +314,11 @@
         <div id="teamList"></div>
       </div>
       <div class="card-x hidden" id="trendCard">
-        <div class="fw-bold mb-1"><i class="bi bi-graph-up me-1"></i>Last 7 days</div>
+        <div class="fw-bold mb-1"><i class="bi bi-graph-up me-1"></i><span id="trTitle">Last 7 days</span></div>
+        <div class="chips mb-2" id="trRange"></div>
         <div class="small text-muted mb-2" id="trendSum"></div>
         <div id="trendBars"></div>
+        <div class="form-label mt-3" id="trStaffTitle">Staff</div><div id="trStaff"></div>
         <div class="small text-muted mt-1"><span class="tr-key tr-now"></span> this week <span class="tr-key tr-prev ms-2"></span> same day last week</div>
       </div>
       <div class="card-x">
@@ -376,8 +379,7 @@
       <div class="card-x">
         <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="stPeriod"></div></div>
         <div class="mb-3 hidden" id="stBranchWrap"><div class="form-label">Branch</div><div class="chips" id="stBranch"></div></div>
-        <div class="mb-3"><div class="form-label">Item</div><div class="chips" id="stItem"></div></div>
-        <div class="mb-0"><div class="form-label">Staff <span class="text-muted fw-normal small">(what this person took, returned or stocked in)</span></div><div class="chips" id="stStaff"></div></div>
+        <div class="mb-0"><div class="form-label">Item</div><div class="chips" id="stItem"></div></div>
       </div>
       <div class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-speedometer2 me-1"></i>Stock dashboard</div>
@@ -385,8 +387,15 @@
         <div class="form-label">Remaining now</div><div id="stRemain" class="mb-3"></div>
         <div class="form-label">Stock in vs used (per week)</div><div id="stWeeks" class="mb-3"></div>
         <div class="row g-3"><div class="col-12 col-md-6"><div class="form-label">Used by branch</div><div id="stByBranch"></div></div><div class="col-12 col-md-6"><div class="form-label">Used by staff</div><div id="stByStaff"></div></div>
-        <div class="col-12 col-md-6"><div class="form-label">Top merchants</div><div id="stByMer"></div></div><div class="col-12 col-md-6"><div class="form-label">Most used items</div><div id="stByItem"></div></div></div>
+        <div class="col-12 col-md-6"><div class="form-label">Top merchants</div><div id="stByMer"></div></div><div class="col-12 hidden" id="stLiabWrap"><div class="form-label">Merchant liability <span class="text-muted fw-normal small">(items given free: lost / damaged)</span></div><div class="row g-3"><div class="col-12 col-md-6"><div class="small text-muted">By merchant</div><div id="stLiabMer"></div></div><div class="col-12 col-md-6"><div class="small text-muted">By item</div><div id="stLiabItem"></div></div></div></div><div class="col-12 col-md-6"><div class="form-label">Most used items</div><div id="stByItem"></div></div></div>
       </div>
+      <div class="card-x">
+        <div class="fw-bold mb-2"><i class="bi bi-upc-scan me-1"></i>Serial numbers</div>
+        <div class="chips mb-2" id="snStatus"></div>
+        <input id="snFind" class="form-control mb-2" placeholder="Search S/N, merchant, MID, TID…">
+        <div id="snRows"></div>
+      </div>
+      <div class="card-x"><div class="fw-bold mb-2"><i class="bi bi-clock-history me-1"></i>Recent movements</div><div id="stRecent" class="small"></div></div>
       <div class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-box-arrow-in-down me-1"></i>Stock in</div>
         <div class="mb-2"><label class="form-label">Item <span class="text-muted fw-normal small">(type a name, or pick from the list)</span></label><input id="siItem" class="form-control" maxlength="40" list="siItemList" autocomplete="off" placeholder="e.g. Pax A920, SIM, Battery"><datalist id="siItemList"></datalist>
@@ -401,13 +410,6 @@
         <hr><div class="fw-bold small mb-1">Correct a quantity <span class="text-muted fw-normal">(count check, + or −)</span></div>
         <div class="d-flex gap-2 flex-wrap"><select id="aqItem" class="form-select form-select-sm" style="max-width:180px"></select><input id="aqNum" type="number" class="form-control form-control-sm" style="max-width:90px" placeholder="+/−"><input id="aqWhy" class="form-control form-control-sm" style="max-width:200px" placeholder="Reason" maxlength="100"><button class="btn btn-soft btn-sm" id="aqSave" type="button">Save</button></div>
       </div>
-      <div class="card-x">
-        <div class="fw-bold mb-2"><i class="bi bi-upc-scan me-1"></i>Serial numbers</div>
-        <div class="chips mb-2" id="snStatus"></div>
-        <input id="snFind" class="form-control mb-2" placeholder="Search S/N, merchant, MID, TID…">
-        <div id="snRows"></div>
-      </div>
-      <div class="card-x"><div class="fw-bold mb-2"><i class="bi bi-clock-history me-1"></i>Recent movements</div><div id="stRecent" class="small"></div></div>
       <div class="card-x hidden" id="stItemsCard">
         <div class="fw-bold mb-2"><i class="bi bi-sliders me-1"></i>Stock items &amp; alert</div>
         <div id="itList"></div>
@@ -621,7 +623,7 @@
 <div class="modal fade" id="adjModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:20px">
     <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">Change status · <span id="adjSn"></span></h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body"><div class="chips mb-2" id="adjChips"></div><div id="adjResWrap" class="hidden mb-2"><input type="hidden" class="f-tid"><div class="small text-muted mb-1">Keep this S/N aside. Merchant name and MID are optional: with them, only that merchant's record can use it.</div><input id="adjMer" class="form-control mb-2 f-name" maxlength="60" placeholder="Merchant name"><div class="input-group"><input id="adjMid" class="form-control f-mid" maxlength="20" inputmode="numeric" placeholder="MID"><button type="button" class="btn btn-soft" id="adjScan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button></div></div><input id="adjWhy" class="form-control mb-2" maxlength="100" placeholder="Reason (needed for Faulty)"><button class="btn btn-primary" id="adjSave" type="button">Save</button></div>
+    <div class="modal-body"><div class="chips mb-2" id="adjChips"></div><div id="adjResWrap" class="hidden mb-2"><div class="small text-muted mb-1">Keep this S/N for one terminal. When an install or deployment is submitted with this TID, the S/N is cut from stock and marked Used by itself. Merchant name and MID are optional notes.</div><input id="adjMer" class="form-control mb-2 f-name" maxlength="60" placeholder="Merchant name"><div class="input-group mb-2"><input id="adjMid" class="form-control f-mid" maxlength="20" inputmode="numeric" placeholder="MID"><button type="button" class="btn btn-soft" id="adjScan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button></div><input id="adjTid" class="form-control f-tid mb-2" maxlength="30" autocapitalize="characters" placeholder="TID * (required)" style="text-transform:uppercase"></div><input id="adjWhy" class="form-control mb-2" maxlength="100" placeholder="Reason (needed for Faulty)"><button class="btn btn-primary" id="adjSave" type="button">Save</button></div>
   </div></div>
 </div>
 
@@ -859,7 +861,7 @@ const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
 const typeDef = n => CATALOG.find(t => t.name === n) || null;
 /** Activities named like Deployment / Removal need no stock setup: staff pick the item type themselves (an admin stock rule, if set, wins). */
-const freeStock = n => /remov/i.test(n) ? { mode: 'return', kind: '', items: [], free: true, auto: true } : /return|terminat/i.test(n) ? { mode: 'return', kind: '', items: [], auto: true } : /deploy/i.test(n) ? { mode: 'out', kind: '', items: [], free: true } : /replac/i.test(n) ? { mode: 'both', kind: '', items: [], auto: true } : /install/i.test(n) ? { mode: 'out', kind: '', items: [], auto: true } : null;
+const freeStock = n => /liabil/i.test(n) ? { mode: 'out', kind: '', items: [], free: true, liab: true } : /remov/i.test(n) ? { mode: 'return', kind: '', items: [], free: true, auto: true } : /return|terminat/i.test(n) ? { mode: 'return', kind: '', items: [], auto: true } : /deploy/i.test(n) ? { mode: 'out', kind: '', items: [], free: true } : /replac/i.test(n) ? { mode: 'both', kind: '', items: [], auto: true } : /install/i.test(n) ? { mode: 'out', kind: '', items: [], auto: true } : null;
 const actDef = (t, a) => { const d = typeDef(t); const x = d ? (d.acts.find(y => y.n === a) || null) : null; if (!x || x.stock) return x; const fs = freeStock(x.n); return fs ? Object.assign({}, x, { stock: fs }) : x; };
 const actSubs = a => (a && a.subs && a.subs.length) ? a.subs : [''];      // the sub categories an activity appears under; [''] = not linked to any (category without links)
 /** Once any activity is linked to a sub category, every activity belongs to at least one: unlinked ones appear under all sub categories (there is no stand-alone group). */
@@ -1056,7 +1058,7 @@ function renderStockBox(card, d) {
   card.stockMode = rule.mode;
   const items = stkAllowed(d), req = false;
   if (rule.free && !card.stock.length && items.length) card.stock.push(stkNewLine(rule, items, rule.mode));
-  const title = rule.free ? (rule.mode === 'return' ? 'Items removed (battery, charger, SIM ...)' : 'Items deployed') : 'Items used (quantity)';
+  const title = rule.liab ? 'Items given to the merchant (lost / damaged) *' : rule.free ? (rule.mode === 'return' ? 'Items removed (battery, charger, SIM ...)' : 'Items deployed') : 'Items used (quantity)';
   box.innerHTML = '<label class="form-label"><i class="bi bi-box-seam me-1"></i>' + title + (req ? ' <span class="rq">*</span>' : '') + '</label>' +
     card.stock.map((l, i) => {
       const dir = stkDirOf(rule, l), out = dir === 'out', its = rule.free ? items.filter(x => x.kind === (l.kind || 'serial')) : out ? items.filter(x => x.kind === 'qty') : items, serial = stkKind(l.item) !== 'qty';
@@ -1215,7 +1217,7 @@ async function showApp() {
   show($('#catCard'), admin); show($('#rulesCard'), admin);
   if (!S.cards.length) addMerchant();
   setType(curType);
-  const vw = isViewer(); show($('.bottom-nav button[data-tab="new"]'), !vw);
+  const vw = isViewer(); show($('.bottom-nav button[data-tab="new"]'), !vw); $('#pane-records').classList.toggle('viewer-only', vw); show($('#sumCard'), !vw);
   switchTab(vw ? 'records' : 'new');
   loadSummary(); if (!vw) loadLast();
   refreshLocation();
@@ -1263,7 +1265,7 @@ function switchTab(name) {
   ['new', 'records', 'stock', 'users'].forEach(t => show($('#pane-' + t), t === name));
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (name === 'records') { loadRecords(); loadTeam(); }
+  if (name === 'records') { if (!isViewer()) loadRecords(); loadTeam(); }
   if (name === 'stock') loadStock();
   if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
 }
@@ -2054,6 +2056,7 @@ $('#submitBtn').addEventListener('click', async () => {
     let stockLines;
     if (ad && ad.stock) {
       stockLines = c.stock || [];
+      if (ad.stock.liab && !stockLines.some(l => stkKind(l.item) === 'qty' ? l.qty >= 1 : !!l.sn)) { bad('add the item given to the merchant.'); return; }
       if (ad.stock.free) stockLines = stockLines.filter(l => (stkKind(l.item) === 'qty' ? (l.qty >= 1 && l.qty !== undefined) : !!l.sn));      // a blank deployment line is just ignored
       for (const l of stockLines) {
         const k = stkKind(l.item), dir = stkDirOf(ad.stock, l);
@@ -2259,14 +2262,17 @@ $('#recBody').addEventListener('click', e => {      // tap a row: its details op
   d.classList.toggle('hidden', !open); tr.classList.toggle('open', open);
 });
 /* ---- Team today / 7-day trend / staff drill-down (admin, supervisor, viewer: read-only) ---- */
-S.teamBranch = '';
+S.teamBranch = ''; S.teamRange = '7';
+const RANGES = [['7', 'Last 7 days'], ['30', 'Last 30 days'], ['mtd', 'Month to date'], ['lastmonth', 'Last month']];
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayLbl = d => { const t = new Date(d + 'T00:00:00'); return DOW[t.getDay()] + ' ' + d.slice(8); };
 const pctTxt = (a, b) => b ? (a >= b ? '+' : '') + Math.round((a - b) / b * 100) + '%' : (a ? 'new' : '–');
 async function loadTeam() {
   const on = isWide(); show($('#teamCard'), on); show($('#trendCard'), on); if (!on) return;
   try {
-    const d = await api('getTeam', S.token, { branch: S.teamBranch });
+    const d = await api('getTeam', S.token, { branch: S.teamBranch, range: S.teamRange });
+    const rl = (RANGES.find(r => r[0] === d.range) || RANGES[0])[1];
+    $('#trTitle').textContent = rl; $('#trRange').innerHTML = RANGES.map(r => '<button type="button" class="chip' + (d.range === r[0] ? ' active' : '') + '" data-v="' + r[0] + '">' + r[1] + '</button>').join('');
     $('#teamDate').textContent = fmtD(d.today);
     const bs = d.branches || []; show($('#teamBranch'), bs.length > 1);
     $('#teamBranch').innerHTML = [''].concat(bs).map(b => '<button type="button" class="chip' + (S.teamBranch === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (esc(b) || 'All') + '</button>').join('');
@@ -2274,16 +2280,20 @@ async function loadTeam() {
     const none = d.staff.filter(m => !m.today).map(m => m.username);
     $('#teamNone').innerHTML = none.length ? '<span class="text-muted">No record yet:</span> <b style="color:#b45309">' + none.map(esc).join(', ') + '</b>' : (d.staff.length ? '<span class="up fw-semibold">Everyone has a record today.</span>' : '');
     const showBr = isAdminOrMulti(d);
-    $('#teamList').innerHTML = d.staff.length ? d.staff.map(m => '<div class="tm-row' + (m.today ? '' : ' none') + '" data-u="' + esc(m.username) + '"><div class="nm"><b>' + esc(m.username) + '</b>' + (showBr && m.branch ? ' <span class="small text-muted">· ' + esc(m.branch) + '</span>' : '') + '<div class="small when ' + (m.today ? 'text-muted' : '') + '">' + (m.today ? 'last record ' + esc((m.last.match(/(\d{2}:\d{2})/) || [])[1] || '') : 'no record yet') + ' · 7 days: ' + m.week + '</div></div><span class="n">' + m.today + '</span><i class="bi bi-chevron-right text-muted"></i></div>').join('') : '<div class="small text-muted">No staff in your team yet.</div>';
+    $('#teamList').innerHTML = d.staff.length ? d.staff.map(m => '<div class="tm-row' + (m.today ? '' : ' none') + '" data-u="' + esc(m.username) + '"><div class="nm"><b>' + esc(m.username) + '</b>' + (showBr && m.branch ? ' <span class="small text-muted">· ' + esc(m.branch) + '</span>' : '') + '<div class="small when ' + (m.today ? 'text-muted' : '') + '">' + (m.today ? 'last record ' + esc((m.last.match(/(\d{2}:\d{2})/) || [])[1] || '') : 'no record yet') + ' · ' + rl.toLowerCase() + ': ' + m.week + '</div></div><span class="n">' + m.today + '</span><i class="bi bi-chevron-right text-muted"></i></div>').join('') : '<div class="small text-muted">No staff in your team yet.</div>';
     const mx = Math.max(1, ...d.days.map(x => Math.max(x.n, x.prev)));
-    $('#trendSum').innerHTML = 'This 7 days <b>' + d.week + '</b> · last 7 days <b>' + d.prevWeek + '</b> · <b class="' + (d.week >= d.prevWeek ? 'up' : 'dn') + '">' + pctTxt(d.week, d.prevWeek) + '</b>';
+    $('#trendSum').innerHTML = esc(fmtD(d.from)) + ' – ' + esc(fmtD(d.to)) + ': <b>' + d.week + '</b> · the period before <b>' + d.prevWeek + '</b> · <b class="' + (d.week >= d.prevWeek ? 'up' : 'dn') + '">' + pctTxt(d.week, d.prevWeek) + '</b>';
+    const sx = Math.max(1, ...d.staff.map(m => m.week)), byRange = d.staff.slice().sort((a, b) => b.week - a.week || (a.username < b.username ? -1 : 1));
+    $('#trStaffTitle').textContent = 'Staff · ' + rl.toLowerCase();
+    $('#trStaff').innerHTML = byRange.length ? byRange.map(m => '<div class="tm-row" data-u="' + esc(m.username) + '"><div class="nm"><div class="d-flex justify-content-between small"><b>' + esc(m.username) + '</b><b>' + m.week + '</b></div><div class="tr-bar" style="width:' + Math.max(m.week ? 3 : 0, Math.round(m.week / sx * 100)) + '%"></div></div><i class="bi bi-chevron-right text-muted"></i></div>').join('') : '<div class="small text-muted">No staff in your team yet.</div>';
     $('#trendBars').innerHTML = d.days.map(x => '<div class="tr-row"><span>' + dayLbl(x.date) + '</span><div><div class="tr-bar" style="width:' + Math.max(x.n ? 3 : 0, Math.round(x.n / mx * 100)) + '%"></div><div class="tr-bar p" style="width:' + Math.max(x.prev ? 3 : 0, Math.round(x.prev / mx * 100)) + '%"></div></div><span class="text-end"><b>' + x.n + '</b> <span class="text-muted small">vs ' + x.prev + '</span></span></div>').join('');
   } catch (e) { show($('#teamCard'), false); show($('#trendCard'), false); }
 }
 const isAdminOrMulti = d => S.user.role === 'Admin' || /,/.test(S.user.branch || '');
 $('#teamBranch').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.teamBranch = b.dataset.v; loadTeam(); });
 const teamModal = new bootstrap.Modal($('#teamModal'));
-$('#teamList').addEventListener('click', async e => {
+$('#trRange').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.teamRange = b.dataset.v; loadTeam(); });
+async function openTeamStaff(e) {
   const row = e.target.closest('.tm-row'); if (!row) return;
   try {
     const d = await api('getTeamStaff', S.token, row.dataset.u);
@@ -2291,9 +2301,10 @@ $('#teamList').addEventListener('click', async e => {
     $('#tmKpi').innerHTML = '<div><b>' + d.today + '</b><span>Today</span></div><div><b>' + d.week + '</b><span>Last 7 days</span></div>';
     $('#tmActs').innerHTML = d.byActivity.length ? d.byActivity.map(a => '<div class="d-flex justify-content-between small py-1"><span><span class="pill">' + esc(shortName(a.type)) + '</span> ' + esc(a.activity) + '</span><b>' + a.n + '</b></div>').join('') : '<div class="small text-muted">Nothing in the last 7 days.</div>';
     $('#tmRecs').innerHTML = d.latest.length ? d.latest.map(r => '<div class="py-1 border-top small"><div><b>' + esc(r.merchant || '—') + '</b>' + (r.mid ? ' <span class="text-muted">MID ' + esc(r.mid) + '</span>' : '') + '</div><div class="text-muted"><span class="pill">' + esc(shortName(r.type)) + '</span> ' + esc(r.activity) + ' · ' + esc(fmtTs(r.ts)) + (r.photos ? ' · ' + r.photos + ' photos' : '') + '</div></div>').join('') : '<div class="small text-muted">No records yet.</div>';
-    S.tmUser = d.username; teamModal.show();
+    S.tmUser = d.username; show($('#tmAll'), !isViewer()); teamModal.show();
   } catch (ex) { toast(ex.message, 'danger'); }
-});
+}
+$('#teamList').addEventListener('click', openTeamStaff); $('#trStaff').addEventListener('click', openTeamStaff);
 $('#tmAll').addEventListener('click', () => { teamModal.hide(); $('#fUser').value = S.tmUser; $('#fPeriod').value = 'all'; slicer('slPeriod', 'fPeriod', PERIODS); loadRecords(); setTimeout(() => $('#recBody').scrollIntoView({ behavior: 'smooth' }), 300); });
 /* ---- Dashboard: summary tiles + one chart. Admin picks the grouping (activities / sub categories / categories) and the view (totals / by staff). ---- */
 // Colour by category for totals; by position for the by-staff series (first four are the validated slots; the rest are extras).
@@ -2920,19 +2931,18 @@ async function loadStock() {
   const admin = S.user.role === 'Admin';
   show($('#stBranchWrap'), admin); show($('#stItemsCard'), admin);
   try {
-    const d = S.st.data = await api('getStockDash', S.token, { from: stFrom(), branch: admin ? S.st.branch : '', item: S.st.item, user: S.st.user });
+    const d = S.st.data = await api('getStockDash', S.token, { from: stFrom(), branch: admin ? S.st.branch : '', item: S.st.item });
     S.stockItems = d.items;
     $('#stPeriod').innerHTML = [['month', 'This month'], ['30', 'Last 30 days'], ['all', 'All time']].map(p => '<button type="button" class="chip' + (S.st.period === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('');
     $('#stBranch').innerHTML = [''].concat(d.branches).map(b => '<button type="button" class="chip' + (S.st.branch === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (b || 'All') + '</button>').join('');
     $('#stItem').innerHTML = [''].concat(d.items.map(i => i.name)).map(b => '<button type="button" class="chip' + (S.st.item === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (esc(b) || 'All') + '</button>').join('');
-    if (S.st.user && !d.users.includes(S.st.user)) S.st.user = '';
-    $('#stStaff').innerHTML = [''].concat(d.users).map(b => '<button type="button" class="chip' + (S.st.user === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (esc(b) || 'All staff') + '</button>').join('');
     const t = d.totals, p = d.period;
-    $('#stKpi').innerHTML = [['In stock now', t.remaining], ['Stock in', p.stockIn], ['Used', p.out], ['Reserved', t.reserved], ['To decide', t.pending], ['Returned to stock', p.back], ['Faulty', t.faulty], ['Sent to HO', t.ho], ['Low items', t.low]].map(k => '<div class="kpi-s"' + (k[0] === 'Low items' && k[1] ? ' style="background:#fffbeb;border-color:#fcd34d"' : '') + '><b>' + k[1] + '</b><span>' + k[0] + '</span></div>').join('');
+    $('#stKpi').innerHTML = [['In stock now', t.remaining], ['Stock in', p.stockIn], ['Used', p.out], ['Merchant liability', (d.liab || {}).total || 0], ['Reserved', t.reserved], ['To decide', t.pending], ['Returned to stock', p.back], ['Faulty', t.faulty], ['Sent to HO', t.ho], ['Low items', t.low]].map(k => '<div class="kpi-s"' + (k[0] === 'Low items' && k[1] ? ' style="background:#fffbeb;border-color:#fcd34d"' : '') + '><b>' + k[1] + '</b><span>' + k[0] + '</span></div>').join('');
     const mx = Math.max(1, ...d.stock.map(r => r.remaining));
     $('#stRemain').innerHTML = d.stock.length ? d.stock.map(r => '<div class="d-flex justify-content-between small"><span>' + esc(r.item) + ' <span class="text-muted">· ' + esc(r.branch) + (r.kind === 'qty' ? ' · qty' : '') + '</span>' + (r.isLow ? ' <span class="st-pill st-h">Low</span>' : '') + '</span><span><b>' + r.remaining + '</b>' + (r.faulty ? ' <span class="text-muted">· faulty ' + r.faulty + '</span>' : '') + (r.ho ? ' <span class="text-muted">· HO ' + r.ho + '</span>' : '') + (r.oldest > 30 ? ' <span class="text-muted">· oldest ' + r.oldest + 'd</span>' : '') + '</span></div><div class="stk-bar ' + (r.isLow ? 'o' : '') + ' mb-2" style="width:' + Math.max(2, Math.round(Math.max(0, r.remaining) / mx * 100)) + '%"></div>').join('') : '<div class="small text-muted">No stock yet. Add items below, then stock in.</div>';
     const wm = Math.max(1, ...d.weeks.map(w => Math.max(w.inn, w.out)));
     $('#stWeeks').innerHTML = d.weeks.length ? d.weeks.map(w => '<div class="small d-flex justify-content-between"><span>Week of ' + esc(fmtD(w.week)) + '</span><span>in <b>' + w.inn + '</b> · used <b>' + w.out + '</b></span></div><div class="stk-bar mb-1" style="width:' + Math.max(2, Math.round(w.inn / wm * 100)) + '%"></div><div class="stk-bar g mb-2" style="width:' + Math.max(2, Math.round(w.out / wm * 100)) + '%"></div>').join('') + '<div class="small text-muted"><span style="color:#4f46e5">■</span> stock in &nbsp;<span style="color:#1baf7a">■</span> used</div>' : '<div class="small text-muted">No movements in this period.</div>';
+    const lb = d.liab || { total: 0, byMerchant: [], byItem: [] }; show($('#stLiabWrap'), lb.total > 0); $('#stLiabMer').innerHTML = stBars(lb.byMerchant, 'o'); $('#stLiabItem').innerHTML = stBars(lb.byItem);
     $('#stByBranch').innerHTML = stBars(d.byBranch); $('#stByStaff').innerHTML = stBars(d.byStaff, 'g'); $('#stByMer').innerHTML = stBars(d.byMerchant, 'o'); $('#stByItem').innerHTML = stBars(d.byItem);
     $('#stRecent').innerHTML = d.recent.length ? d.recent.map(l => '<div class="py-1 border-top"><b>' + esc(l.action) + '</b> · ' + esc(l.item) + (l.sn ? ' ' + esc(l.sn) : ' ×' + l.qty) + ' <span class="text-muted">· ' + esc(l.branch) + ' · ' + esc(l.by) + (l.merchant ? ' · ' + esc(l.merchant) : '') + (l.reason ? ' · ' + esc(l.reason) : '') + ' · ' + esc(fmtTs(l.ts)) + '</span></div>').join('') : '<div class="text-muted">Nothing yet</div>';
     const opts = d.items.map(i => '<option value="' + esc(i.name) + '">' + esc(i.name) + (i.kind === 'qty' ? ' (qty)' : '') + '</option>').join('');
@@ -2943,7 +2953,7 @@ async function loadStock() {
   } catch (e) { toast(e.message, 'danger'); }
 }
 bindSlicer('stPeriod', 'fPeriodX', () => {});
-for (const [box, key] of [['stPeriod', 'period'], ['stBranch', 'branch'], ['stItem', 'item'], ['stStaff', 'user']]) $('#' + box).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.st[key] = b.dataset.v; loadStock(); });
+for (const [box, key] of [['stPeriod', 'period'], ['stBranch', 'branch'], ['stItem', 'item']]) $('#' + box).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.st[key] = b.dataset.v; loadStock(); });
 /* ---- returns waiting for a decision (admin / supervisor) ---- */
 async function loadPending() {
   try {
@@ -2999,15 +3009,15 @@ $('#snStatus').addEventListener('click', e => { const b = e.target.closest('.chi
 let snFindT = null; $('#snFind').addEventListener('input', () => { clearTimeout(snFindT); snFindT = setTimeout(loadSnRows, 300); });
 async function loadSnRows() {
   try {
-    const d = await api('getStockSNs', S.token, { status: S.st.status, q: $('#snFind').value.trim(), item: S.st.item, user: S.st.user, branch: S.user.role === 'Admin' ? S.st.branch : '' });
-    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" data-st="' + esc(r.status) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + (r.company ? ' · ' + esc(r.company) : '') + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button></div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
+    const d = await api('getStockSNs', S.token, { status: S.st.status, q: $('#snFind').value.trim(), item: S.st.item, branch: S.user.role === 'Admin' ? S.st.branch : '' });
+    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" data-st="' + esc(r.status) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + (r.company ? ' · ' + esc(r.company) : '') + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.tid ? ' · TID ' + esc(r.tid) : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button></div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
   } catch (e) { toast(e.message, 'danger'); }
 }
 const adjModal = new bootstrap.Modal($('#adjModal')); S.adj = { sn: '', status: 'In stock' };
 $('#snRows').addEventListener('click', e => {
   const b = e.target.closest('.sn-adj'); if (!b) return; const row = b.closest('[data-sn]');
   S.adj = { sn: row.dataset.sn, status: row.dataset.st === 'Reserved' ? 'In stock' : 'In stock', cur: row.dataset.st };
-  $('#adjSn').textContent = S.adj.sn; $('#adjWhy').value = ''; $('#adjMer').value = ''; $('#adjMid').value = ''; paintAdj(); adjModal.show();
+  $('#adjSn').textContent = S.adj.sn; $('#adjWhy').value = ''; $('#adjMer').value = ''; $('#adjMid').value = ''; $('#adjTid').value = ''; paintAdj(); adjModal.show();
 });
 function paintAdj() {
   const list = ['In stock', 'Faulty', 'Sent to HO'].concat(S.adj.cur === 'In stock' ? ['Reserved'] : []);
@@ -3023,8 +3033,9 @@ $('#adjScan').addEventListener('click', () => {
 $('#adjSave').addEventListener('click', async () => {
   try {
     if (S.adj.status === 'Reserved') {
-      const mer = $('#adjMer').value.trim(), mid = $('#adjMid').value.trim();
-      await api('stockReserve', S.token, { sns: S.adj.sn, merchant: mer, mid: mid, note: $('#adjWhy').value.trim() });
+      const mer = $('#adjMer').value.trim(), mid = $('#adjMid').value.trim(), tid = $('#adjTid').value.trim();
+      if (!tid) { toast('Enter the TID.', 'warning'); $('#adjTid').focus(); return; }
+      await api('stockReserve', S.token, { sns: S.adj.sn, merchant: mer, mid: mid, tid: tid, note: $('#adjWhy').value.trim() });
     } else await api('stockAdjust', S.token, S.adj.sn, S.adj.status, $('#adjWhy').value.trim());
     adjModal.hide(); toast('Saved', 'success'); loadStock();
   } catch (e) { toast(e.message, 'danger'); }
