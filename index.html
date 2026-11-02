@@ -397,6 +397,19 @@
       </div>
       <div class="card-x"><div class="fw-bold mb-2"><i class="bi bi-clock-history me-1"></i>Recent movements</div><div id="stRecent" class="small"></div></div>
       <div class="card-x">
+        <div class="fw-bold mb-1"><i class="bi bi-bookmark-check me-1"></i>Reserve items without S/N</div>
+        <div class="small text-muted mb-2">Hold <b>one</b> unit (charger, standee ...) for a TID. When an install or deployment is submitted with that TID, the unit is cut from stock by itself. One unit per item per TID, no expiry: Release it when it is not needed.</div>
+        <div class="row g-2">
+          <div class="col-12 col-md-4"><label class="form-label">Item</label><select id="rqItem" class="form-select"></select></div>
+          <div class="col-6 col-md-4 hidden" id="rqBranchWrap"><label class="form-label">Branch</label><input id="rqBranch" class="form-control" maxlength="10" placeholder="e.g. PP" style="text-transform:uppercase"></div>
+          <div class="col-6 col-md-4"><label class="form-label">TID <span class="rq">*</span></label><input id="rqTid" class="form-control" maxlength="30" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase"></div>
+          <div class="col-12 col-md-6"><input id="rqMer" class="form-control" maxlength="60" placeholder="Merchant name (optional)"></div>
+          <div class="col-12 col-md-6"><input id="rqNote" class="form-control" maxlength="100" placeholder="Note (optional)"></div>
+        </div>
+        <button class="btn btn-primary mt-2" id="rqSave" type="button">Reserve 1 unit</button><div class="small mt-2" id="rqMsg"></div>
+        <div class="form-label mt-3">Reserved now</div><div id="rqList" class="small"></div>
+      </div>
+      <div class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-box-arrow-in-down me-1"></i>Stock in</div>
         <div class="mb-2"><label class="form-label">Item <span class="text-muted fw-normal small">(type a name, or pick from the list)</span></label><input id="siItem" class="form-control" maxlength="40" list="siItemList" autocomplete="off" placeholder="e.g. Pax A920, SIM, Battery"><datalist id="siItemList"></datalist>
           <div class="chips mt-2 hidden" id="siKindWrap"><span class="small text-muted me-1">New item. It has:</span><button type="button" class="chip" data-k="serial">Serial numbers</button><button type="button" class="chip" data-k="qty">Quantity</button></div></div>
@@ -2939,12 +2952,15 @@ async function loadStock() {
     const t = d.totals, p = d.period;
     $('#stKpi').innerHTML = [['In stock now', t.remaining], ['Stock in', p.stockIn], ['Used', p.out], ['Merchant liability', (d.liab || {}).total || 0], ['Reserved', t.reserved], ['To decide', t.pending], ['Returned to stock', p.back], ['Faulty', t.faulty], ['Sent to HO', t.ho], ['Low items', t.low]].map(k => '<div class="kpi-s"' + (k[0] === 'Low items' && k[1] ? ' style="background:#fffbeb;border-color:#fcd34d"' : '') + '><b>' + k[1] + '</b><span>' + k[0] + '</span></div>').join('');
     const mx = Math.max(1, ...d.stock.map(r => r.remaining));
-    $('#stRemain').innerHTML = d.stock.length ? d.stock.map(r => '<div class="d-flex justify-content-between small"><span>' + esc(r.item) + ' <span class="text-muted">· ' + esc(r.branch) + (r.kind === 'qty' ? ' · qty' : '') + '</span>' + (r.isLow ? ' <span class="st-pill st-h">Low</span>' : '') + '</span><span><b>' + r.remaining + '</b>' + (r.faulty ? ' <span class="text-muted">· faulty ' + r.faulty + '</span>' : '') + (r.ho ? ' <span class="text-muted">· HO ' + r.ho + '</span>' : '') + (r.oldest > 30 ? ' <span class="text-muted">· oldest ' + r.oldest + 'd</span>' : '') + '</span></div><div class="stk-bar ' + (r.isLow ? 'o' : '') + ' mb-2" style="width:' + Math.max(2, Math.round(Math.max(0, r.remaining) / mx * 100)) + '%"></div>').join('') : '<div class="small text-muted">No stock yet. Add items below, then stock in.</div>';
+    $('#stRemain').innerHTML = d.stock.length ? d.stock.map(r => '<div class="d-flex justify-content-between small"><span>' + esc(r.item) + ' <span class="text-muted">· ' + esc(r.branch) + (r.kind === 'qty' ? ' · qty' : '') + '</span>' + (r.isLow ? ' <span class="st-pill st-h">Low</span>' : '') + '</span><span><b>' + r.remaining + '</b>' + (r.kind === 'qty' && r.reserved ? ' <span class="text-muted">· reserved ' + r.reserved + '</span>' : '') + (r.faulty ? ' <span class="text-muted">· faulty ' + r.faulty + '</span>' : '') + (r.ho ? ' <span class="text-muted">· HO ' + r.ho + '</span>' : '') + (r.oldest > 30 ? ' <span class="text-muted">· oldest ' + r.oldest + 'd</span>' : '') + '</span></div><div class="stk-bar ' + (r.isLow ? 'o' : '') + ' mb-2" style="width:' + Math.max(2, Math.round(Math.max(0, r.remaining) / mx * 100)) + '%"></div>').join('') : '<div class="small text-muted">No stock yet. Add items below, then stock in.</div>';
     const wm = Math.max(1, ...d.weeks.map(w => Math.max(w.inn, w.out)));
     $('#stWeeks').innerHTML = d.weeks.length ? d.weeks.map(w => '<div class="small d-flex justify-content-between"><span>Week of ' + esc(fmtD(w.week)) + '</span><span>in <b>' + w.inn + '</b> · used <b>' + w.out + '</b></span></div><div class="stk-bar mb-1" style="width:' + Math.max(2, Math.round(w.inn / wm * 100)) + '%"></div><div class="stk-bar g mb-2" style="width:' + Math.max(2, Math.round(w.out / wm * 100)) + '%"></div>').join('') + '<div class="small text-muted"><span style="color:#4f46e5">■</span> stock in &nbsp;<span style="color:#1baf7a">■</span> used</div>' : '<div class="small text-muted">No movements in this period.</div>';
     const lb = d.liab || { total: 0, byMerchant: [], byItem: [] }; show($('#stLiabWrap'), lb.total > 0); $('#stLiabMer').innerHTML = stBars(lb.byMerchant, 'o'); $('#stLiabItem').innerHTML = stBars(lb.byItem);
     $('#stByBranch').innerHTML = stBars(d.byBranch); $('#stByStaff').innerHTML = stBars(d.byStaff, 'g'); $('#stByMer').innerHTML = stBars(d.byMerchant, 'o'); $('#stByItem').innerHTML = stBars(d.byItem);
     $('#stRecent').innerHTML = d.recent.length ? d.recent.map(l => '<div class="py-1 border-top"><b>' + esc(l.action) + '</b> · ' + esc(l.item) + (l.sn ? ' ' + esc(l.sn) : ' ×' + l.qty) + ' <span class="text-muted">· ' + esc(l.branch) + ' · ' + esc(l.by) + (l.merchant ? ' · ' + esc(l.merchant) : '') + (l.reason ? ' · ' + esc(l.reason) : '') + ' · ' + esc(fmtTs(l.ts)) + '</span></div>').join('') : '<div class="text-muted">Nothing yet</div>';
+    const rq = $('#rqItem').value; $('#rqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join(''); if (rq) $('#rqItem').value = rq;
+    show($('#rqBranchWrap'), admin);
+    $('#rqList').innerHTML = (d.resQty || []).length ? d.resQty.map(r => '<div class="d-flex justify-content-between align-items-center py-1 border-top" data-item="' + esc(r.item) + '" data-branch="' + esc(r.branch) + '" data-tid="' + esc(r.tid) + '"><div class="min-w-0"><b>' + esc(r.item) + ' × 1</b> <span class="st-pill st-i">Reserved</span><div class="text-muted text-truncate">TID ' + esc(r.tid) + (r.merchant ? ' · ' + esc(r.merchant) : '') + ' · ' + esc(r.branch) + ' · ' + esc(r.by) + ' · ' + esc(fmtD(r.ts)) + (r.note ? ' · ' + esc(r.note) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none rq-rel">Release</button></div>').join('') : '<div class="text-muted">Nothing reserved.</div>';
     const opts = d.items.map(i => '<option value="' + esc(i.name) + '">' + esc(i.name) + (i.kind === 'qty' ? ' (qty)' : '') + '</option>').join('');
     $('#siItemList').innerHTML = d.items.map(i => '<option value="' + esc(i.name) + '">' + (i.kind === 'qty' ? 'quantity' : 'serial numbers') + '</option>').join('');
     $('#aqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join('');
@@ -2976,6 +2992,21 @@ $('#stPend').addEventListener('click', async e => {
   if (dec === 'faulty' && !f.reason) { toast('Write the reason it is faulty.', 'warning'); return; }
   busy(e.target.closest('button'), true, 'Saving…');
   try { await api('stockDecide', S.token, f); toast('Saved', 'success'); loadStock(); } catch (ex) { toast(ex.message, 'danger'); busy(e.target.closest('button'), false); }
+});
+$('#rqSave').addEventListener('click', async () => {
+  const btn = $('#rqSave'), msg = $('#rqMsg'); msg.textContent = '';
+  if (!$('#rqTid').value.trim()) { msg.className = 'small mt-2 text-danger'; msg.textContent = 'Enter the TID.'; $('#rqTid').focus(); return; }
+  busy(btn, true, 'Saving…');
+  try {
+    await api('stockReserveQty', S.token, { item: $('#rqItem').value, branch: $('#rqBranch').value.trim(), tid: $('#rqTid').value.trim(), merchant: $('#rqMer').value.trim(), note: $('#rqNote').value.trim() });
+    msg.className = 'small mt-2 text-success'; msg.textContent = 'Reserved 1 ' + $('#rqItem').value + ' for TID ' + $('#rqTid').value.trim().toUpperCase() + '.'; $('#rqTid').value = ''; $('#rqMer').value = ''; $('#rqNote').value = ''; loadStock();
+  } catch (ex) { msg.className = 'small mt-2 text-danger'; msg.textContent = ex.message; }
+  busy(btn, false);
+});
+$('#rqList').addEventListener('click', async e => {
+  const b = e.target.closest('.rq-rel'); if (!b) return; const row = b.closest('[data-tid]');
+  busy(b, true, '…');
+  try { await api('stockReleaseQty', S.token, { item: row.dataset.item, branch: row.dataset.branch, tid: row.dataset.tid }); toast('Released: back in stock.', 'success'); loadStock(); } catch (ex) { toast(ex.message, 'danger'); busy(b, false); }
 });
 S.siNew = '';
 const siFind = () => (S.stockItems || []).find(i => i.name.toLowerCase() === $('#siItem').value.trim().toLowerCase());
