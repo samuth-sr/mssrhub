@@ -62,6 +62,12 @@
     .sum-break { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .78rem; color: var(--muted); }
     .sum-cat b { font-weight: 700; color: inherit; }
     .sum-cat.on { color: var(--brand); }
+    .yn-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--card, #fff); }
+    .yn-row .form-check-label { font-weight: 600; font-size: .92rem; margin: 0; }
+    .yn-row .form-switch { display: flex; align-items: center; gap: 8px; padding-left: 0; }
+    .yn-row .form-switch .form-check-input { margin: 0; float: none; width: 2.6em; height: 1.4em; }
+    .yn-row .yn-t { min-width: 2.2em; color: var(--muted); }
+    .yn-row.on .yn-t { color: var(--brand); }
     .fl-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: .82rem; }
     .fl-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; flex: none; }
     .fl-seg button { border: 0; background: transparent; color: var(--muted); font-size: .72rem; font-weight: 700; padding: 3px 9px; }
@@ -215,7 +221,6 @@
 .team-kpi{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}.team-kpi div{flex:1 1 90px;background:var(--bs-tertiary-bg,#f3f4f6);border-radius:12px;padding:8px 10px;text-align:center}.team-kpi b{display:block;font-size:1.25rem}.team-kpi span{font-size:.72rem;opacity:.7}
 .tm-row{display:flex;align-items:center;gap:8px;padding:9px 4px;border-top:1px solid rgba(128,128,128,.18);cursor:pointer}.tm-row .nm{flex:1;min-width:0}.tm-row .n{font-weight:700;min-width:28px;text-align:right}.tm-row.none .when{color:#b45309}
 .tr-row{display:grid;grid-template-columns:58px 1fr 64px;align-items:center;gap:8px;margin:5px 0;font-size:.85rem}.tr-bar{height:9px;border-radius:5px;background:#4f46e5}.tr-bar.p{background:#c7c9d9;height:6px;margin-top:3px}.tr-key{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px}.tr-now{background:#4f46e5}.tr-prev{background:#c7c9d9}.up{color:#059669}.dn{color:#dc2626}
-.viewer-only > :not(#teamCard):not(#trendCard){display:none !important}
 </style>
 </head>
 <body>
@@ -371,6 +376,11 @@
 
     <!-- USERS (admin) -->
     <section id="pane-stock" class="hidden">
+      <div class="card-x" id="lkCard">
+        <div class="fw-bold mb-2"><i class="bi bi-search me-1"></i>S/N lookup</div>
+        <div class="input-group"><input id="lkQ" class="form-control" maxlength="60" autocomplete="off" autocapitalize="characters" placeholder="Scan or type S/N or SIM number"><button type="button" class="btn btn-soft" id="lkScan" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button><button type="button" class="btn btn-primary" id="lkGo">Look up</button></div>
+        <div id="lkRes" class="mt-2"></div>
+      </div>
       <div class="card-x hidden" id="stPendCard">
         <div class="fw-bold mb-1"><i class="bi bi-arrow-return-left me-1"></i>Returns waiting for your decision <span class="rv-badge" id="stPendN">0</span></div>
         <div class="small text-muted mb-2">Staff brought these back. Choose one: <b>In stock</b>, <b>Faulty</b> (with a reason) or <b>Send to HO</b>.</div>
@@ -392,7 +402,7 @@
       <div class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-upc-scan me-1"></i>Serial numbers</div>
         <div class="chips mb-2" id="snStatus"></div>
-        <input id="snFind" class="form-control mb-2" placeholder="Search S/N, merchant, MID, TID…">
+        <input id="snFind" class="form-control mb-2" placeholder="Search S/N, SIM number, merchant, MID, TID…">
         <div id="snRows"></div>
       </div>
       <div class="card-x"><div class="fw-bold mb-2"><i class="bi bi-clock-history me-1"></i>Recent movements</div><div id="stRecent" class="small"></div></div>
@@ -416,7 +426,7 @@
         <div class="mb-2 hidden" id="siBranchWrap"><label class="form-label">Branch</label><input id="siBranch" class="form-control" maxlength="10" placeholder="Branch code, e.g. PP" style="text-transform:uppercase"></div>
         <div class="mb-2"><label class="form-label">Company / brand <span class="text-muted fw-normal small">(who makes the product, e.g. PAX, Newland, Telcocom)</span></label><input id="siCompany" class="form-control" maxlength="40" autocomplete="off" placeholder="Company name"></div>
         <div class="mb-2"><label class="form-label">Supplier / PO / batch <span class="text-muted fw-normal small">(optional)</span></label><input id="siBatch" class="form-control" maxlength="40"></div>
-        <div class="mb-2" id="siSnWrap"><div class="d-flex justify-content-between align-items-end mb-1"><label class="form-label mb-0">Serial numbers <span class="text-muted fw-normal small">(one per line, or paste a list)</span></label><button type="button" class="btn btn-soft btn-sm flex-none" id="siScan"><i class="bi bi-upc-scan me-1"></i>Scan S/N</button></div><textarea id="siSns" class="form-control" rows="4" style="text-transform:uppercase"></textarea></div>
+        <div class="mb-2" id="siSnWrap"><div class="d-flex justify-content-between align-items-end mb-1"><label class="form-label mb-0">Serial numbers <span class="text-muted fw-normal small">(one per line, or paste a list)</span></label><button type="button" class="btn btn-soft btn-sm flex-none" id="siScan"><i class="bi bi-upc-scan me-1"></i>Scan S/N</button></div><div class="hidden mb-2" id="siSimWrap"><div class="input-group mb-2"><input id="siSimSn" class="form-control" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="SIM S/N (scan or type)" style="text-transform:uppercase"><button type="button" class="btn btn-soft" id="siSimScan" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div><div class="input-group"><input id="siSimNo" class="form-control" maxlength="20" inputmode="tel" autocomplete="off" placeholder="SIM number, e.g. 012345678"><button type="button" class="btn btn-soft" id="siSimAdd">Add to list</button></div><div class="small text-muted mt-1">Each line below is <b>S/N, SIM number</b>. You can also paste lines from Excel. Every S/N and every SIM number must be new.</div></div><textarea id="siSns" class="form-control" rows="4" style="text-transform:uppercase"></textarea></div>
         <div class="mb-2 hidden" id="siQtyWrap"><label class="form-label">Quantity</label><input id="siQty" type="number" min="1" class="form-control"></div>
         <button class="btn btn-primary" id="siSave" type="button">Save stock in</button>
         <div class="small mt-2" id="siMsg"></div>
@@ -568,7 +578,7 @@
         <input type="hidden" id="uOriginal">
         <div class="row g-2 mb-3">
           <div class="col-6"><label class="form-label">Staff ID <span class="text-muted text-lowercase">(sign-in)</span></label><input id="uStaffId" class="form-control" autocapitalize="characters" autocomplete="off" placeholder="e.g. S100"></div>
-          <div class="col-6"><label class="form-label">Branch code</label><input id="uBranch" class="form-control" autocapitalize="characters" autocomplete="off" maxlength="60" placeholder="e.g. PP (supervisor / viewer: PP, SR)"></div>
+          <div class="col-6"><label class="form-label">Branch code</label><input id="uBranch" class="form-control" autocapitalize="characters" autocomplete="off" maxlength="60" placeholder="e.g. PP (supervisor: PP, SR)"></div>
         </div>
         <label class="form-label">Staff name</label>
         <input id="uName" class="form-control mb-3" autocapitalize="none" required>
@@ -577,7 +587,7 @@
         <div class="row g-2">
           <div class="col-6">
             <label class="form-label">Role</label>
-            <select id="uRole" class="form-select"><option>User</option><option>Supervisor</option><option value="Viewer">Viewer (reports only)</option><option>Admin</option></select>
+            <select id="uRole" class="form-select"><option>User</option><option>Supervisor</option><option>Admin</option></select>
           </div>
           <div class="col-6">
             <label class="form-label">Telegram Topic ID</label>
@@ -666,8 +676,11 @@
         <div class="mb-3" id="eActWrap"><label class="form-label">Activity <span class="rq">*</span></label><select id="eAct" class="form-select"></select></div>
         <div class="mb-3"><label class="form-label"><span id="eDateLbl">Date</span> <span class="rq">*</span></label><input type="date" id="eDate" class="form-control"></div>
         <div class="mb-3 hidden" data-fk="merchant"><label class="form-label">Merchant name <span class="rq hidden">*</span></label><input id="eName" class="form-control"></div>
-        <div class="mb-3 hidden" data-fk="mid"><label class="form-label">MID <span class="rq hidden">*</span></label><input id="eMid" class="form-control"></div>
+        <div class="mb-3 hidden" data-fk="mid"><label class="form-label"><span class="mid-t">MID</span> <span class="rq hidden">*</span></label><input id="eMid" class="form-control"></div>
         <div class="mb-3 hidden" data-fk="tid"><label class="form-label">TID <span class="rq hidden">*</span></label><input id="eTid" class="form-control" autocapitalize="characters" autocomplete="off"></div>
+        <div class="hidden yn-row" data-fk="integ"><label class="form-check-label">Integration</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" id="eInteg" aria-label="Integration"><span class="yn-t small fw-semibold">No</span></div></div>
+        <div class="hidden yn-row" data-fk="sim"><label class="form-check-label">SIM</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" id="eSim" aria-label="SIM"><span class="yn-t small fw-semibold">No</span></div></div>
+        <div class="hidden yn-row" data-fk="standee"><label class="form-check-label">POS Standee</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" id="eStandee" aria-label="POS Standee"><span class="yn-t small fw-semibold">No</span></div></div>
         <div class="mb-3 hidden" data-fk="business"><label class="form-label">Business name <span class="rq hidden">*</span></label><input id="eBiz" class="form-control" placeholder="N/A"></div>
         <div class="mb-3 hidden" data-fk="serial"><label class="form-label">Serial number <span class="rq hidden">*</span></label><div class="input-group"><input id="eSerial" class="form-control" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>
         <div class="mb-3 hidden" data-fk="oldSn"><label class="form-label">Old S/N <span class="rq hidden">*</span></label><div class="input-group"><input id="eOldSn" class="form-control" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>
@@ -845,8 +858,9 @@ const DEFAULT_CATALOG = [
   { name: 'Payway Inspection', code: 'PAYWAY', tid: false, acts: [{ n: 'Inspection' }, { n: 'Merchant Inquiries' }] }
 ];
 /* Box levels per activity: 0 = hidden, 1 = optional, 2 = must fill (red *). Same rules as the server. */
-const FIELD_KEYS = ['merchant', 'mid', 'tid', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune', 'zone'];
-const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'District', zone: 'Zone / Area' };
+const YN_KEYS = ['integ', 'sim', 'standee'];      // Yes/No toggles under TID (default No): hidden or shown, never "must"
+const FIELD_KEYS = ['merchant', 'mid', 'tid', 'integ', 'sim', 'standee', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune', 'zone'];
+const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', integ: 'Integration', sim: 'SIM', standee: 'POS Standee', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'District', zone: 'Zone / Area' };
 function legacyLevel(cat, a, k) {
   const rq = a.req && typeof a.req === 'object' ? a.req : {};
   const lv = (on, d) => !on ? 0 : (typeof rq[k] === 'boolean' ? (rq[k] ? 2 : 1) : d);
@@ -860,22 +874,29 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.review) o.review = true; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
-  o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); });
+  o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); if (YN_KEYS.includes(k)) o.f[k] = o.f[k] ? 1 : 0; });
   if (o.minPh && !o.f.photo) o.f.photo = 1;
   if (Array.isArray(a.custom) && a.custom.length) o.custom = a.custom;
   return o;
 }
 const normCat = list => list.map(t => ({ name: t.name, code: t.code, icon: /^[a-z0-9-]{1,30}$/.test(String(t.icon || '')) ? t.icon : '', subs: (Array.isArray(t.subs) ? t.subs : (t.subs === undefined && (DEFAULT_CATALOG.find(d => d.name === t.name) || {}).subs) || []).map(s => { const r = { n: s.n, code: s.code }; if (s.f && typeof s.f === 'object') { const f = {}; FIELD_KEYS.forEach(k => { if ([0, 1, 2].includes(s.f[k])) f[k] = s.f[k]; }); if (Object.keys(f).length) r.f = f; } if (+s.minPh > 0) r.minPh = Math.min(MAX_PHOTOS, Math.floor(+s.minPh)); return r; }), acts: (t.acts || []).map(a => normAct(t, a)) }));
+/** QR only: a 9-digit number is an account number, a 15-digit one is a MID. POS MIDs start with 2, SB MIDs with 6. */
+function midLabelFor(type, v) { return /^qr$/i.test(type || '') && /^\d{9}$/.test(String(v || '').replace(/\s/g, '')) ? 'Account number' : 'MID'; }
+function midPrefix(type) { const t = typeDef(type), k = String((t && t.code) || type || '').toUpperCase(), n = String(type || '').toUpperCase(); return k === 'POS' || n === 'POS' ? '2' : (k === 'SB' || n === 'SB' ? '6' : ''); }
+function refreshMidLabel(inp, type) { const w = inp.closest('[data-fk="mid"]'), t = w && $('.mid-t', w); if (t) t.textContent = midLabelFor(type, inp.value); }
+document.addEventListener('input', e => { if (e.target.matches && e.target.matches('.f-mid')) refreshMidLabel(e.target, curType); else if (e.target.id === 'eMid') refreshMidLabel(e.target, window._eType); });
+function syncYn(inp) { const row = inp.closest('.yn-row'); if (!row) return; row.classList.toggle('on', inp.checked); const t = $('.yn-t', row); if (t) t.textContent = inp.checked ? 'Yes' : 'No'; }
+document.addEventListener('change', e => { if (e.target.matches && e.target.matches('.yn-row input')) syncYn(e.target); });
 const lvl = (d, k) => (d && d.f && d.f[k]) || 0;
 const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
 const typeDef = n => CATALOG.find(t => t.name === n) || null;
 /** Activities named like Deployment / Removal need no stock setup: staff pick the item type themselves (an admin stock rule, if set, wins). */
 const freeStock = n => /liabil/i.test(n) ? { mode: 'out', kind: '', items: [], free: true, liab: true } : /remov/i.test(n) ? { mode: 'return', kind: '', items: [], free: true, auto: true } : /return|terminat/i.test(n) ? { mode: 'return', kind: '', items: [], auto: true } : /deploy/i.test(n) ? { mode: 'out', kind: '', items: [], free: true } : /replac/i.test(n) ? { mode: 'both', kind: '', items: [], auto: true } : /install/i.test(n) ? { mode: 'out', kind: '', items: [], auto: true } : null;
-const actDef = (t, a) => { const d = typeDef(t); const x = d ? (d.acts.find(y => y.n === a) || null) : null; if (!x || x.stock) return x; const fs = freeStock(x.n); return fs ? Object.assign({}, x, { stock: fs }) : x; };
+const actDef = (t, a) => { const d = typeDef(t); const x = d ? (d.acts.find(y => y.n === a) || null) : null; if (!x || x.stock || !x.autoStock) return x; const fs = freeStock(x.n); return fs ? Object.assign({}, x, { stock: fs }) : x; };
 const actSubs = a => (a && a.subs && a.subs.length) ? a.subs : [''];      // the sub categories an activity appears under; [''] = not linked to any (category without links)
 /** Once any activity is linked to a sub category, every activity belongs to at least one: unlinked ones appear under all sub categories (there is no stand-alone group). */
 function allocSubs(t) {
@@ -1001,6 +1022,7 @@ function customFieldHtml(f) {
   if (f.kind === 'select') return '<div class="mb-3">' + lab + '<select class="form-select" data-fid="' + esc(f.id) + '" data-kind="select"><option value="">Select…</option>' +
     (f.opts || []).map(o => '<option value="' + esc(o) + '">' + esc(o) + '</option>').join('') + '</select></div>';
   if (f.kind === 'info') return '<div class="mb-3 info-lbl">' + (f.label ? '<div class="fw-semibold">' + esc(f.label) + '</div>' : '') + '<div class="small" style="white-space:pre-wrap">' + esc(f.text || '') + '</div></div>';
+  if (f.kind === 'toggle') return '<div class="yn-row" data-fid="' + esc(f.id) + '" data-kind="toggle"><label class="form-check-label">' + esc(f.label) + '</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" aria-label="' + esc(f.label) + '"><span class="yn-t small fw-semibold">No</span></div></div>';
   const vert = cfDir(f) === 'v';
   if (f.kind === 'radio') return '<div class="mb-3">' + lab + '<div class="chips' + (vert ? ' opt-v' : '') + '" data-fid="' + esc(f.id) + '" data-kind="radio">' +
     (f.opts || []).map(o => '<button type="button" class="chip rc-chip" data-v="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div></div>';
@@ -1030,11 +1052,13 @@ document.addEventListener('click', e => {      // option buttons: pick one, tap 
 function customVal(el) {
   if (el.dataset.kind === 'radio') { const a = $('.rc-chip.active', el); return a ? a.dataset.v : ''; }
   if (el.dataset.kind === 'spin') return String($('.spin-in', el).value || '').trim();
+  if (el.dataset.kind === 'toggle') return $('input', el).checked ? 'Yes' : 'No';
   return el.dataset.kind === 'check' ? $$('input:checked', el).map(i => i.value) : String(el.value || '').trim();
 }
 function setCustomVal(el, v) {
   if (el.dataset.kind === 'radio') { $$('.rc-chip', el).forEach(b => b.classList.toggle('active', b.dataset.v === (Array.isArray(v) ? v[0] : v))); return; }
   if (el.dataset.kind === 'spin') { $('.spin-in', el).value = Array.isArray(v) ? v[0] || '' : (v == null ? '' : v); return; }
+  if (el.dataset.kind === 'toggle') { const i = $('input', el); i.checked = /^yes$/i.test(String(Array.isArray(v) ? v[0] : (v == null ? '' : v))); syncYn(i); return; }
   if (el.dataset.kind === 'check') { const set = Array.isArray(v) ? v : String(v || '').split(', '); $$('input', el).forEach(i => { i.checked = set.includes(i.value); }); }
   else el.value = Array.isArray(v) ? v[0] || '' : (v == null ? '' : v);
 }
@@ -1048,6 +1072,7 @@ function renderCustom(box, d) {
 }
 /** Shows only the boxes the activity needs (data-fk="key") and puts the red * on the must-fill ones. */
 function applyLevels(root, d) {
+  $$('.f-mid', root).forEach(i => refreshMidLabel(i, curType));
   FIELD_KEYS.forEach(k => $$('[data-fk="' + k + '"]', root).forEach(w => { show(w, lvl(d, k) > 0); $$('.rq', w).forEach(x => show(x, lvl(d, k) === 2)); }));
   const mp = lvl(d, 'photo') ? ((d.minPh || 0) > 0 ? d.minPh : (lvl(d, 'photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;       // the admin's minimum number of photos / videos (2 when Photos is required and none is set)
   $$('[data-fk="photo"]', root).forEach(w => { if (mp) $$('.rq', w).forEach(x => show(x, true)); const pm = $('.ph-min', w); if (pm) { pm.textContent = mp > 1 ? '(at least ' + mp + ')' : ''; show(pm, mp > 1); } });
@@ -1215,8 +1240,7 @@ if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change'
 function showLogin() { show($('#appView'), false); show($('#loginView'), true); $('#loginUser').focus(); }
 
 /** Admin or Supervisor: may look at other people's records (a supervisor: the staff of their branch, read-only). */
-const isWide = () => !!(S.user && (S.user.role === 'Admin' || S.user.role === 'Supervisor' || S.user.role === 'Viewer'));
-const isViewer = () => !!(S.user && S.user.role === 'Viewer');      // report viewer: Records tab only, read-only
+const isWide = () => !!(S.user && (S.user.role === 'Admin' || S.user.role === 'Supervisor'));
 async function showApp() {
   show($('#loginView'), false); show($('#appView'), true);
   try { setCatalog(await api('getCatalog', S.token)); } catch (e) {}
@@ -1230,9 +1254,8 @@ async function showApp() {
   show($('#catCard'), admin); show($('#rulesCard'), admin);
   if (!S.cards.length) addMerchant();
   setType(curType);
-  const vw = isViewer(); show($('.bottom-nav button[data-tab="new"]'), !vw); $('#pane-records').classList.toggle('viewer-only', vw); show($('#sumCard'), !vw);
-  switchTab(vw ? 'records' : 'new');
-  loadSummary(); if (!vw) loadLast();
+  switchTab('new');
+  loadSummary(); loadLast();
   refreshLocation();
 }
 
@@ -1278,7 +1301,7 @@ function switchTab(name) {
   ['new', 'records', 'stock', 'users'].forEach(t => show($('#pane-' + t), t === name));
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (name === 'records') { if (!isViewer()) loadRecords(); loadTeam(); }
+  if (name === 'records') { loadRecords(); loadTeam(); }
   if (name === 'stock') loadStock();
   if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
 }
@@ -1328,6 +1351,7 @@ function setQRFields(card, name, mid, tid) {
   // Overwrite with new values; clear an old "No QR found" marker; leave manual text alone otherwise.
   if (name) n.value = name; else if (n.value === NOQR) n.value = '';
   if (mid) m.value = mid; else if (m.value === NOQR) m.value = '';
+  refreshMidLabel(m, curType);
 }
 function markNoQR(card) {
   $('.f-name', card.el).value = NOQR;
@@ -1552,8 +1576,11 @@ function addMerchant() {
     '<div class="mb-3"><label class="form-label"><span class="date-lbl">Installed / action date</span> <span class="rq">*</span></label><input type="date" class="form-control f-date"></div>' +
     '<input type="file" accept="image/*" class="qr-file hidden">' +
     '<div class="mb-3 hidden" data-fk="merchant"><div class="d-flex justify-content-between align-items-end gap-2 mb-1 lbl-row"><label class="form-label mb-0">Merchant name <span class="rq hidden">*</span></label><span class="qr-slot"><span class="qr-tools d-inline-flex gap-1 flex-none"><button type="button" class="btn btn-soft btn-scan btn-xs"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button><button type="button" class="btn btn-soft btn-upload btn-xs"><i class="bi bi-image me-1"></i>Upload QR</button></span></span></div><input class="form-control f-name" placeholder="Auto-filled from KHQR"></div>' +
-    '<div class="mb-3 hidden" data-fk="mid"><div class="d-flex justify-content-between align-items-end gap-2 mb-1 lbl-row"><label class="form-label mb-0">MID <span class="rq hidden">*</span></label><span class="qr-slot"></span></div><input class="form-control f-mid" inputmode="text" placeholder="Auto-filled from KHQR"></div>' +
+    '<div class="mb-3 hidden" data-fk="mid"><div class="d-flex justify-content-between align-items-end gap-2 mb-1 lbl-row"><label class="form-label mb-0"><span class="mid-t">MID</span> <span class="rq hidden">*</span></label><span class="qr-slot"></span></div><input class="form-control f-mid" inputmode="text" placeholder="Auto-filled from KHQR"></div>' +
     '<div class="mb-3 hidden" data-fk="tid"><div class="d-flex justify-content-between align-items-end gap-2 mb-1 lbl-row"><label class="form-label mb-0">TID <span class="text-lowercase fw-normal">(terminal ID)</span> <span class="rq hidden">*</span></label><span class="qr-slot"></span></div><input class="form-control f-tid" autocapitalize="characters" autocomplete="off" placeholder="Auto-filled from KHQR, or type it"></div>' +
+    '<div class="hidden yn-row" data-fk="integ"><label class="form-check-label">Integration</label><div class="form-check form-switch m-0"><input class="form-check-input f-integ" type="checkbox" role="switch" aria-label="Integration"><span class="yn-t small fw-semibold">No</span></div></div>' +
+    '<div class="hidden yn-row" data-fk="sim"><label class="form-check-label">SIM</label><div class="form-check form-switch m-0"><input class="form-check-input f-sim" type="checkbox" role="switch" aria-label="SIM"><span class="yn-t small fw-semibold">No</span></div></div>' +
+    '<div class="hidden yn-row" data-fk="standee"><label class="form-check-label">POS Standee</label><div class="form-check form-switch m-0"><input class="form-check-input f-standee" type="checkbox" role="switch" aria-label="POS Standee"><span class="yn-t small fw-semibold">No</span></div></div>' +
     '<div class="mb-3 hidden" data-fk="business"><label class="form-label">Business name <span class="rq hidden">*</span></label><input class="form-control f-biz" placeholder="N/A"></div>' +
     '<div class="mb-3 hidden" data-fk="serial"><label class="form-label">Serial number <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-serial" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="oldSn"><label class="form-label">Old S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-old" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
@@ -2053,6 +2080,7 @@ $('#submitBtn').addEventListener('click', async () => {
     const must = [['merchant', '.f-name', 'the merchant name'], ['mid', '.f-mid', 'the MID'], ['tid', '.f-tid', 'the TID'], ['business', '.f-biz', 'the business name'],
       ['serial', '.f-serial', 'the serial number'], ['oldSn', '.f-old', 'the Old S/N'], ['newSn', '.f-new', 'the New S/N'], ['btype', '.f-btype', 'the business type'],
       ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['zone', '.f-zone', 'the Zone / Area'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
+    if (L('mid') && g('.f-mid') && g('.f-mid') !== NOQR && midPrefix(curType) && g('.f-mid')[0] !== midPrefix(curType)) { bad('the MID of ' + curType + ' must start with ' + midPrefix(curType) + '.', '.f-mid'); return; }
     for (const [k, sel, txt] of must) if (L(k) === 2 && !g(sel)) { bad('enter ' + txt + '.', sel); return; }
     if (L('commune') === 2 && !$('#fDistrict').value.trim()) { bad('enter the District.'); $('#fDistrict').focus(); return; }
     if (L('hours') && ((L('hours') === 2 && !g('.f-open')) || (!!g('.f-open') !== !!g('.f-close')))) { bad('enter both opening and closing time.', g('.f-open') ? '.f-close' : '.f-open'); return; }
@@ -2083,7 +2111,7 @@ $('#submitBtn').addEventListener('click', async () => {
     if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone');
     const v = (k, sel) => L(k) ? g(sel) : '';
     items.push({ type: curType, activity: g('.f-act'), date: g('.f-date'), extra, locLv: L('location'),
-      merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
+      merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), integ: L('integ') ? $('.f-integ', c.el).checked : false, sim: L('sim') ? $('.f-sim', c.el).checked : false, standee: L('standee') ? $('.f-standee', c.el).checked : false, business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
       btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
   }
@@ -2207,7 +2235,7 @@ async function loadReview() {
   } catch (e) { $('#rvList').innerHTML = ''; toast(e.message, 'danger'); }
 }
 function rvItem(r) {
-  const rv = r.review || {}, bits = [['Merchant', r.merchant], ['MID', r.mid], ['TID', r.tid], ['Staff', r.user + (r.branch && r.branch !== '(none)' ? ' · ' + r.branch : '')], ['Photos', r.photos]].concat(Object.keys(r.fields || {}).map(k => [k, r.fields[k]])).filter(x => x[1] !== '' && x[1] != null);
+  const rv = r.review || {}, bits = [['Merchant', r.merchant], [midLabelFor(r.type, r.mid), r.mid], ['TID', r.tid], ['Integration', r.integ], ['SIM', r.sim], ['POS Standee', r.standee], ['Staff', r.user + (r.branch && r.branch !== '(none)' ? ' · ' + r.branch : '')], ['Photos', r.photos]].concat(Object.keys(r.fields || {}).map(k => [k, r.fields[k]])).filter(x => x[1] !== '' && x[1] != null);
   return '<div class="rv-item" data-stamp="' + esc(r.stamp) + '"><div class="d-flex justify-content-between gap-2"><b>' + esc(r.merchant || r.mid || r.stamp) + '</b>' + stPill(rv.status) + '</div>' +
     '<div class="small text-muted">' + esc(r.type + (r.sub ? ' · ' + r.sub : '') + ' · ' + r.activity + ' · ' + fmtTs(r.ts)) + '</div>' +
     '<div class="rd-grid mt-2">' + bits.map(x => '<div class="rd-i"><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>').join('') + '</div>' +
@@ -2260,7 +2288,7 @@ function renderRows() {
   $('#recBody').innerHTML = rows.length ? rows.map((r, i) =>
     '<tr class="rec-row" data-i="' + i + '"><td class="text-nowrap"><div class="fw-semibold">' + esc(fmtD(r.date || r.ts)) + '</div><div class="rec-sub">' + esc(r.stamp) + '</div></td>' +
     '<td><span class="pill">' + esc(shortName(r.type)) + '</span>' + (r.sub ? ' <span class="rec-sub">' + esc(r.sub) + '</span>' : '') + '<div class="fw-semibold">' + esc(r.activity) + (r.review && r.review.status ? ' ' + stPill(r.review.status) : '') + '</div></td>' +
-    '<td><div class="fw-semibold">' + esc(r.merchant) + '</div><div class="rec-sub">' + esc([r.mid ? 'MID ' + r.mid : '', r.tid ? 'TID ' + r.tid : ''].filter(Boolean).join(' · ')) + '</div></td>' +
+    '<td><div class="fw-semibold">' + esc(r.merchant) + '</div><div class="rec-sub">' + esc([r.mid ? midLabelFor(r.type, r.mid) + ' ' + r.mid : '', r.tid ? 'TID ' + r.tid : ''].filter(Boolean).join(' · ')) + '</div></td>' +
     '<td><span class="pill">' + esc(r.user) + '</span></td>' +
     '<td class="text-center text-nowrap">' + (r.photos || '') + '</td>' +
     '<td class="text-end text-nowrap rec-go"><i class="bi bi-chevron-down"></i></td></tr>' +
@@ -2274,7 +2302,7 @@ $('#recBody').addEventListener('click', e => {      // tap a row: its details op
   $$('#recBody .rec-row.open').forEach(o => { if (o !== tr) { o.classList.remove('open'); o.nextElementSibling.classList.add('hidden'); } });      // only one record open at a time
   d.classList.toggle('hidden', !open); tr.classList.toggle('open', open);
 });
-/* ---- Team today / 7-day trend / staff drill-down (admin, supervisor, viewer: read-only) ---- */
+/* ---- Team today / 7-day trend / staff drill-down (admin, supervisor: read-only) ---- */
 S.teamBranch = ''; S.teamRange = '7';
 const RANGES = [['7', 'Last 7 days'], ['30', 'Last 30 days'], ['mtd', 'Month to date'], ['lastmonth', 'Last month']];
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -2314,7 +2342,7 @@ async function openTeamStaff(e) {
     $('#tmKpi').innerHTML = '<div><b>' + d.today + '</b><span>Today</span></div><div><b>' + d.week + '</b><span>Last 7 days</span></div>';
     $('#tmActs').innerHTML = d.byActivity.length ? d.byActivity.map(a => '<div class="d-flex justify-content-between small py-1"><span><span class="pill">' + esc(shortName(a.type)) + '</span> ' + esc(a.activity) + '</span><b>' + a.n + '</b></div>').join('') : '<div class="small text-muted">Nothing in the last 7 days.</div>';
     $('#tmRecs').innerHTML = d.latest.length ? d.latest.map(r => '<div class="py-1 border-top small"><div><b>' + esc(r.merchant || '—') + '</b>' + (r.mid ? ' <span class="text-muted">MID ' + esc(r.mid) + '</span>' : '') + '</div><div class="text-muted"><span class="pill">' + esc(shortName(r.type)) + '</span> ' + esc(r.activity) + ' · ' + esc(fmtTs(r.ts)) + (r.photos ? ' · ' + r.photos + ' photos' : '') + '</div></div>').join('') : '<div class="small text-muted">No records yet.</div>';
-    S.tmUser = d.username; show($('#tmAll'), !isViewer()); teamModal.show();
+    S.tmUser = d.username; teamModal.show();
   } catch (ex) { toast(ex.message, 'danger'); }
 }
 $('#teamList').addEventListener('click', openTeamStaff); $('#trStaff').addEventListener('click', openTeamStaff);
@@ -2487,12 +2515,12 @@ bindSlicer('slActivity', 'fActivity', loadRecords);
 $('#fSearch').addEventListener('input', () => { clearTimeout(recTimer); recTimer = setTimeout(renderRows, 150); });
 
 /** Header + rows of the records currently shown (same for CSV and Copy). */
-const EXPORT_COLS = [
-  ['Timestamp', r => fmtTs(r.ts)], ['Staff', r => r.user], ['Merchant Name', r => r.merchant], ['MID', r => r.mid], ['TID', r => r.tid], ['Business Name', r => r.business],
-  ['Remarks', r => r.remarks], ['Installed/Action Date', r => fmtD(r.date || r.ts)], ['Photos', r => r.photos], ['Category', r => r.type], ['Sub Category', r => r.sub], ['Activity', r => r.activity],
-  ['Stamp', r => r.stamp], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Old S/N', r => r.oldSn], ['New S/N', r => r.newSn], ['Location', r => r.loc],
-  ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Business Type', r => r.btype], ['Serial No', r => r.serial],
-  ['Product Type', r => r.ptype], ['District', r => r.commune], ['Zone/Area', r => r.zone]
+const EXPORT_COLS = [      // the same order as the sheet's columns
+  ['Stamp', r => r.stamp], ['Timestamp', r => fmtTs(r.ts)], ['Staff', r => r.user], ['Category', r => r.type], ['Sub Category', r => r.sub], ['Activity', r => r.activity],
+  ['Installed/Action Date', r => fmtD(r.date || r.ts)], ['Merchant Name', r => r.merchant], ['Business Name', r => r.business], ['Business Type', r => r.btype], ['Product Type', r => r.ptype],
+  ['MID', r => r.mid], ['TID', r => r.tid], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Location', r => r.loc], ['District', r => r.commune], ['Zone/Area', r => r.zone],
+  ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Serial No', r => r.serial], ['Old S/N', r => r.oldSn], ['New S/N', r => r.newSn],
+  ['Photos', r => r.photos], ['Remarks', r => r.remarks], ['Integration', r => r.integ], ['SIM', r => r.sim], ['POS Standee', r => r.standee]
 ];
 /** The export columns plus one column per added field (the same names as the sheet's headers). */
 const exportCols = () => { const seen = [], names = []; filtered().forEach(r => Object.keys(r.fields || {}).forEach(k => { if (!seen.includes(k.toLowerCase())) { seen.push(k.toLowerCase()); names.push(k); } })); return EXPORT_COLS.concat(names.map(n => [n, r => (r.fields || {})[n] || ''])); };
@@ -2711,12 +2739,12 @@ const catModal = new bootstrap.Modal($('#catModal'));
 let catDraft = [], catSeq = 0;
 /** Layout of a field on the form: 'h' (in a row) or 'v' (one under the other). Tick boxes were always listed one per line; the rest were in a row. */
 const cfDir = f => f.dir === 'v' || f.dir === 'h' ? f.dir : (f.kind === 'check' ? 'v' : 'h');
-const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes'], ['spin', 'Spin number'], ['info', 'Info label (not saved)']];
+const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes'], ['spin', 'Spin number'], ['toggle', 'Toggle (Yes / No)'], ['info', 'Info label (not saved)']];
 /** One row per box: Off / Optional / Must (red). */
 function fieldRows(a) {
   return '<details class="mt-2 a-fields"><summary class="small fw-semibold" style="cursor:pointer">Boxes to fill <span class="text-muted fw-normal">(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')</span></summary>' +
     FIELD_KEYS.map(k => '<div class="fl-row" data-k="' + k + '"><span>' + FIELD_NAMES[k] + '</span><span class="fl-seg">' +
-      [[0, 'Off'], [1, 'Optional'], [2, 'Must']].map(p => '<button type="button" class="a-lv' + (lvl(a, k) === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('') + '</details>';
+      (YN_KEYS.includes(k) ? [[0, 'Off'], [1, 'Show toggle']] : [[0, 'Off'], [1, 'Optional'], [2, 'Must']]).map(p => '<button type="button" class="a-lv' + (lvl(a, k) === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('') + '</details>';
 }
 /** Box rules of a sub category: each box can Follow the activity, or be forced Off / Optional / Must while this sub category is used. */
 function subRules(s, si) {
@@ -2724,7 +2752,7 @@ function subRules(s, si) {
   return '<details class="mb-2 ms-2 s-rules" data-sr="' + si + '"><summary class="small text-muted" style="cursor:pointer">Box rules for ' + esc(s.n) + ' <span class="s-count">(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')</span></summary>' +
     '<div class="small text-muted mb-1">Pick Must, Optional or Off to override the activity while this sub category is used. Follow keeps the activity\'s own setting.</div>' +
     FIELD_KEYS.map(k => '<div class="fl-row" data-k="' + k + '"><span>' + FIELD_NAMES[k] + '</span><span class="fl-seg">' +
-      [['', 'Follow'], [0, 'Off'], [1, 'Optional'], [2, 'Must']].map(p => '<button type="button" class="s-lv' + (((s.f || {})[k] === undefined ? '' : (s.f || {})[k]) === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('') +
+      (YN_KEYS.includes(k) ? [['', 'Follow'], [0, 'Off'], [1, 'Show toggle']] : [['', 'Follow'], [0, 'Off'], [1, 'Optional'], [2, 'Must']]).map(p => '<button type="button" class="s-lv' + (((s.f || {})[k] === undefined ? '' : (s.f || {})[k]) === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('') +
     '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm s-minph" style="max-width:80px" value="' + (s.minPh || 0) + '"><span class="small text-muted">0 = follow the activity</span></div></details>';
 }
 function renderCatSummary() {
@@ -2746,7 +2774,7 @@ function renderCatEditor() {
         '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button></div>' +
         ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
         fieldRows(a) +
-        '<div class="d-flex align-items-center gap-2 mt-2 flex-wrap"><span class="small"><i class="bi bi-box-seam me-1"></i>Stock</span><select class="form-select form-select-sm a-stock" style="max-width:260px"><option value="">Not used</option><option value="out"' + (a.stock && a.stock.mode === 'out' ? ' selected' : '') + '>Take out of stock (deploy / install)</option><option value="both"' + (a.stock && a.stock.mode === 'both' ? ' selected' : '') + '>Replace: new one out + old one back</option><option value="return"' + (a.stock && a.stock.mode === 'return' ? ' selected' : '') + '>Take back (return / terminate / removal)</option></select></div>' +
+        '<div class="d-flex align-items-center gap-2 mt-2 flex-wrap"><span class="small"><i class="bi bi-box-seam me-1"></i>Stock</span><select class="form-select form-select-sm a-stock" style="max-width:260px"><option value="">Not used</option><option value="out"' + (a.stock && a.stock.mode === 'out' ? ' selected' : '') + '>Take out of stock (deploy / install)</option><option value="both"' + (a.stock && a.stock.mode === 'both' ? ' selected' : '') + '>Replace: new one out + old one back</option><option value="return"' + (a.stock && a.stock.mode === 'return' ? ' selected' : '') + '>Take back (return / terminate / removal)</option></select>' + (a.stock ? '' : '<button type="button" class="chip a-flag' + (a.autoStock ? ' active' : '') + '" data-f="autoStock" title="Stock is chosen from the activity name: Install, Deploy, Replace, Return, Removal, Liability. Off = no stock check at all (faster).">Use stock (by activity name)</button>') + '</div>' +
         (a.stock ? '<div class="mt-1"><div class="small text-muted">Item type</div><div class="chips mt-1">' + [['', 'With S/N + no S/N'], ['serial', 'With S/N only'], ['qty', 'No S/N only']].map(k => '<button type="button" class="chip a-stk-kind' + ((a.stock.kind || '') === k[0] ? ' active' : '') + '" data-k="' + k[0] + '">' + k[1] + '</button>').join('') + '</div><div class="small text-muted mt-2">Items this activity uses <span class="fw-normal">(none ticked = every item of that type)</span></div><div class="chips mt-1">' + ((S.stockItems || []).filter(it => !a.stock.kind || a.stock.kind === it.kind).length ? S.stockItems.filter(it => !a.stock.kind || a.stock.kind === it.kind).map(it => '<button type="button" class="chip a-stk-item' + ((a.stock.items || []).some(n => n.toLowerCase() === it.name.toLowerCase()) ? ' active' : '') + '" data-n="' + esc(it.name) + '">' + esc(it.name) + '</button>').join('') : '<span class="small text-muted">Add stock items in the Stock tab first.</span>') + '</div></div>' : '') +
         '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Photo quality</span><select class="form-select form-select-sm a-pq" style="max-width:150px"><option value="">Standard</option><option value="high"' + (a.pq === 'high' ? ' selected' : '') + '>High</option><option value="max"' + (a.pq === 'max' ? ' selected' : '') + '>Max</option></select><span class="small text-muted">sharper photos and PDF, bigger uploads</span></div>' +
         '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm a-minph" style="max-width:80px" value="' + (a.minPh || 0) + '"><span class="small text-muted">0 = 2 when Photos is Required</span></div>' +
@@ -2759,7 +2787,7 @@ function renderCatEditor() {
         (a.custom || []).map((f, ci) =>
           '<div class="d-flex gap-1 mb-1 align-items-center" data-ci="' + ci + '"><input class="form-control form-control-sm cf-label" maxlength="30" placeholder="' + (f.kind === 'info' ? 'Title (optional)' : 'Field name') + '" value="' + esc(f.label) + '">' +
           '<select class="form-select form-select-sm cf-kind" style="max-width:112px">' + CF_KINDS.map(k => '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + k[1] + '</option>').join('') + '</select>' +
-          (f.kind === 'info' ? '' : '<button type="button" class="chip cf-req' + (f.req ? ' active' : '') + '">Must</button>') +
+          (f.kind === 'info' || f.kind === 'toggle' ? '' : '<button type="button" class="chip cf-req' + (f.req ? ' active' : '') + '">Must</button>') +
           '<button type="button" class="btn btn-sm btn-outline-danger border-0 cf-del" aria-label="Remove field"><i class="bi bi-x"></i></button></div>' +
           (f.kind === 'info' ? '<textarea class="form-control form-control-sm cf-text mb-2" rows="3" maxlength="600" data-ci="' + ci + '" placeholder="Text shown on the form for this activity (nothing is saved)">' + esc(f.text || '') + '</textarea>' : '') +
           (f.kind === 'select' || f.kind === 'check' || f.kind === 'radio' ? '<input class="form-control form-control-sm cf-opts mb-2" data-ci="' + ci + '" placeholder="Values, separated by commas (e.g. Small, Medium, Large)" value="' + esc((f.opts || []).join(', ')) + '">' : '') +
@@ -2791,7 +2819,7 @@ $('#catList').addEventListener('change', e => {
   if (e.target.classList.contains('a-pq')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.pq = e.target.value; else delete a.pq; return; }
   if (e.target.classList.contains('a-minph')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); a.minPh = v; if (v && !a.f.photo) a.f.photo = 1; renderCatEditor(); return; }
   if (e.target.classList.contains('s-minph')) { const sr = e.target.closest('[data-sr]'), s = catDraft[+e.target.closest('[data-ti]').dataset.ti].subs[+sr.dataset.sr]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); if (v) s.minPh = v; else delete s.minPh; e.target.value = v; const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0); $('.s-count', sr).textContent = '(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')'; return; }
-  if (e.target.classList.contains('cf-kind')) { const f = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.kind = e.target.value; if (f.kind === 'spin') { if (f.min == null) f.min = 0; if (f.max == null) f.max = 100; if (!f.step) f.step = 1; } renderCatEditor(); }
+  if (e.target.classList.contains('cf-kind')) { const f = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.kind = e.target.value; if (f.kind === 'toggle') f.req = false; if (f.kind === 'spin') { if (f.min == null) f.min = 0; if (f.max == null) f.max = 100; if (!f.step) f.step = 1; } renderCatEditor(); }
 });
 $('#catList').addEventListener('click', e => {
   const box = e.target.closest('[data-ti]'); if (!box) return; const ti = +box.dataset.ti, t = catDraft[ti];
@@ -3013,11 +3041,21 @@ const siFind = () => (S.stockItems || []).find(i => i.name.toLowerCase() === $('
 function siKind() {
   const it = siFind(), nm = $('#siItem').value.trim(), isNew = !!nm && !it && S.user.role === 'Admin';
   show($('#siKindWrap'), isNew); $$('#siKindWrap .chip').forEach(b => b.classList.toggle('active', b.dataset.k === S.siNew));
-  const q = it ? it.kind === 'qty' : (isNew && S.siNew === 'qty'); show($('#siSnWrap'), !q); show($('#siQtyWrap'), !!q);
+  const q = it ? it.kind === 'qty' : (isNew && S.siNew === 'qty'); show($('#siSnWrap'), !q); show($('#siQtyWrap'), !!q); show($('#siSimWrap'), !!(it && it.sim && !q));
 }
 $('#siItem').addEventListener('input', siKind); $('#siItem').addEventListener('change', siKind);
 $('#siKindWrap').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.siNew = b.dataset.k; siKind(); });
 $('#siScan').addEventListener('click', () => openSnScan($('#siSns')));
+$('#siSimScan').addEventListener('click', () => openSnScan($('#siSimSn')));
+$('#siSimAdd').addEventListener('click', () => {
+  const sn = $('#siSimSn').value.trim().toUpperCase().replace(/\s+/g, ''), no = $('#siSimNo').value.replace(/[^0-9]/g, '');
+  if (!sn) { toast('Scan or type the SIM S/N.', 'warning'); $('#siSimSn').focus(); return; }
+  if (no.length < 6 || no.length > 15) { toast('The SIM number needs 6 to 15 digits.', 'warning'); $('#siSimNo').focus(); return; }
+  const lines = $('#siSns').value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  if (lines.some(l => l.split(/[,;\t]/)[0].trim().toUpperCase() === sn)) { toast(sn + ' is already in the list.', 'warning'); return; }
+  if (lines.some(l => l.split(/[,;\t]/).slice(1).join('').replace(/[^0-9]/g, '') === no)) { toast('SIM number ' + no + ' is already in the list.', 'warning'); return; }
+  $('#siSns').value = lines.concat(sn + ', ' + no).join('\n'); $('#siSimSn').value = ''; $('#siSimNo').value = ''; $('#siSimSn').focus();
+});
 $('#siSave').addEventListener('click', async () => {
   const btn = $('#siSave'), msg = $('#siMsg'), it = siFind(), nm = $('#siItem').value.trim();
   if (!nm) { toast('Type or choose the item.', 'warning'); return; }
@@ -3033,6 +3071,26 @@ $('#siSave').addEventListener('click', async () => {
 $('#aqSave').addEventListener('click', async () => {
   try { await api('stockAdjustQty', S.token, $('#aqItem').value, $('#siBranch').value.trim(), +$('#aqNum').value, $('#aqWhy').value.trim()); toast('Saved', 'success'); $('#aqNum').value = ''; $('#aqWhy').value = ''; loadStock(); } catch (e) { toast(e.message, 'danger'); }
 });
+/* S/N lookup: scan or type an S/N (or a SIM number) and see where it is and what happened to it */
+async function snLookup() {
+  const q = $('#lkQ').value.trim(), out = $('#lkRes'); if (!q) { toast('Scan or type the serial number.', 'warning'); return; }
+  const btn = $('#lkGo'); busy(btn, true, '…');
+  try {
+    const d = await api('stockLookup', S.token, q);
+    if (!d.found) { out.innerHTML = '<div class="small text-danger">' + (d.many && d.many.length ? 'More than one match. Type more digits:<br>' + d.many.map(m => '<b>' + esc(m.sn) + '</b> · ' + esc(m.item) + ' · ' + esc(m.status)).join('<br>') : (d.records && d.records.length ? 'Not in the stock list, but used on these records:' : 'Not found in stock or in any record.')) + '</div>' + (d.records || []).map(r => '<div class="small py-1 border-top"><b>' + esc(r.merchant) + '</b> · ' + esc(r.as) + '<div class="text-muted">' + esc([r.type, r.activity, r.mid ? 'MID ' + r.mid : '', r.tid ? 'TID ' + r.tid : '', r.user, fmtD(r.date), r.stamp].filter(Boolean).join(' · ')) + '</div></div>').join(''); }
+    else {
+      const r = d.row, line = (k, v) => v ? '<div class="d-flex justify-content-between gap-2 py-1 border-top"><span class="text-muted">' + k + '</span><span class="text-end">' + esc(v) + '</span></div>' : '';
+      out.innerHTML = '<div class="d-flex justify-content-between align-items-start gap-2 mb-1"><div><div class="fw-bold" style="font-size:1.05rem">' + esc(r.sn) + '</div><div class="small text-muted">' + esc(r.item) + (r.company ? ' · ' + esc(r.company) : '') + '</div></div>' + stPillOf(r.status) + '</div><div class="small">' +
+        line('SIM number', r.simNo) + line('Branch', r.branch) + line('Merchant', r.merchant) + line('MID', r.mid) + line('TID', r.tid) + line('Used by', r.usedBy) + line('Used date', r.usedDate ? fmtD(r.usedDate) : '') + line('Record', r.rec) + line('Paired with', r.pair) + line('Note', r.reason) + line('Stock in', (r.inDate ? fmtD(r.inDate) : '') + (r.inBy ? ' · ' + r.inBy : '')) + line('Batch / PO', r.batch) + '</div>' +
+        '<div class="form-label mt-3 mb-1">History</div>' + (d.history.length ? d.history.map(h => '<div class="small py-1 border-top"><b>' + esc(h.action) + '</b> · ' + esc(String(h.ts).slice(0, 16)) + '<div class="text-muted">' + esc([h.branch, h.by, h.merchant, h.mid ? 'MID ' + h.mid : '', h.rec, h.note].filter(Boolean).join(' · ')) + '</div></div>').join('') : '<div class="small text-muted">No movements yet.</div>');
+    }
+  } catch (e) { out.innerHTML = '<div class="small text-danger">' + esc(e.message) + '</div>'; }
+  busy(btn, false);
+}
+$('#lkGo').addEventListener('click', snLookup);
+$('#lkQ').addEventListener('keydown', e => { S.lkScan = false; if (e.key === 'Enter') { e.preventDefault(); snLookup(); } });
+$('#lkScan').addEventListener('click', () => { S.lkScan = true; openSnScan($('#lkQ')); });
+$('#lkQ').addEventListener('input', () => { if (S.lkScan) { S.lkScan = false; snLookup(); } });      // a scan looks up at once
 /* S/N list */
 const SN_STATUS = ['In stock', 'Reserved', 'Used', 'To decide', 'Faulty', 'Sent to HO', 'All'];
 function paintStatusChips() { $('#snStatus').innerHTML = SN_STATUS.map(x => '<button type="button" class="chip' + (S.st.status === x ? ' active' : '') + '" data-v="' + x + '">' + x + '</button>').join(''); }
@@ -3041,7 +3099,7 @@ let snFindT = null; $('#snFind').addEventListener('input', () => { clearTimeout(
 async function loadSnRows() {
   try {
     const d = await api('getStockSNs', S.token, { status: S.st.status, q: $('#snFind').value.trim(), item: S.st.item, branch: S.user.role === 'Admin' ? S.st.branch : '' });
-    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" data-st="' + esc(r.status) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + (r.company ? ' · ' + esc(r.company) : '') + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.tid ? ' · TID ' + esc(r.tid) : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button></div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
+    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" data-st="' + esc(r.status) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + (r.simNo ? ' · 📶 ' + esc(r.simNo) : '') + (r.company ? ' · ' + esc(r.company) : '') + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.tid ? ' · TID ' + esc(r.tid) : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button></div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
   } catch (e) { toast(e.message, 'danger'); }
 }
 const adjModal = new bootstrap.Modal($('#adjModal')); S.adj = { sn: '', status: 'In stock' };
@@ -3075,12 +3133,13 @@ $('#adjSave').addEventListener('click', async () => {
 S.itDraft = [];
 function paintItems() {
   if (!S.itDirty) S.itDraft = (S.stockItems || []).map(i => Object.assign({}, i));
-  $('#itList').innerHTML = S.itDraft.length ? S.itDraft.map((i, n) => '<div class="d-flex align-items-center gap-2 mb-1" data-n="' + n + '"><span class="flex-grow-1 text-truncate">' + esc(i.name) + ' <span class="small text-muted">' + (i.kind === 'qty' ? 'quantity' : 'with S/N') + '</span></span><span class="small">Low at</span><input type="number" min="0" class="form-control form-control-sm it-low" style="max-width:80px" value="' + i.low + '"><button type="button" class="btn btn-sm btn-outline-danger border-0 it-del"><i class="bi bi-x-lg"></i></button></div>').join('') : '<div class="small text-muted">No items yet.</div>';
+  $('#itList').innerHTML = S.itDraft.length ? S.itDraft.map((i, n) => '<div class="d-flex align-items-center gap-2 mb-1" data-n="' + n + '"><span class="flex-grow-1 text-truncate">' + esc(i.name) + ' <span class="small text-muted">' + (i.kind === 'qty' ? 'quantity' : 'with S/N') + '</span></span><span class="small">Low at</span><input type="number" min="0" class="form-control form-control-sm it-low" style="max-width:80px" value="' + i.low + '">' + (i.kind === 'qty' ? '' : '<label class="small d-flex align-items-center gap-1 mb-0 flex-none" title="Each S/N of this item is stocked in together with a SIM number"><input type="checkbox" class="form-check-input mt-0 it-sim"' + (i.sim ? ' checked' : '') + '>SIM no.</label>') + '<button type="button" class="btn btn-sm btn-outline-danger border-0 it-del"><i class="bi bi-x-lg"></i></button></div>').join('') : '<div class="small text-muted">No items yet.</div>';
   if (S.stockAlert) { $('#alChat').value = S.stockAlert.chat || ''; $('#alTopic').value = S.stockAlert.topic || ''; }
 }
 $('#itList').addEventListener('input', e => { if (e.target.classList.contains('it-low')) { S.itDraft[+e.target.closest('[data-n]').dataset.n].low = Math.max(0, Math.floor(+e.target.value) || 0); S.itDirty = true; } });
+$('#itList').addEventListener('change', e => { if (e.target.classList.contains('it-sim')) { S.itDraft[+e.target.closest('[data-n]').dataset.n].sim = e.target.checked; S.itDirty = true; } });
 $('#itList').addEventListener('click', e => { const b = e.target.closest('.it-del'); if (!b) return; S.itDraft.splice(+b.closest('[data-n]').dataset.n, 1); S.itDirty = true; paintItems(); });
-$('#itAdd').addEventListener('click', () => { const n = $('#itName').value.trim().replace(/\s+/g, ' '); if (!n) return; if (S.itDraft.some(i => i.name.toLowerCase() === n.toLowerCase())) { toast('That item is already listed.', 'warning'); return; } S.itDraft.push({ name: n, kind: $('#itKind').value, low: 0 }); S.itDirty = true; $('#itName').value = ''; paintItems(); });
+$('#itAdd').addEventListener('click', () => { const n = $('#itName').value.trim().replace(/\s+/g, ' '); if (!n) return; if (S.itDraft.some(i => i.name.toLowerCase() === n.toLowerCase())) { toast('That item is already listed.', 'warning'); return; } S.itDraft.push({ name: n, kind: $('#itKind').value, low: 0, sim: false }); S.itDirty = true; $('#itName').value = ''; paintItems(); });
 $('#itSave').addEventListener('click', async () => {
   try { const r = await api('saveStockItems', S.token, S.itDraft, { chat: $('#alChat').value.trim(), topic: $('#alTopic').value.trim() }); S.stockItems = r.items; S.stockAlert = r.alert; S.itDirty = false; toast('Stock items saved.', 'success'); loadStock(); } catch (e) { toast(e.message, 'danger'); }
 });
@@ -3128,7 +3187,8 @@ function openEdit() {
   $('#eAct').value = list.includes(r.activity) ? r.activity : (single ? list[0] : '');
   show($('#eActWrap'), !single);
   $('#eDate').value = r.date || r.ts.slice(0, 10); $('#eDate').max = ymd(new Date());
-  $('#eName').value = r.merchant; $('#eMid').value = r.mid; $('#eTid').value = r.tid;
+  $('#eName').value = r.merchant; $('#eMid').value = r.mid; window._eType = r.type; refreshMidLabel($('#eMid'), r.type); $('#eTid').value = r.tid;
+  YN_KEYS.forEach(k => { const el = $('#e' + k[0].toUpperCase() + k.slice(1)); el.checked = /^yes$/i.test(r[k] || ''); syncYn(el); });
   $('#eBiz').value = r.business; $('#eRem').value = r.remarks;
   $('#bizTypeList').innerHTML = BIZ_TYPES.map(t => '<option value="' + esc(t) + '">').join('');
   const hm = /(\d{2}:\d{2}) ?- ?(\d{2}:\d{2})/.exec(r.hours || ''); $('#eOpen').value = hm ? hm[1] : ''; $('#eClose').value = hm ? hm[2] : '';
@@ -3145,9 +3205,10 @@ $('#editForm').addEventListener('submit', async e => {
   const btn = $('#eSave'), err = $('#eError');
   show(err, false); busy(btn, true, 'Saving…');
   try {
+    { const mv = $('#eMid').value.trim(), pf = midPrefix(window._eType); if (mv && mv !== NOQR && pf && mv[0] !== pf) throw new Error('The MID of ' + window._eType + ' must start with ' + pf + '.'); }
     const r = await api('updateRecord', S.token, {
       stamp: $('#eStamp').value, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
-      mid: $('#eMid').value.trim(), tid: $('#eTid').value.trim(), business: $('#eBiz').value.trim(), remarks: $('#eRem').value.trim(),
+      mid: $('#eMid').value.trim(), tid: $('#eTid').value.trim(), integ: $('#eInteg').checked, sim: $('#eSim').checked, standee: $('#eStandee').checked, business: $('#eBiz').value.trim(), remarks: $('#eRem').value.trim(),
       extra: Object.fromEntries($$('#eCustom [data-fid]').map(i => [i.dataset.fid, customVal(i)])), btype: $('#eBType').value.trim(), group: $('#eGroup').value.trim(), hours: $('#eOpen').value && $('#eClose').value ? $('#eOpen').value + ' - ' + $('#eClose').value : '',
       ptype: $('#eProd').value.trim(), commune: $('#eCommune').value.trim(), zone: $('#eZone').value.trim(), serial: $('#eSerial').value.trim(), phone: $('#ePhone').value.trim(), tag: $('#eTag').value.trim(), oldSn: $('#eOldSn').value.trim(), newSn: $('#eNewSn').value.trim()
     });
