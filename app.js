@@ -420,6 +420,7 @@ async function showApp() {
   $('#whoRole').textContent = ' · ' + S.user.role;
   show($('#navUsers'), admin); show($('#navStock'), admin || S.user.role === 'Supervisor');
   show($('#userFilterWrap'), isWide()); show($('#branchWrap'), admin); show($('#reviewBtn'), admin);
+  deskSync();
   show($('#chartCard'), false);
   show($('#catCard'), admin); show($('#rulesCard'), admin);
   if (!S.cards.length) addMerchant();
@@ -432,6 +433,7 @@ async function showApp() {
 function logout(silent) {
   if (S.token) api('logout', S.token).catch(() => {});
   S.token = null; S.user = null;
+  deskBuilt = false; $('#deskNav').innerHTML = ''; document.body.classList.remove('desk'); show($('#deskNav'), false);      // the sidebar is rebuilt for whoever signs in next
   store.del('it_token');
   $('#loginPin').value = '';
   showLogin();
@@ -474,6 +476,7 @@ function switchTab(name) {
   if (name === 'records') { loadRecords(); loadTeam(); }
   if (name === 'stock') loadStock();
   if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
+  deskPaint(name);
 }
 $$('.bottom-nav button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
@@ -1404,6 +1407,7 @@ function paintStatus(data) {
 bindSlicer('slStatus', 'fStatus', () => loadRecords());
 function paintPending() {
   const n = S.pending || 0, b = $('#rvBadge'); b.textContent = n; show(b, n > 0);
+  const db = $('#dnBadge'); if (db) { db.textContent = n; show(db, n > 0); }
 }
 const stPill = st => st ? '<span class="st-pill ' + (st === 'Pending' ? 'st-p' : st === 'Approved' ? 'st-a' : 'st-r') + '">' + esc(st) + '</span>' : '';
 /* ---- Review queue (admin) ---- */
@@ -2657,3 +2661,57 @@ $('#lblReset').addEventListener('click', async () => {
   if (!confirm('Go back to the built-in icons and titles?')) return;
   try { await api('saveTgLabels', S.token, {}); toast('Back to the built-in icons and titles.', 'success'); await loadLabels(); tplPreview(); } catch (e) { toast(e.message, 'danger'); }
 });
+
+/* ============================ Desktop mode (admin + supervisor, wide screens) ============================ */
+const DESK_MIN = 1100;
+S.deskKey = 'records';
+const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', rules: 'Edit rules' };
+const deskItems = () => {
+  const admin = S.user && S.user.role === 'Admin';
+  return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], admin && ['review', 'bi-patch-check', 'Review queue'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
+    ['TOOLS'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
+    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules']].filter(Boolean);
+};
+let deskBuilt = false;
+function deskBuild() {
+  if (!S.user || deskBuilt) return; deskBuilt = true;
+  const sec = { catCard: 'cats', rulesCard: 'rules', tplCard: 'tg', lblCard: 'tg', tgCard: 'tg' };
+  Object.keys(sec).forEach(id => { const el = $('#' + id); if (el) el.dataset.sec = sec[id]; });
+  $$('#pane-users > .card-x').forEach(el => { if (!el.dataset.sec) el.dataset.sec = 'staff'; });
+  $$('#pane-stock > .card-x').forEach(el => { if (/^\s*(Serial numbers|Returns waiting|Recent movements|Stock items)/i.test(el.textContent)) el.classList.add('span-all'); });
+  $('#deskNav').innerHTML = '<div class="dn-brand"><b>MS SR HUB WEB APP</b><span>' + (S.user.role === 'Admin' ? 'Admin console' : 'Supervisor console') + ' · desktop</span></div>' +
+    deskItems().map(it => it.length === 1 ? '<div class="dn-grp">' + it[0] + '</div>' : '<button type="button" class="dn-it" data-k="' + it[0] + '"><i class="bi ' + it[1] + '"></i><span>' + it[2] + '</span>' + (it[0] === 'review' ? '<em class="dn-badge hidden" id="dnBadge">0</em>' : '') + '</button>').join('') +
+    '<div class="dn-foot"><div class="small">Signed in as <b>' + esc(S.user.username) + '</b> · ' + esc(S.user.role) + '</div><div class="d-flex gap-2 mt-2"><button type="button" class="dn-mini" data-k="pin" title="Change my PIN"><i class="bi bi-key"></i></button><button type="button" class="dn-mini" data-k="theme" title="Light / dark mode"><i class="bi bi-moon-stars"></i></button><button type="button" class="dn-mini" data-k="out" title="Sign out"><i class="bi bi-box-arrow-right"></i></button></div></div>';
+  $('#deskNav').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) deskGo(b.dataset.k); });
+  paintPending();
+}
+function deskGo(k) {
+  if (k === 'pin') return $('#whoBtn').click();
+  if (k === 'theme') return $('.theme-toggle').click();
+  if (k === 'out') return $('#logoutBtn').click();
+  if (k === 'qr') return $('#qcLiveBtn').click();
+  if (k === 'repeats') return $('#rpBtn').click();
+  if (k === 'stamp') return openStampSettings();
+  S.deskKey = k;
+  if (k === 'new') switchTab('new');
+  else if (k === 'records') switchTab('records');
+  else if (k === 'review') { switchTab('records'); S.rvStatus = 'Pending'; reviewModal.show(); loadReview(); }
+  else if (k === 'stock') switchTab('stock');
+  else { switchTab('users'); if (k === 'cats') setTimeout(() => $('#catEditBtn').click(), 80); }
+}
+/** Marks the sidebar item, the page title and (in Setup) which card is shown. */
+function deskPaint(name) {
+  document.body.dataset.pane = name;
+  if (name === 'new') S.deskKey = 'new'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules'].includes(S.deskKey)) S.deskKey = 'staff';
+  $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules'].includes(S.deskKey) ? S.deskKey : 'staff';
+  $('#deskTitle').textContent = DESK_TITLES[S.deskKey] || '';
+  $$('#deskNav .dn-it').forEach(b => b.classList.toggle('active', b.dataset.k === S.deskKey));
+}
+function deskSync() {
+  const on = !!(S.user && isWide() && window.innerWidth >= DESK_MIN);
+  if (on) deskBuild();
+  document.body.classList.toggle('desk', on);
+  show($('#deskNav'), on);
+  if (on) { const pane = ['new', 'records', 'stock', 'users'].find(t => !$('#pane-' + t).classList.contains('hidden')) || 'records'; deskPaint(pane); }
+}
+window.addEventListener('resize', deskSync);

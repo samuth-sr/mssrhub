@@ -63,6 +63,7 @@
   </header>
 
   <main class="wrap">
+    <h1 class="desk-title" id="deskTitle"></h1>
     <!-- Summary -->
     <div class="card-x" id="sumCard">
       <div class="summary">
@@ -125,7 +126,7 @@
         <div class="form-label mt-3" id="trStaffTitle">Staff</div><div id="trStaff"></div>
         <div class="small text-muted mt-1"><span class="tr-key tr-now"></span> this week <span class="tr-key tr-prev ms-2"></span> same day last week</div>
       </div>
-      <div class="card-x">
+      <div class="card-x" id="filterCard">
         <div class="mb-3 hidden" id="branchWrap"><div class="form-label">Branch <span class="text-muted fw-normal small">(tap to leave one out, tap again to bring it back)</span></div><div class="chips" id="slBranch"></div></div>
         <div class="mb-3" id="userFilterWrap"><div class="form-label">Staff</div><div class="chips" id="slUser"></div><input type="hidden" id="fUser" value=""></div>
         <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="slPeriod"></div><input type="hidden" id="fPeriod" value="today"></div>
@@ -319,6 +320,7 @@
   </main>
 
   <nav class="bottom-nav">
+    <div id="deskNav" class="hidden"></div>
     <button data-tab="new" class="active"><i class="bi bi-plus-circle-fill"></i>New</button>
     <button data-tab="records"><i class="bi bi-table"></i>Records</button>
     <button data-tab="stock" id="navStock" class="hidden"><i class="bi bi-box-seam-fill"></i>Stock</button>
