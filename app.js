@@ -38,12 +38,13 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); if (YN_KEYS.includes(k)) o.f[k] = o.f[k] ? 1 : 0; });
   if (o.minPh && !o.f.photo) o.f.photo = 1;
   if (Array.isArray(a.custom) && a.custom.length) o.custom = a.custom;
+  if (Array.isArray(a.ord) && a.ord.length) o.ord = a.ord.map(x => String(x).slice(0, 40)).filter((x, i, l) => x && l.indexOf(x) === i).slice(0, 60);
   return o;
 }
 const normCat = list => list.map(t => ({ name: t.name, code: t.code, icon: /^[a-z0-9-]{1,30}$/.test(String(t.icon || '')) ? t.icon : '', subs: (Array.isArray(t.subs) ? t.subs : (t.subs === undefined && (DEFAULT_CATALOG.find(d => d.name === t.name) || {}).subs) || []).map(s => { const r = { n: s.n, code: s.code }; if (s.f && typeof s.f === 'object') { const f = {}; FIELD_KEYS.forEach(k => { if ([0, 1, 2].includes(s.f[k])) f[k] = s.f[k]; }); if (Object.keys(f).length) r.f = f; } if (+s.minPh > 0) r.minPh = Math.min(MAX_PHOTOS, Math.floor(+s.minPh)); return r; }), acts: (t.acts || []).map(a => normAct(t, a)) }));
@@ -238,6 +239,57 @@ function renderCustom(box, d) {
   $$('[data-fid]', box).forEach(i => { if (old[i.dataset.fid] != null) setCustomVal(i, old[i.dataset.fid]); });
   show(box, list.length > 0);
 }
+/* ---- Order of the boxes on the form: the admin can move boxes up / down per activity (a.ord = list of keys). Not set = the built-in order. ---- */
+const CARD_ORDER = ['merchant', 'mid', 'tid', 'integ', 'sim', 'standee', 'business', 'serial', 'oldSn', 'newSn', 'btype', 'ptype', 'hours', 'group', 'zone', 'phone', 'tag', 'qc', 'custom', 'stock', 'remarks', 'photo'];
+/** The boxes of an activity in the order the form shows them: [{ k: key, n: name }]. */
+function ordList(a, t) {
+  const cf = (a.custom || []).filter(f => f.id), base = [];
+  CARD_ORDER.forEach(k => {
+    if (k === 'custom') cf.forEach(f => base.push({ k: 'x:' + f.id, n: (f.label || (f.kind === 'info' ? 'Info text' : 'New field')) + ' (field)' }));
+    else if (k === 'qc') { if (t && qcEff(t.name, a)) base.push({ k, n: 'QR materials & scan' }); }
+    else if (k === 'stock') { if (a.stock) base.push({ k, n: 'Stock items' }); }
+    else if (lvl(a, k) > 0) base.push({ k, n: FIELD_NAMES[k] });
+  });
+  const pos = {}; (a.ord || []).forEach((k, i) => { pos[k] = i; });
+  return base.map((x, i) => ({ x, r: x.k in pos ? pos[x.k] : 1000 + i })).sort((p, q) => p.r - q.r).map(p => p.x);
+}
+/** Puts the boxes of one merchant card in the admin's order (nothing changes when no order is set). */
+function applyOrder(root, d) {
+  const ord = d && Array.isArray(d.ord) && d.ord.length ? d.ord : null;
+  root.classList.toggle('ordered', !!ord);
+  const kids = Array.from(root.children).concat(Array.from($('.custom-wrap', root).children));
+  kids.forEach(el => { el.style.order = ''; });
+  if (!ord) return;
+  const pos = {}; ord.forEach((k, i) => { pos[k] = i; });
+  const at = (k, dflt) => (k in pos ? pos[k] : dflt);
+  Array.from(root.children).forEach((el, i) => {
+    const fk = el.dataset && el.dataset.fk;
+    if (fk) el.style.order = at(fk, 1000 + i);
+    else if (el.classList.contains('qc-wrap')) el.style.order = at('qc', 1000 + i);
+    else if (el.classList.contains('stock-wrap')) el.style.order = at('stock', 1000 + i);
+    else if (!el.classList.contains('custom-wrap')) el.style.order = -1;        // head, activity, date stay on top
+  });
+  (d.custom || []).forEach((f, i) => { const el = $('.custom-wrap', root).children[i]; if (el) el.style.order = at('x:' + f.id, 1000 + i); });
+}
+/** The same admin order in the Edit window. */
+function applyOrderEdit(d) {
+  const root = $('#editModal .modal-body'); if (!root) return;
+  const ord = d && Array.isArray(d.ord) && d.ord.length ? d.ord : null;
+  root.classList.toggle('ordered', !!ord);
+  const kids = Array.from(root.children), cust = $('#eCustom') ? Array.from($('#eCustom').children) : [];
+  kids.concat(cust).forEach(el => { el.style.order = ''; });
+  if (!ord) return;
+  const pos = {}; ord.forEach((k, i) => { pos[k] = i; });
+  const at = (k, dflt) => (k in pos ? pos[k] : dflt);
+  const isF = el => (el.dataset && el.dataset.fk) || el.id === 'eCustom';
+  const first = kids.findIndex(isF), last = kids.length - 1 - kids.slice().reverse().findIndex(isF);
+  kids.forEach((el, i) => {
+    if (el.id === 'eCustom') return;
+    if (el.dataset && el.dataset.fk) el.style.order = at(el.dataset.fk, 1000 + i);
+    else el.style.order = i < first ? -1 : (i > last ? 5000 + i : 1000 + i);
+  });
+  (d.custom || []).forEach((f, i) => { if (cust[i]) cust[i].style.order = at('x:' + f.id, 1000 + i); });
+}
 /** Shows only the boxes the activity needs (data-fk="key") and puts the red * on the must-fill ones. */
 function applyLevels(root, d) {
   $$('.f-mid', root).forEach(i => refreshMidLabel(i, curType));
@@ -315,6 +367,7 @@ function setAct(card, a) {
   show($('.act-hint', card.el), !d);
   renderCustom($('.custom-wrap', card.el), d);
   renderStockBox(card, d);
+  applyOrder(card.el, d);
   if (changed) resetToggles(card.el);      // every toggle starts at No
   updateDateLabel(card); updateLocCard(); fillCommuneAll(); qcSync(card);
 }
@@ -345,7 +398,7 @@ function setType(t) {
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbwI7OeBLm3LGDkr9aBUvstmKUnYVJWtaHqyqthII-g3HOg_rRHKARf__QV_PrjonFyf/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbytu3ct8u_JOTkHqhjMnnAd2M8i8yvu-5U1D2TQlz1nvOgmOiM2ZVgEiw6NBHhUwhPP/exec';
 
 async function api(fn, ...args) {
   let json;
@@ -1885,7 +1938,7 @@ async function loadTemplate() {
     S.tgPlaceholders = t.placeholders; S.tgFieldLabels = t.fieldLabels || {}; tplDefault = t.defaultTemplate; $('#tplText').value = t.template;
     $('#tplStatus').textContent = t.isDefault ? 'Default' : 'Custom';
     $('#tplChips').innerHTML = t.placeholders.map(k => '<button type="button" class="chip" data-k="' + esc(k) + '"' + (S.tgFieldLabels[k] ? ' title="Field: ' + esc(S.tgFieldLabels[k]) + '"' : '') + '>{' + esc(k) + '}</button>').join('');
-    tplPreview(); loadLabels();
+    tplPreview(); loadLabels(); loadIdFormat();
   } catch (e) { tplNote(e.message, false); }
 }
 $('#tplChips').addEventListener('click', e => {
@@ -1948,33 +2001,43 @@ function subRules(s, si) {
 function renderCatSummary() {
   $('#catSummary').innerHTML = CATALOG.map(t => '<div class="mb-1"><b>' + esc(t.name) + '</b> <span class="text-muted">(' + esc(t.code) + ')</span>: ' + t.acts.map(a => esc(a.n) + (a.custom && a.custom.length ? ' <span class="text-muted">(+' + a.custom.length + ')</span>' : '')).join(', ') + '</div>').join('');
 }
-function renderCatEditor() {
-  $('#catList').innerHTML = catDraft.map((t, ti) =>
-    '<div class="border rounded-3 p-2 mb-3" data-ti="' + ti + '">' +
-      '<div class="d-flex gap-2 mb-2"><input class="form-control form-control-sm c-name" maxlength="30" placeholder="Category name" value="' + esc(t.name) + '">' +
-      '<input class="form-control form-control-sm c-code" maxlength="8" placeholder="Code" style="max-width:90px" value="' + esc(t.code) + '">' +
-      '<button type="button" class="btn btn-sm btn-outline-danger border-0 c-del" aria-label="Remove category"><i class="bi bi-trash3"></i></button></div>' +
-      '<details class="mb-2"><summary class="small fw-semibold" style="cursor:pointer">Tab symbol <i class="bi bi-' + esc(t.icon || ({ QR: 'qr-code', POS: 'credit-card-2-front', SB: 'speaker', 'Payway Inspection': 'clipboard2-check' }[t.name]) || 'grid') + ' ms-1"></i></summary><div class="chips mt-2 c-icons">' + CAT_ICONS.map(n => '<button type="button" class="chip c-icon' + (t.icon === n ? ' active' : '') + '" data-i="' + n + '" aria-label="' + n + '" style="padding:6px 10px"><i class="bi bi-' + n + '"></i></button>').join('') + '</div></details>' +
-      '<div class="small text-muted mb-1">Sub categories <span class="fw-normal">(the code joins the stamp, e.g. QR + I)</span></div>' +
-      (t.subs || []).map((s, si) => '<div class="d-flex gap-1 mb-1" data-si="' + si + '"><input class="form-control form-control-sm s-name" maxlength="40" placeholder="Sub category" value="' + esc(s.n) + '"><input class="form-control form-control-sm s-code" maxlength="4" placeholder="Code" style="max-width:76px" value="' + esc(s.code) + '"><button type="button" class="btn btn-sm btn-outline-danger border-0 s-del" aria-label="Remove sub category"><i class="bi bi-x"></i></button></div>' + (s.n ? subRules(s, si) : '')).join('') +
-      '<button type="button" class="btn btn-soft btn-sm s-add mb-3"><i class="bi bi-plus-lg me-1"></i>Sub category</button>' +
-      t.acts.map((a, ai) =>
-        '<div class="mb-3 pb-2 border-bottom" data-ai="' + ai + '"><div class="d-flex gap-2 mb-1"><input class="form-control form-control-sm a-name" maxlength="40" placeholder="Activity" value="' + esc(a.n) + '"><input class="form-control form-control-sm a-code" maxlength="4" placeholder="Code" title="Optional code added to the stamp" style="max-width:76px" value="' + esc(a.code || '') + '">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-del" aria-label="Remove activity"><i class="bi bi-x-lg"></i></button></div>' +
-        '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button></div>' +
-        ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
-        fieldRows(a) +
-        '<div class="d-flex align-items-center gap-2 mt-2 flex-wrap"><span class="small"><i class="bi bi-box-seam me-1"></i>Stock</span><select class="form-select form-select-sm a-stock" style="max-width:260px"><option value="">Not used</option><option value="out"' + (a.stock && a.stock.mode === 'out' ? ' selected' : '') + '>Take out of stock (deploy / install)</option><option value="both"' + (a.stock && a.stock.mode === 'both' ? ' selected' : '') + '>Replace: new one out + old one back</option><option value="return"' + (a.stock && a.stock.mode === 'return' ? ' selected' : '') + '>Take back (return / terminate / removal)</option></select>' + (a.stock ? '' : '<button type="button" class="chip a-flag' + (a.autoStock ? ' active' : '') + '" data-f="autoStock" title="Stock is chosen from the activity name: Install, Deploy, Replace, Return, Removal, Liability. Off = no stock check at all (faster).">Use stock (by activity name)</button>') + '</div>' +
-        (a.stock ? '<div class="mt-1"><div class="small text-muted">Item type</div><div class="chips mt-1">' + [['', 'With S/N + no S/N'], ['serial', 'With S/N only'], ['qty', 'No S/N only']].map(k => '<button type="button" class="chip a-stk-kind' + ((a.stock.kind || '') === k[0] ? ' active' : '') + '" data-k="' + k[0] + '">' + k[1] + '</button>').join('') + '</div><div class="small text-muted mt-2">Items this activity uses <span class="fw-normal">(none ticked = every item of that type)</span></div><div class="chips mt-1">' + ((S.stockItems || []).filter(it => !a.stock.kind || a.stock.kind === it.kind).length ? S.stockItems.filter(it => !a.stock.kind || a.stock.kind === it.kind).map(it => '<button type="button" class="chip a-stk-item' + ((a.stock.items || []).some(n => n.toLowerCase() === it.name.toLowerCase()) ? ' active' : '') + '" data-n="' + esc(it.name) + '">' + esc(it.name) + '</button>').join('') : '<span class="small text-muted">Add stock items in the Stock tab first.</span>') + '</div></div>' : '') +
-        '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Photo quality</span><select class="form-select form-select-sm a-pq" style="max-width:150px"><option value="">Standard</option><option value="high"' + (a.pq === 'high' ? ' selected' : '') + '>High</option><option value="max"' + (a.pq === 'max' ? ' selected' : '') + '>Max</option></select><span class="small text-muted">sharper photos and PDF, bigger uploads</span></div>' +
-        '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Minimum photos / videos</span><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control form-control-sm a-minph" style="max-width:80px" value="' + (a.minPh || 0) + '"><span class="small text-muted">0 = 2 when Photos is Required</span></div>' +
-        '<details class="mt-2 a-tgbox"' + (a.tg ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Telegram message <span class="text-muted fw-normal">(' + (a.tg ? 'own message' : 'standard message') + ')</span></summary>' +
-          '<textarea class="form-control form-control-sm a-tg mt-2" rows="6" spellcheck="false" placeholder="Leave empty to use the standard message (Telegram message box below). Example:&#10;🛠 <b>{title}</b>&#10;🧾 {merchant} · MID {mid}">' + esc(a.tg || '') + '</textarea>' +
-          '<div class="chips mt-2 a-tgchips">' + (S.tgPlaceholders || []).map(k => '<button type="button" class="chip a-tgk" data-k="' + esc(k) + '"' + ((S.tgFieldLabels || {})[k] ? ' title="Field: ' + esc(S.tgFieldLabels[k]) + '"' : '') + '>{' + esc(k) + '}</button>').join('') + '</div>' +
-          '<div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-soft btn-sm a-tgprev">Preview</button><button type="button" class="btn btn-soft btn-sm a-tgclear">Use standard</button></div>' +
-          '<div class="small mt-2 a-tgout hidden" style="white-space:pre-wrap"></div></details>' +
-        '<div class="small mt-2"><b>Fields</b> <span class="text-muted">(each field name becomes a column in the sheet)</span></div>' +
-        (a.custom || []).map((f, ci) =>
+/* ---- Categories & activities editor: three columns (categories | activities | the selected activity), like the desktop design ---- */
+let catSel = { ti: 0, ai: 0, view: 'act' };
+const ceFieldRows = a => FIELD_KEYS.map(k => '<div class="fl-row" data-k="' + k + '"><span>' + FIELD_NAMES[k] + '</span><span class="fl-seg">' +
+  (YN_KEYS.includes(k) ? [[0, 'Off'], [1, 'Show toggle']] : [[0, 'Off'], [1, 'Optional'], [2, 'Must']]).map(p => '<button type="button" class="a-lv' + (lvl(a, k) === p[0] ? ' active' : '') + (lvl(a, k) === p[0] && p[0] === 2 ? ' must' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('');
+const ceOrder = (t, a) => {
+  const list = ordList(a, t);
+  return '<div class="ce-lab">ORDER OF THE BOXES ON THE FORM <span class="fw-normal text-muted">(what staff see, top to bottom' + (a.ord ? '' : ' · built-in order') + ')</span></div>' +
+    '<div class="ce-ord">' + list.map((x, i) => '<div class="ce-ord-row"><span class="ce-ord-n">' + (i + 1) + '</span><span class="flex-grow-1">' + esc(x.n) + '</span>' +
+      '<button type="button" class="btn btn-soft btn-sm ord-up" data-k="' + esc(x.k) + '"' + (i === 0 ? ' disabled' : '') + ' aria-label="Move up"><i class="bi bi-arrow-up"></i></button>' +
+      '<button type="button" class="btn btn-soft btn-sm ord-dn" data-k="' + esc(x.k) + '"' + (i === list.length - 1 ? ' disabled' : '') + ' aria-label="Move down"><i class="bi bi-arrow-down"></i></button></div>').join('') + '</div>' +
+    (a.ord ? '<button type="button" class="btn btn-soft btn-sm ord-reset mt-2">Back to the built-in order</button>' : '');
+};
+const ceHead = (titleHtml) => '<div class="ce-head">' + titleHtml + '<div class="ce-btns"><button type="button" class="btn btn-soft ce-cancel">Cancel</button><button type="button" class="btn btn-brand ce-save">Save changes</button></div></div>';
+function ceCatPanel(t, ti) {
+  return '<div class="ce-pane" data-ti="' + ti + '">' + ceHead('<div class="ce-title"><b>Category settings</b></div>') +
+    '<div class="d-flex gap-2 mb-3"><input class="form-control c-name" maxlength="30" placeholder="Category name" value="' + esc(t.name) + '">' +
+    '<input class="form-control c-code" maxlength="8" placeholder="Code" style="max-width:110px" value="' + esc(t.code) + '">' +
+    '<button type="button" class="btn btn-outline-danger c-del" aria-label="Remove category"><i class="bi bi-trash3"></i></button></div>' +
+    '<div class="ce-lab">TAB SYMBOL</div><div class="chips mb-3 c-icons">' + CAT_ICONS.map(n => '<button type="button" class="chip c-icon' + (t.icon === n ? ' active' : '') + '" data-i="' + n + '" aria-label="' + n + '" style="padding:6px 10px"><i class="bi bi-' + n + '"></i></button>').join('') + '</div>' +
+    '<div class="ce-lab">SUB CATEGORIES <span class="fw-normal text-muted">(the code joins the record ID, e.g. QR + I)</span></div>' +
+    (t.subs || []).map((s, si) => '<div class="d-flex gap-1 mb-1" data-si="' + si + '"><input class="form-control form-control-sm s-name" maxlength="40" placeholder="Sub category" value="' + esc(s.n) + '"><input class="form-control form-control-sm s-code" maxlength="4" placeholder="Code" style="max-width:76px" value="' + esc(s.code) + '"><button type="button" class="btn btn-sm btn-outline-danger border-0 s-del" aria-label="Remove sub category"><i class="bi bi-x"></i></button></div>' + (s.n ? subRules(s, si) : '')).join('') +
+    '<button type="button" class="btn btn-soft btn-sm s-add mb-3"><i class="bi bi-plus-lg me-1"></i>Sub category</button>' +
+    '</div>';
+}
+function ceActPanel(t, ti, a, ai) {
+  const nm = '<div class="ce-title"><input class="a-name ce-name" maxlength="40" placeholder="Activity name" value="' + esc(a.n) + '"><span class="ce-sub">· ' + esc(t.name) + ' · code</span><input class="a-code ce-code" maxlength="4" placeholder="–" title="Optional code added to the record ID" value="' + esc(a.code || '') + '"></div>';
+  return '<div class="ce-pane" data-ti="' + ti + '"><div data-ai="' + ai + '" class="ce-act">' + ceHead(nm) +
+    '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button></div>' +
+    ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
+    '<div class="ce-lab">BOXES TO FILL</div><div class="a-fields ce-boxes">' + ceFieldRows(a) + '</div>' +
+    '<div class="ce-trio"><div><div class="ce-lab">STOCK</div><select class="form-select a-stock"><option value="">Not used</option><option value="out"' + (a.stock && a.stock.mode === 'out' ? ' selected' : '') + '>Take out of stock (deploy / install)</option><option value="both"' + (a.stock && a.stock.mode === 'both' ? ' selected' : '') + '>Replace: new one out + old one back</option><option value="return"' + (a.stock && a.stock.mode === 'return' ? ' selected' : '') + '>Take back (return / terminate / removal)</option></select></div>' +
+      '<div><div class="ce-lab">PHOTO QUALITY</div><select class="form-select a-pq"><option value="">Standard</option><option value="high"' + (a.pq === 'high' ? ' selected' : '') + '>High</option><option value="max"' + (a.pq === 'max' ? ' selected' : '') + '>Max</option></select></div>' +
+      '<div><div class="ce-lab">MINIMUM PHOTOS / VIDEOS</div><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control a-minph" value="' + (a.minPh || 0) + '" title="0 = 2 when Photos is Must"></div></div>' +
+    (a.stock ? '' : '<div class="ce-sw a-flag' + (a.autoStock ? ' on' : '') + '" data-f="autoStock" role="switch" tabindex="0" title="Stock is chosen from the activity name: Install, Deploy, Replace, Return, Removal, Liability. Off = no stock check at all (faster)."><span class="sw"></span>Use stock (by activity name)</div>') +
+    (a.stock ? '<div class="mt-1"><div class="small text-muted">Item type</div><div class="chips mt-1">' + [['', 'With S/N + no S/N'], ['serial', 'With S/N only'], ['qty', 'No S/N only']].map(k => '<button type="button" class="chip a-stk-kind' + ((a.stock.kind || '') === k[0] ? ' active' : '') + '" data-k="' + k[0] + '">' + k[1] + '</button>').join('') + '</div><div class="small text-muted mt-2">Items this activity uses <span class="fw-normal">(none ticked = every item of that type)</span></div><div class="chips mt-1">' + ((S.stockItems || []).filter(it => !a.stock.kind || a.stock.kind === it.kind).length ? S.stockItems.filter(it => !a.stock.kind || a.stock.kind === it.kind).map(it => '<button type="button" class="chip a-stk-item' + ((a.stock.items || []).some(n => n.toLowerCase() === it.name.toLowerCase()) ? ' active' : '') + '" data-n="' + esc(it.name) + '">' + esc(it.name) + '</button>').join('') : '<span class="small text-muted">Add stock items in the Stock tab first.</span>') + '</div></div>' : '') +
+    '<div class="ce-lab">EXTRA FIELDS <span class="fw-normal text-muted">(each field name becomes a column in the sheet)</span></div>' +
+    (a.custom || []).map((f, ci) =>
           '<div class="d-flex gap-1 mb-1 align-items-center" data-ci="' + ci + '"><input class="form-control form-control-sm cf-label" maxlength="30" placeholder="' + (f.kind === 'info' ? 'Title (optional)' : 'Field name') + '" value="' + esc(f.label) + '">' +
           '<select class="form-select form-select-sm cf-kind" style="max-width:112px">' + CF_KINDS.map(k => '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + k[1] + '</option>').join('') + '</select>' +
           (f.kind === 'info' ? '' : '<input class="form-control form-control-sm cf-ic ic-in" maxlength="4" placeholder="🔹" title="Icon in Telegram" value="' + esc(f.ic || '') + '">') +
@@ -1985,19 +2048,50 @@ function renderCatEditor() {
           (f.kind === 'select' || f.kind === 'check' || f.kind === 'radio' ? '<input class="form-control form-control-sm cf-opts mb-2" data-ci="' + ci + '" placeholder="Values, separated by commas (e.g. Small, Medium, Large)" value="' + esc((f.opts || []).join(', ')) + '">' : '') +
           (['spin', 'check', 'radio'].includes(f.kind) ? '<div class="d-flex gap-1 mb-1 align-items-center small text-muted" data-ci="' + ci + '">Layout <button type="button" class="chip cf-dir' + (cfDir(f) === 'h' ? ' active' : '') + '" data-d="h">Horizontal</button><button type="button" class="chip cf-dir' + (cfDir(f) === 'v' ? ' active' : '') + '" data-d="v">Vertical</button></div>' : '') +
           (f.kind === 'spin' ? '<div class="d-flex gap-1 mb-2 align-items-center small text-muted" data-ci="' + ci + '">Min <input class="form-control form-control-sm cf-min" type="number" style="max-width:80px" value="' + (f.min == null ? 0 : f.min) + '"> Max <input class="form-control form-control-sm cf-max" type="number" style="max-width:80px" value="' + (f.max == null ? 100 : f.max) + '"> Step <input class="form-control form-control-sm cf-step" type="number" min="0" step="any" style="max-width:70px" value="' + (f.step || 1) + '"></div>' : '')).join('') +
-        '<button type="button" class="btn btn-soft btn-sm cf-add mt-1"><i class="bi bi-plus-lg me-1"></i>Field</button></div>').join('') +
-      '<button type="button" class="btn btn-soft btn-sm c-addact"><i class="bi bi-plus-lg me-1"></i>Activity</button></div>').join('');
+        
+    '<button type="button" class="btn btn-soft btn-sm cf-add mt-1"><i class="bi bi-plus-lg me-1"></i>Field</button>' +
+    '<div class="ce-two"><div>' + '<details class="mt-2 a-tgbox"' + (a.tg ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Telegram message <span class="text-muted fw-normal">(' + (a.tg ? 'own message' : 'standard message') + ')</span></summary>' +
+          '<textarea class="form-control form-control-sm a-tg mt-2" rows="6" spellcheck="false" placeholder="Leave empty to use the standard message (Telegram message box below). Example:&#10;🛠 <b>{title}</b>&#10;🧾 {merchant} · MID {mid}">' + esc(a.tg || '') + '</textarea>' +
+          '<div class="chips mt-2 a-tgchips">' + (S.tgPlaceholders || []).map(k => '<button type="button" class="chip a-tgk" data-k="' + esc(k) + '"' + ((S.tgFieldLabels || {})[k] ? ' title="Field: ' + esc(S.tgFieldLabels[k]) + '"' : '') + '>{' + esc(k) + '}</button>').join('') + '</div>' +
+          '<div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-soft btn-sm a-tgprev">Preview</button><button type="button" class="btn btn-soft btn-sm a-tgclear">Use standard</button></div>' +
+          '<div class="small mt-2 a-tgout hidden" style="white-space:pre-wrap"></div></details>' + '</div><div><div class="ce-lab">TELEGRAM MESSAGE · LIVE PREVIEW</div><div class="ce-prev" data-prev="1">…</div><div class="small text-muted mt-1">' + (a.tg ? 'This activity has its own message.' : 'Standard message (set in Telegram).') + '</div></div></div>' +
+    ceOrder(t, a) +
+    '<div class="mt-3 pt-2 border-top"><button type="button" class="btn btn-outline-danger btn-sm a-del"><i class="bi bi-trash3 me-1"></i>Remove this activity</button></div>' +
+    '</div></div>';
+}
+let cePrevTimer = 0;
+function cePreview() {
+  clearTimeout(cePrevTimer);
+  cePrevTimer = setTimeout(() => {
+    const box = $('#catList .ce-prev'); if (!box) return;
+    const t = catDraft[catSel.ti], a = t && t.acts[catSel.ai]; if (!a) return;
+    const txt = (a.tg || '').trim() || $('#tplText').value || '';
+    if (!txt.trim()) { box.textContent = 'Open the Telegram section once to load the standard message.'; return; }
+    api('previewTelegramTemplate', S.token, txt).then(r => { box.innerHTML = r; }).catch(ex => { box.textContent = ex.message; });
+  }, 350);
+}
+function renderCatEditor() {
+  if (catSel.ti >= catDraft.length) catSel.ti = Math.max(0, catDraft.length - 1);
+  const t = catDraft[catSel.ti];
+  if (t && catSel.ai >= t.acts.length) catSel.ai = Math.max(0, t.acts.length - 1);
+  if (t && !t.acts.length) catSel.view = 'cat';
+  const col1 = '<div class="ce-col"><div class="ce-h">Categories</div>' + catDraft.map((c, ci) => '<button type="button" class="ce-it ce-cat' + (ci === catSel.ti ? ' on' : '') + '" data-cti="' + ci + '"><span>' + esc(c.name || 'New category') + '</span><em>' + ((c.subs || []).length ? c.subs.length + ' subs' : c.acts.length + ' acts') + '</em></button>').join('') + '<button type="button" class="btn ce-add ce-addcat">+ Category</button></div>';
+  const col2 = t ? '<div class="ce-col"><div class="ce-h">' + esc(t.name || 'New category') + ' · activities</div><button type="button" class="ce-it ce-catset' + (catSel.view === 'cat' ? ' on' : '') + '"><span><i class="bi bi-gear me-1"></i>Category settings</span><em>' + (t.subs || []).length + ' subs</em></button>' +
+    t.acts.map((x, xi) => '<button type="button" class="ce-it ce-actb' + (catSel.view === 'act' && xi === catSel.ai ? ' on' : '') + '" data-cai="' + xi + '"><span>' + esc(x.n || 'New activity') + '</span></button>').join('') + '<button type="button" class="btn ce-add ce-addact">+ Activity</button></div>' : '<div class="ce-col"></div>';
+  const col3 = !t ? '<div class="ce-col ce-main text-muted">Add a category to begin.</div>' : '<div class="ce-col ce-main">' + (catSel.view === 'cat' ? ceCatPanel(t, catSel.ti) : ceActPanel(t, catSel.ti, t.acts[catSel.ai], catSel.ai)) + '</div>';
+  $('#catList').innerHTML = '<div class="ce-grid">' + col1 + col2 + col3 + '</div>';
+  if (catSel.view === 'act') cePreview();
 }
 $('#catEditBtn').addEventListener('click', () => {
-  catDraft = JSON.parse(JSON.stringify(CATALOG)); show($('#catError'), false); renderCatEditor(); catModal.show();
+  catDraft = JSON.parse(JSON.stringify(CATALOG)); catSel = { ti: 0, ai: 0, view: 'act' }; show($('#catError'), false); renderCatEditor(); catModal.show();
 });
-$('#catAdd').addEventListener('click', () => { catDraft.push({ name: '', code: '', subs: [], acts: [normAct({}, { n: '' })] }); renderCatEditor(); });
+$('#catAdd').addEventListener('click', () => { catDraft.push({ name: '', code: '', subs: [], acts: [normAct({}, { n: '' })] }); catSel = { ti: catDraft.length - 1, ai: 0, view: 'cat' }; renderCatEditor(); });
 $('#catList').addEventListener('input', e => {
   const box = e.target.closest('[data-ti]'); if (!box) return; const t = catDraft[+box.dataset.ti];
   if (e.target.classList.contains('c-name')) t.name = e.target.value;
   else if (e.target.classList.contains('c-code')) t.code = e.target.value.toUpperCase();
   else if (e.target.classList.contains('a-name')) t.acts[+e.target.closest('[data-ai]').dataset.ai].n = e.target.value;
-  else if (e.target.classList.contains('a-tg')) t.acts[+e.target.closest('[data-ai]').dataset.ai].tg = e.target.value;
+  else if (e.target.classList.contains('a-tg')) { t.acts[+e.target.closest('[data-ai]').dataset.ai].tg = e.target.value; cePreview(); }
   else if (e.target.classList.contains('a-code')) t.acts[+e.target.closest('[data-ai]').dataset.ai].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   else if (e.target.classList.contains('s-name')) { const s = t.subs[+e.target.closest('[data-si]').dataset.si], old = s.n; s.n = e.target.value; t.acts.forEach(a => { if (a.subs) a.subs = a.subs.map(x => x === old ? s.n : x); }); }
   else if (e.target.classList.contains('s-code')) t.subs[+e.target.closest('[data-si]').dataset.si].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -2018,7 +2112,7 @@ $('#catList').addEventListener('change', e => {
 $('#catList').addEventListener('click', e => {
   const box = e.target.closest('[data-ti]'); if (!box) return; const ti = +box.dataset.ti, t = catDraft[ti];
   const ab = e.target.closest('[data-ai]'), ai = ab ? +ab.dataset.ai : -1;
-  if (e.target.closest('.c-del')) { catDraft.splice(ti, 1); renderCatEditor(); }
+  if (e.target.closest('.c-del')) { catDraft.splice(ti, 1); catSel.view = 'act'; catSel.ai = 0; renderCatEditor(); }
   else if (e.target.closest('.a-tgk')) { const ta = $('.a-tg', ab), k = '{' + e.target.closest('.a-tgk').dataset.k + '}', p = ta.selectionStart == null ? ta.value.length : ta.selectionStart; ta.value = ta.value.slice(0, p) + k + ta.value.slice(ta.selectionEnd == null ? p : ta.selectionEnd); t.acts[ai].tg = ta.value; ta.focus(); ta.selectionStart = ta.selectionEnd = p + k.length; }
   else if (e.target.closest('.a-tgclear')) { t.acts[ai].tg = ''; renderCatEditor(); }
   else if (e.target.closest('.a-tgprev')) {
@@ -2044,20 +2138,45 @@ $('#catList').addEventListener('click', e => {
   else if (e.target.closest('.s-add')) { t.subs = t.subs || []; if (t.subs.length >= 12) { toast('At most 12 sub categories.', 'warning'); return; } t.subs.push({ n: '', code: '' }); renderCatEditor(); }
   else if (e.target.closest('.s-del')) { const gone = t.subs.splice(+e.target.closest('[data-si]').dataset.si, 1)[0]; t.acts.forEach(a => { if (gone && a.subs) { a.subs = a.subs.filter(x => x !== gone.n); if (!a.subs.length) delete a.subs; } }); renderCatEditor(); }
   else if (e.target.closest('.c-addact')) { { const na = normAct({}, { n: '' }); na.f.photo = 2; t.acts.push(na); } renderCatEditor(); }
-  else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); renderCatEditor(); }
+  else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); catSel.view = 'act'; renderCatEditor(); }
   else if (e.target.closest('.a-stk-kind')) { const a = t.acts[ai]; a.stock.kind = e.target.closest('.a-stk-kind').dataset.k; const keep = (S.stockItems || []).filter(it => !a.stock.kind || a.stock.kind === it.kind).map(it => it.name.toLowerCase()); a.stock.items = (a.stock.items || []).filter(n => keep.includes(n.toLowerCase())); renderCatEditor(); }
   else if (e.target.closest('.a-stk-item')) { const b = e.target.closest('.a-stk-item'), a = t.acts[ai], n = b.dataset.n, l = a.stock.items || []; a.stock.items = l.some(x => x.toLowerCase() === n.toLowerCase()) ? l.filter(x => x.toLowerCase() !== n.toLowerCase()) : l.concat(n); b.classList.toggle('active'); }
-  else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
+  else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; if (f === 'qrchk') t.acts[ai].qrchk = !qcEff(t.name, t.acts[ai], ''); else t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
     const row = e.target.closest('.fl-row'), a = t.acts[ai]; a.f[row.dataset.k] = +e.target.closest('.a-lv').dataset.v; if (row.dataset.k === 'photo' && !a.f.photo) { a.minPh = 0; const mi = $('.a-minph', ab); if (mi) mi.value = 0; }
     $$('.a-lv', row).forEach(b => b.classList.toggle('active', +b.dataset.v === a.f[row.dataset.k]));
-    $('summary span', e.target.closest('.a-fields')).textContent = '(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')';
+    $$('.a-lv', row).forEach(b => b.classList.toggle('must', b.classList.contains('active') && +b.dataset.v === 2));
+    { const sm = $('summary span', e.target.closest('.a-fields')); if (sm) sm.textContent = '(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')'; }
   }
   else if (e.target.closest('.cf-dir')) { const f = t.acts[ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.dir = e.target.closest('.cf-dir').dataset.d; renderCatEditor(); }
   else if (e.target.closest('.cf-add')) { const a = t.acts[ai]; a.custom = a.custom || []; if (a.custom.length >= 20) { toast('At most 20 fields per activity.', 'warning'); return; } a.custom.push({ id: 'f' + (++catSeq).toString(36) + Math.random().toString(36).slice(2, 6), label: '', kind: 'text', req: false }); renderCatEditor(); }
   else if (e.target.closest('.cf-del')) { t.acts[ai].custom.splice(+e.target.closest('[data-ci]').dataset.ci, 1); renderCatEditor(); }
   else if (e.target.closest('.cf-req')) { const f = t.acts[ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.req = !f.req; e.target.closest('.cf-req').classList.toggle('active', f.req); }
 });
+/* column buttons, header buttons and the order of the boxes */
+$('#catList').addEventListener('input', e => {
+  if (e.target.classList.contains('c-name')) { const b = $('#catList .ce-cat.on span'), h = $('#catList .ce-h:not(:first-child), #catList .ce-col + .ce-col .ce-h'); if (b) b.textContent = e.target.value || 'New category'; if (h) h.textContent = (e.target.value || 'New category') + ' · activities'; }
+  else if (e.target.classList.contains('a-name')) { const b = $('#catList .ce-actb.on span'); if (b) b.textContent = e.target.value || 'New activity'; }
+});
+$('#catList').addEventListener('click', e => {
+  const t = catDraft[catSel.ti];
+  const cat = e.target.closest('.ce-cat'), act = e.target.closest('.ce-actb');
+  if (cat) { catSel = { ti: +cat.dataset.cti, ai: 0, view: catDraft[+cat.dataset.cti].acts.length ? 'act' : 'cat' }; renderCatEditor(); }
+  else if (act) { catSel.ai = +act.dataset.cai; catSel.view = 'act'; renderCatEditor(); }
+  else if (e.target.closest('.ce-catset')) { catSel.view = 'cat'; renderCatEditor(); }
+  else if (e.target.closest('.ce-addcat')) $('#catAdd').click();
+  else if (e.target.closest('.ce-addact')) { if (!t) return; const na = normAct({}, { n: '' }); na.f.photo = 2; t.acts.push(na); catSel = { ti: catSel.ti, ai: t.acts.length - 1, view: 'act' }; renderCatEditor(); const nm = $('#catList .a-name'); if (nm) nm.focus(); }
+  else if (e.target.closest('.ce-cancel')) catModal.hide();
+  else if (e.target.closest('.ce-save')) $('#catSave').click();
+  else if (e.target.closest('.ord-up, .ord-dn')) {
+    const b = e.target.closest('.ord-up, .ord-dn'), a = t && t.acts[catSel.ai]; if (!a) return;
+    const list = ordList(a, t).map(x => x.k), i = list.indexOf(b.dataset.k), j = b.classList.contains('ord-up') ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]]; a.ord = list; renderCatEditor();
+  }
+  else if (e.target.closest('.ord-reset')) { const a = t && t.acts[catSel.ai]; if (a) { delete a.ord; renderCatEditor(); } }
+});
+$('#catList').addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && e.target.classList && e.target.classList.contains('ce-sw')) { e.preventDefault(); e.target.click(); } });
 $('#catSave').addEventListener('click', async () => {
   const btn = $('#catSave'), err = $('#catError'); show(err, false); busy(btn, true, 'Saving…');
   try {
@@ -2066,6 +2185,33 @@ $('#catSave').addEventListener('click', async () => {
   } catch (ex) { err.textContent = ex.message; show(err, true); }
   busy(btn, false);
 });
+
+/* ============================ Record ID format (admin) ============================ */
+const idNote = (m, ok) => { const el = $('#idMsg'); el.textContent = m; el.className = 'small ' + (ok ? 'text-success' : 'text-danger'); };
+let idTimer = 0;
+async function loadIdFormat() {
+  try {
+    const r = await api('getIdFormat', S.token);
+    $('#idFmt').value = r.format; $('#idStatus').textContent = r.isDefault ? 'Default' : 'Custom'; $('#idSample').textContent = r.sample; S.idDefault = r.defaultFormat;
+    $('#idChips').innerHTML = r.tokens.map(k => k === 'SEQ' ? '<button type="button" class="chip" data-k="SEQ3">{SEQ3}</button>' : '<button type="button" class="chip" data-k="' + k + '">{' + k + '}</button>').join('') + '<button type="button" class="chip" data-k="-">-</button><button type="button" class="chip" data-k="/">/</button>';
+    idNote('', true);
+  } catch (e) { idNote(e.message, false); }
+}
+$('#idChips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return; const ta = $('#idFmt'), k = b.dataset.k.length > 1 ? '{' + b.dataset.k + '}' : b.dataset.k, p = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
+  ta.value = ta.value.slice(0, p) + k + ta.value.slice(ta.selectionEnd == null ? p : ta.selectionEnd); ta.focus(); ta.dispatchEvent(new Event('input'));
+});
+$('#idFmt').addEventListener('input', () => {
+  clearTimeout(idTimer);
+  idTimer = setTimeout(async () => { try { const r = await api('previewIdFormat', S.token, $('#idFmt').value); $('#idSample').textContent = r.sample; idNote('', true); } catch (e) { $('#idSample').textContent = '—'; idNote(e.message, false); } }, 400);
+});
+$('#idSave').addEventListener('click', async () => {
+  const b = $('#idSave'); busy(b, true, 'Saving…');
+  try { const r = await api('saveIdFormat', S.token, $('#idFmt').value); $('#idFmt').value = r.format; $('#idStatus').textContent = r.isDefault ? 'Default' : 'Custom'; $('#idSample').textContent = r.sample; idNote('Saved. New records use this ID.', true); }
+  catch (e) { idNote(e.message, false); }
+  busy(b, false);
+});
+$('#idReset').addEventListener('click', () => { $('#idFmt').value = S.idDefault || '{CODE}-{YYYYMMDD}-{SEQ3}'; $('#idFmt').dispatchEvent(new Event('input')); });
 
 /* ============================ Photo stamp settings ============================ */
 const stampModal = new bootstrap.Modal($('#stampModal'));
@@ -2369,7 +2515,7 @@ const editModal = new bootstrap.Modal($('#editModal'));
 function updateEditDateLabel() {
   const t = $('#eType').value || (S.last ? S.last.type : curType), a = $('#eAct').value, d = effDef(t, a, $('#eSub').value || '');
   $('#eDateLbl').textContent = dateLabel(a, t).replace('Installed / action date', 'Date');
-  applyLevels($('#editModal'), d); renderCustom($('#eCustom'), d);
+  applyLevels($('#editModal'), d); renderCustom($('#eCustom'), d); applyOrderEdit(d);
 }
 /** Sub categories of a category in the edit form (hidden when the category has none). */
 function eFillSubs(t, cur) {
@@ -2437,7 +2583,7 @@ function openEdit() {
   const hm = /(\d{2}:\d{2}) ?- ?(\d{2}:\d{2})/.exec(r.hours || ''); $('#eOpen').value = hm ? hm[1] : ''; $('#eClose').value = hm ? hm[2] : '';
   $('#prodTypeList').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">').join(''); $('#eProd').value = r.ptype || ''; $('#eCommune').value = r.commune || ''; $('#eZone').value = r.zone || '';
   $('#eBType').value = r.btype || ''; $('#eGroup').value = r.group || '';
-  { const d0 = effDef(r.type, r.activity, r.sub || ''); renderCustom($('#eCustom'), d0); const mp = {}; String(r.extra || '').split(' | ').forEach(x => { const i = x.indexOf(': '); if (i > 0) mp[x.slice(0, i)] = x.slice(i + 2); }); ((d0 && d0.custom) || []).forEach(f => { const el = $('[data-fid="' + f.id + '"]', $('#eCustom')); if (el && mp[f.label] != null) setCustomVal(el, mp[f.label]); }); }
+  { const d0 = effDef(r.type, r.activity, r.sub || ''); renderCustom($('#eCustom'), d0); applyOrderEdit(d0); const mp = {}; String(r.extra || '').split(' | ').forEach(x => { const i = x.indexOf(': '); if (i > 0) mp[x.slice(0, i)] = x.slice(i + 2); }); ((d0 && d0.custom) || []).forEach(f => { const el = $('[data-fid="' + f.id + '"]', $('#eCustom')); if (el && mp[f.label] != null) setCustomVal(el, mp[f.label]); }); }
   $('#ePhone').value = r.phone || ''; $('#eTag').value = r.tag || ''; $('#eSerial').value = r.serial || ''; $('#eOldSn').value = r.oldSn || ''; $('#eNewSn').value = r.newSn || '';
   updateEditDateLabel();
   editModal.show();
@@ -2504,9 +2650,11 @@ applyTheme();
 })();
 
 /* ============================ QR Installation scan check ============================ */
-/** Same rule as the server: category QR, an Installation activity (and the Installation tab when a sub category is chosen). */
-const qcRule = (t, a, sub) => /^qr$/i.test(t || '') && /install/i.test(a || '') && (!sub || /install/i.test(sub));
-const qcOn = card => { const a = $('.f-act', card.el).value; return !!a && qcRule(curType, a, S.sub || ''); };
+/** Same rule as the server: a QR category (name contains QR) and an activity whose name contains "install". */
+const qcRule = (t, a) => /qr/i.test(t || '') && /install/i.test(a || '');
+/** On for an activity: the admin's switch (category editor) when set, else the built-in rule. */
+const qcEff = (t, d) => !!d && (d.qrchk === true || (d.qrchk !== false && qcRule(t, d.n)));
+const qcOn = card => { const a = $('.f-act', card.el).value; return !!a && qcEff(curType, actDef(curType, a), S.sub || ''); };
 const qcNorm = v => String(v || '').trim().toUpperCase();
 const qcFresh = () => ({ sid: '', given: 0, scans: [], wrong: 0, expMid: '', expName: '' });
 function qcWire(card) {
@@ -2665,17 +2813,17 @@ $('#lblReset').addEventListener('click', async () => {
 /* ============================ Desktop mode (admin + supervisor, wide screens) ============================ */
 const DESK_MIN = 1100;
 S.deskKey = 'records';
-const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', rules: 'Edit rules' };
+const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', rules: 'Edit rules & record ID' };
 const deskItems = () => {
   const admin = S.user && S.user.role === 'Admin';
   return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], admin && ['review', 'bi-patch-check', 'Review queue'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
     ['TOOLS'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
-    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules']].filter(Boolean);
+    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
 };
 let deskBuilt = false;
 function deskBuild() {
   if (!S.user || deskBuilt) return; deskBuilt = true;
-  const sec = { catCard: 'cats', rulesCard: 'rules', tplCard: 'tg', lblCard: 'tg', tgCard: 'tg' };
+  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', tplCard: 'tg', lblCard: 'tg', tgCard: 'tg' };
   Object.keys(sec).forEach(id => { const el = $('#' + id); if (el) el.dataset.sec = sec[id]; });
   $$('#pane-users > .card-x').forEach(el => { if (!el.dataset.sec) el.dataset.sec = 'staff'; });
   $$('#pane-stock > .card-x').forEach(el => { if (/^\s*(Serial numbers|Returns waiting|Recent movements|Stock items)/i.test(el.textContent)) el.classList.add('span-all'); });

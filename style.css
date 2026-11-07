@@ -257,3 +257,63 @@ body.desk #pane-users{max-width:920px}
 body.desk #pane-users[data-show="tg"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;max-width:none}
 body.desk #pane-users[data-show="tg"] > .card-x{margin:0}
 body.desk #pane-users[data-show="tg"] > #tplCard{grid-column:1/-1}
+
+/* ===== Admin order of the boxes on the form ===== */
+.card-x.ordered{display:flex;flex-direction:column}
+.card-x.ordered > .custom-wrap{display:contents}
+.card-x.ordered > .custom-wrap > *{width:100%}
+
+/* ===== Categories & activities editor (3 columns) ===== */
+.ce-modal{max-width:1360px}
+@media(min-width:992px){.ce-modal{max-width:min(1360px,97vw)}.ce-modal .modal-body{background:var(--bg,#eef0f7);border-radius:0 0 20px 20px;padding:16px}#catModal .modal-footer{display:none}}
+.ce-grid{display:grid;grid-template-columns:1fr;gap:14px;align-items:start}
+@media(min-width:992px){.ce-grid{grid-template-columns:220px 250px minmax(0,1fr)}}
+.ce-col{background:var(--card);border-radius:16px;padding:14px;box-shadow:var(--shadow);border:1px solid rgba(79,70,229,.06)}
+.ce-h{font-weight:700;font-size:.92rem;margin:0 0 8px}
+.ce-it{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:transparent;color:var(--ink);font-weight:600;font-size:.9rem;padding:9px 10px;border-radius:10px;margin-bottom:2px}
+.ce-it em{font-style:normal;font-weight:500;font-size:.78rem;color:var(--muted);white-space:nowrap}
+.ce-it:hover{background:rgba(79,70,229,.06)}
+.ce-it.on{background:#e0e7ff;color:var(--brand)}
+.ce-add{display:block;width:100%;margin-top:10px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-weight:600;font-size:.86rem;padding:8px}
+.ce-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.ce-title{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.ce-name{border:0;border-bottom:1px dashed var(--line);background:transparent;font-weight:700;font-size:1.05rem;color:var(--ink);padding:2px 0;max-width:220px;border-radius:0}
+.ce-code{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);width:64px;padding:2px 6px;font-size:.85rem;text-transform:uppercase}
+.ce-sub{color:var(--muted);font-size:.85rem}
+.ce-btns{display:flex;gap:8px}
+.ce-lab{font-size:.68rem;font-weight:700;letter-spacing:.07em;color:var(--muted);margin:14px 0 6px;text-transform:uppercase}
+.ce-boxes{display:grid;grid-template-columns:1fr;gap:0 28px}
+@media(min-width:760px){.ce-boxes{grid-template-columns:1fr 1fr}}
+.ce-boxes .fl-row{padding:5px 0;border-bottom:1px solid rgba(100,116,139,.12)}
+.ce-trio{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:760px){.ce-trio{grid-template-columns:1.2fr 1fr 1fr}}
+.ce-trio .ce-lab{margin-top:14px}
+.ce-sw{display:flex;align-items:center;gap:10px;margin-top:12px;cursor:pointer;font-size:.9rem;font-weight:600;user-select:none}
+.ce-sw .sw{width:38px;height:22px;border-radius:999px;background:#cbd5e1;position:relative;flex:none;transition:background .15s}
+.ce-sw .sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.ce-sw.on .sw{background:var(--brand)}.ce-sw.on .sw::after{left:18px}
+.ce-two{display:grid;grid-template-columns:1fr;gap:14px;margin-top:6px}
+@media(min-width:760px){.ce-two{grid-template-columns:1fr 1fr}}
+.ce-prev{background:#e8efff;border-radius:12px;padding:12px;font-size:.84rem;white-space:pre-wrap;word-break:break-word;min-height:90px}
+:root[data-theme="dark"] .ce-prev{background:#1e293b}
+.ce-ord{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ce-ord-row{display:flex;align-items:center;gap:8px;padding:5px 10px;border-bottom:1px solid rgba(100,116,139,.12);font-size:.85rem}
+.ce-ord-row:last-child{border-bottom:0}
+.ce-ord-n{width:22px;color:var(--muted);font-size:.75rem}
+.ce-ord-row .btn{padding:2px 9px}
+.ce-pane .a-fields .fl-seg button.must{background:#dc2626;color:#fff}
+.ce-trio > div{min-width:0}.ce-trio input.form-control{width:100%}
+.modal-body.ordered{display:flex;flex-direction:column}
+.modal-body.ordered > #eCustom{display:contents}
+.modal-body.ordered > #eCustom > *{width:100%}
+/* ===== Neat dashboard ===== */
+@media (min-width: 560px) { .kpi-row { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); } }
+body.desk .kpi-row{grid-template-columns:repeat(5,minmax(0,1fr))}
+body.desk #chartCard{grid-column:1/9;grid-row:2}
+body.desk #trendCard{grid-column:1/9;grid-row:3}
+body.desk #teamCard{grid-column:9/13;grid-row:2/span 2;align-self:start}
+body.desk #teamList{max-height:460px;overflow:auto}
+body.desk #chartCard,body.desk #trendCard{align-self:start}
+body.desk #filterCard{padding:16px 20px}
+.card-x > .fw-bold:first-child,.card-x > .d-flex:first-child > .fw-bold{font-size:1rem}
+#pane-records .card-x{margin-bottom:14px}

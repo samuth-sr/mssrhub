@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=92" rel="stylesheet">
+  <link href="style.css?v=94" rel="stylesheet">
 </head>
 <body>
 
@@ -261,6 +261,19 @@
           <div class="col-6"><label class="form-label small mb-1">Days allowed <span class="text-muted">(1 = same day)</span></label><input type="number" min="1" max="60" class="form-control" id="ruleDays"></div>
         </div>
         <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="ruleSave">Save rules</button><span class="small" id="ruleMsg"></span></div>
+      </div>
+
+      <div class="card-x" id="idCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-hash me-1"></i>Record ID format</div>
+          <span class="pill" id="idStatus">…</span>
+        </div>
+        <div class="small text-muted mb-2">How every new record is numbered. Tap a word to add it where the cursor is. Records already saved keep their ID.</div>
+        <input class="form-control mb-2" id="idFmt" maxlength="60" autocomplete="off" spellcheck="false" placeholder="{CODE}-{YYYYMMDD}-{SEQ3}">
+        <div class="chips mb-2" id="idChips"></div>
+        <div class="small mb-2">Example: <b id="idSample">…</b></div>
+        <div class="small text-muted mb-2"><b>{CODE}</b> = category + sub category + activity codes · <b>{CAT} {SUB} {ACT}</b> = one of them · <b>{BRANCH}</b> = staff branch · <b>{YYYYMMDD} {YYYY} {YY} {MM} {DD}</b> = date · <b>{SEQ3}</b> = counter with 3 digits (use {SEQ4} for 4). The counter restarts for each different ID start, for example every new day when the date is in the format.</div>
+        <div class="d-flex align-items-center gap-2 flex-wrap"><button type="button" class="btn btn-soft btn-sm" id="idSave">Save format</button><button type="button" class="btn btn-soft btn-sm" id="idReset">Reset to default</button><span class="small" id="idMsg"></span></div>
       </div>
 
       <div class="card-x" id="tplCard">
@@ -563,7 +576,7 @@
 
 <!-- Categories editor (admin) -->
 <div class="modal fade" id="catModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ce-modal">
     <div class="modal-content" style="border-radius:20px">
       <div class="modal-header border-0 pb-0">
         <h6 class="modal-title fw-bold"><i class="bi bi-diagram-3 me-1"></i>Categories &amp; activities</h6>
@@ -572,7 +585,7 @@
       <div class="modal-body">
         <div class="small text-muted mb-3">Each category becomes a tab. For every activity choose what it needs. Renaming or removing does not change records already saved.</div>
         <div id="catList"></div>
-        <button type="button" class="btn btn-soft w-100 mt-2" id="catAdd"><i class="bi bi-plus-lg me-1"></i>Add category</button>
+        <button type="button" class="btn btn-soft w-100 mt-2 hidden" id="catAdd"><i class="bi bi-plus-lg me-1"></i>Add category</button>
         <div id="catError" class="text-danger small mt-3 hidden"></div>
       </div>
       <div class="modal-footer border-0 pt-0">
@@ -688,6 +701,6 @@
 <script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
-<script src="app.js?v=92" defer></script>
+<script src="app.js?v=94" defer></script>
 </body>
 </html>
