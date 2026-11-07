@@ -644,7 +644,7 @@ async function startScan() {
       text = String(text || '').trim(); if (!text || sc.done) return; sc.done = true;
       try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
       if (sn) applySn(text);
-      else if (S.lkScan) { S.lkScan = false; scanModal.hide(); const kr = parseKHQR(text), v = (kr && (kr.mid || kr.tid)) || text; $('#lkQ').value = v; setTimeout(() => { lkModal.show(); lkRun(v); }, 350); }
+      else if (S.mhScan) { S.mhScan = false; scanModal.hide(); const kr = parseKHQR(text), v = (kr && (kr.mid || kr.tid)) || text; $('#mhQ').value = v; setTimeout(() => { lkModal.show(); mhRun(v); }, 350); }
       else if (S.qcCard) { const qc = S.qcCard; scanModal.hide(); qcScanned(qc, text); }
       else if (S.scanTarget) { const t = S.scanTarget; scanModal.hide(); applyQR(t, text); }
     };
@@ -2217,13 +2217,13 @@ $('#idReset').addEventListener('click', () => { $('#idFmt').value = S.idDefault 
 
 /* ============================ Merchant history lookup (everyone) ============================ */
 const lkModal = new bootstrap.Modal($('#lkModal'));
-$('#lkBtn').addEventListener('click', () => { lkModal.show(); setTimeout(() => $('#lkQ').focus(), 400); });
-$('#lkScan').addEventListener('click', () => { S.qcCard = null; S.scanTarget = null; S.snInput = null; S.lkScan = true; scanMode(false); lkModal.hide(); setTimeout(() => scanModal.show(), 350); });
-$('#scanModal').addEventListener('hidden.bs.modal', () => { if (S.lkScan) { S.lkScan = false; setTimeout(() => lkModal.show(), 250); } });      // the scanner was closed without a QR: back to the lookup
-$('#lkGo').addEventListener('click', () => lkRun($('#lkQ').value));
-$('#lkQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lkRun($('#lkQ').value); } });
-async function lkRun(q) {
-  const out = $('#lkOut'); q = String(q || '').trim();
+$('#lkBtn').addEventListener('click', () => { lkModal.show(); setTimeout(() => $('#mhQ').focus(), 400); });
+$('#mhScan').addEventListener('click', () => { S.qcCard = null; S.scanTarget = null; S.snInput = null; S.mhScan = true; scanMode(false); lkModal.hide(); setTimeout(() => scanModal.show(), 350); });
+$('#scanModal').addEventListener('hidden.bs.modal', () => { if (S.mhScan) { S.mhScan = false; setTimeout(() => lkModal.show(), 250); } });      // the scanner was closed without a QR: back to the lookup
+$('#mhGo').addEventListener('click', () => mhRun($('#mhQ').value));
+$('#mhQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); mhRun($('#mhQ').value); } });
+async function mhRun(q) {
+  const out = $('#mhOut'); q = String(q || '').trim();
   if (q.length < 3) { out.innerHTML = '<div class="small text-danger">Type or scan at least 3 characters.</div>'; return; }
   out.innerHTML = '<div class="small text-muted">Looking up…</div>';
   try {
