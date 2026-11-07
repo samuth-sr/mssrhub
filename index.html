@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=94" rel="stylesheet">
+  <link href="style.css?v=97" rel="stylesheet">
 </head>
 <body>
 
@@ -117,6 +117,17 @@
         <div class="team-kpi" id="teamKpi"></div>
         <div id="teamNone" class="small mb-2"></div>
         <div id="teamList"></div>
+      </div>
+      <div class="card-x hidden" id="rpCard">
+        <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold"><i class="bi bi-files me-1"></i>Repeated merchants</div><button type="button" class="btn btn-soft btn-sm" id="rpAll">See all</button></div>
+        <div class="chips mb-2" id="rpDash"></div>
+        <div id="rpSum" class="small mb-2"></div>
+        <div id="rpTop"></div>
+      </div>
+      <div class="card-x hidden" id="qcCard">
+        <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold"><i class="bi bi-qr-code-scan me-1"></i>QR Installation · wrong scans today</div><button type="button" class="btn btn-soft btn-sm" id="qcAll">Live view</button></div>
+        <div id="qcSum" class="small mb-2"></div>
+        <div id="qcTop"></div>
       </div>
       <div class="card-x hidden" id="trendCard">
         <div class="fw-bold mb-1"><i class="bi bi-graph-up me-1"></i><span id="trTitle">Last 7 days</span></div>
@@ -297,7 +308,7 @@
 
       <div class="card-x" id="lblCard">
         <div class="fw-bold mb-1"><i class="bi bi-emoji-smile me-1"></i>Telegram icons and titles</div>
-        <div class="small text-muted mb-2">Tap an icon to choose another one, and rename the title of each line. This changes the standard message lines. Icons of the added fields are set on each field in the category editor.</div>
+        <div class="small text-muted mb-2">Tap an icon to choose another one, and rename the title of each line. This changes the standard message lines. Tap <b>Copy</b> on a line and Telegram shows its value in monospace: tapping it in the group copies it. Icons of the added fields are set on each field in the category editor.</div>
         <div id="lblList"></div>
         <div class="row g-2 mt-2"><div class="col-6"><button type="button" class="btn btn-brand w-100" id="lblSave">Save</button></div><div class="col-6"><button type="button" class="btn btn-soft w-100" id="lblReset">Reset to built-in</button></div></div>
         <div id="lblMsg" class="small mt-2 hidden"></div>
@@ -416,6 +427,8 @@
             <input id="uTopic" class="form-control" inputmode="numeric" placeholder="optional">
           </div>
         </div>
+        <label class="form-label mt-3">Telegram username <span class="text-muted text-lowercase">(optional, so the group can mention this person)</span></label>
+        <input id="uTg" class="form-control" autocapitalize="off" autocomplete="off" maxlength="40" placeholder="@sok_dara">
         <label class="form-label mt-3">Telegram Group ID <span class="text-muted text-lowercase">(optional)</span></label>
         <input id="uGroup" class="form-control" inputmode="text" autocomplete="off" placeholder="-1001234567890">
         <div class="small text-muted mt-1">Leave empty to use the default group. If set, this staff member's alerts go to this group instead (the bot must be a member). A Topic ID, if given, is used inside that group.</div>
@@ -701,6 +714,6 @@
 <script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
-<script src="app.js?v=94" defer></script>
+<script src="app.js?v=97" defer></script>
 </body>
 </html>

@@ -1570,6 +1570,7 @@ async function loadTeam() {
     $('#trStaff').innerHTML = byRange.length ? byRange.map(m => '<div class="tm-row" data-u="' + esc(m.username) + '"><div class="nm"><div class="d-flex justify-content-between small"><b>' + esc(m.username) + '</b><b>' + m.week + '</b></div><div class="tr-bar" style="width:' + Math.max(m.week ? 3 : 0, Math.round(m.week / sx * 100)) + '%"></div></div><i class="bi bi-chevron-right text-muted"></i></div>').join('') : '<div class="small text-muted">No staff in your team yet.</div>';
     $('#trendBars').innerHTML = d.days.map(x => '<div class="tr-row"><span>' + dayLbl(x.date) + '</span><div><div class="tr-bar" style="width:' + Math.max(x.n ? 3 : 0, Math.round(x.n / mx * 100)) + '%"></div><div class="tr-bar p" style="width:' + Math.max(x.prev ? 3 : 0, Math.round(x.prev / mx * 100)) + '%"></div></div><span class="text-end"><b>' + x.n + '</b> <span class="text-muted small">vs ' + x.prev + '</span></span></div>').join('');
   } catch (e) { show($('#teamCard'), false); show($('#trendCard'), false); }
+  dashAlerts();
 }
 const isAdminOrMulti = d => S.user.role === 'Admin' || /,/.test(S.user.branch || '');
 $('#teamBranch').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.teamBranch = b.dataset.v; loadTeam(); });
@@ -1876,7 +1877,7 @@ function openUser(u) {
   $('#uPinHint').textContent = u ? '(leave blank to keep current)' : '(4–12 digits)';
   $('#uRole').value = u ? u.role : 'User';
   $('#uTopic').value = u ? u.topicId : '';
-  $('#uGroup').value = u ? (u.groupId || '') : '';
+  $('#uGroup').value = u ? (u.groupId || '') : ''; $('#uTg').value = u ? (u.tgUser || '') : '';
   $('#uMaxEdits').value = u && u.maxEdits != null ? u.maxEdits : ''; $('#uEditDays').value = u && u.editDays != null ? u.editDays : '';
   userModal.show();
 }
@@ -1888,7 +1889,7 @@ $('#userForm').addEventListener('submit', async e => {
   try {
     const list = await api('saveUser', S.token, {
       original: $('#uOriginal').value, username: $('#uName').value, staffId: $('#uStaffId').value.trim(), branch: $('#uBranch').value.trim(), pin: $('#uPin').value,
-      role: $('#uRole').value, topicId: $('#uTopic').value, groupId: $('#uGroup').value.trim(), maxEdits: $('#uMaxEdits').value.trim(), editDays: $('#uEditDays').value.trim()
+      role: $('#uRole').value, topicId: $('#uTopic').value, groupId: $('#uGroup').value.trim(), tgUser: $('#uTg').value.trim(), maxEdits: $('#uMaxEdits').value.trim(), editDays: $('#uEditDays').value.trim()
     });
     renderUsers(list); userModal.hide(); toast('Staff saved', 'success');
   } catch (ex) { err.textContent = ex.message; show(err, true); }
@@ -2771,6 +2772,26 @@ $('#rpSame').addEventListener('click', e => { const b = e.target.closest('.chip'
 $('#rpBranch').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.rp.branch = b.dataset.v; rpLoad(); } });
 $('#rpType').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.rp.type = b.dataset.v; rpLoad(); } });
 
+/* ---- the two watch-lists on the dashboard: repeated merchants and wrong QR scans (admin / supervisor) ---- */
+async function dashAlerts() {
+  const on = isWide(); show($('#rpCard'), on); show($('#qcCard'), on); if (!on) return;
+  api('getRepeats', S.token, S.rp).then(d => {
+    S.rpData = d;
+    $('#rpDash').innerHTML = [[1, 'Today'], [3, '3 days'], [7, '7 days'], [14, '14 days'], [30, '30 days']].map(([v, l]) => '<button type="button" class="chip' + (d.days === v ? ' active' : '') + '" data-v="' + v + '">' + l + '</button>').join('');
+    const k = d.kpi;
+    $('#rpSum').innerHTML = k.groups ? '<b style="color:#b45309">' + k.groups + '</b> merchant' + (k.groups > 1 ? 's' : '') + ' repeated · <b>' + k.extra + '</b> extra record' + (k.extra > 1 ? 's' : '') + (k.staff ? ' · <b style="color:#dc2626">' + k.staff + '</b> by different staff' : '') : '<span class="up fw-semibold">No repeated records</span> <span class="text-muted">in ' + (d.days === 1 ? 'today' : 'the last ' + d.days + ' days') + '</span>';
+    $('#rpTop').innerHTML = d.groups.slice(0, 5).map(g => '<div class="tm-row"><div class="nm"><b>' + esc(g.merchant || g.id) + '</b><div class="small text-muted">' + esc(shortName(g.type)) + (g.activity ? ' · ' + esc(g.activity) : ' · any activity') + ' · ' + esc(g.users > 1 ? 'different staff' : (g.recs[0] || {}).user || '') + '</div></div><span class="n">× ' + g.count + '</span></div>').join('');
+  }).catch(e => { $('#rpSum').textContent = e.message; $('#rpTop').innerHTML = ''; });
+  api('getQrLive', S.token, { range: 'today' }).then(d => {
+    const w = d.kpi.wrong, ss = d.sessions || [];
+    $('#qcSum').innerHTML = w ? '<b style="color:#dc2626">' + w + '</b> wrong scan' + (w > 1 ? 's' : '') + ' in <b>' + ss.length + '</b> installation' + (ss.length > 1 ? 's' : '') + ' · ' + d.kpi.total + ' QR installation' + (d.kpi.total > 1 ? 's' : '') + ' scanned today' : '<span class="up fw-semibold">No wrong scans today</span> <span class="text-muted">· ' + d.kpi.total + ' QR installation' + (d.kpi.total === 1 ? '' : 's') + ' scanned</span>';
+    $('#qcTop').innerHTML = ss.slice(0, 5).map(s => '<div class="tm-row"><div class="nm"><b>' + esc(s.name) + '</b>' + (s.branch ? ' <span class="text-muted">· ' + esc(s.branch) + '</span>' : '') + '<div class="small text-muted">' + esc(s.merchant || '') + ' ' + esc(s.mid || '') + (s.wrongs[0] ? ' → scanned ' + esc(s.wrongs[0].mid) : '') + '</div></div><span class="n" style="color:#dc2626">' + s.wrong + '</span></div>').join('');
+  }).catch(e => { $('#qcSum').textContent = e.message; $('#qcTop').innerHTML = ''; });
+}
+$('#rpDash').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { S.rp.days = +b.dataset.v; dashAlerts(); } });
+$('#rpAll').addEventListener('click', () => $('#rpBtn').click());
+$('#qcAll').addEventListener('click', () => $('#qcLiveBtn').click());
+
 /* ============================ Telegram icons and titles (admin) ============================ */
 const EMOJIS = '✅ ❌ ⚠️ ❗ ✔️ 🔹 🔸 🟢 🔴 🟡 🔵 ⭐ 💡 🔥 📌 📍 📞 📱 🏪 🏬 🧾 🆔 🪪 🔢 🔗 📶 🪧 🔑 🔁 🆕 🏷 📝 📦 🕘 ⏰ 👥 👤 🧭 🏢 🏠 🏘 📅 🔖 🕒 🛠 🔧 🗂 📋 💰 💳 🖨 🔋 🔌 📷 🚚 🎁 🔝 🅰️ 🅱️'.split(' ');
 const emojiPal = document.createElement('div'); emojiPal.id = 'emojiPal'; emojiPal.className = 'hidden';
@@ -2795,14 +2816,17 @@ emojiPal.addEventListener('click', e => {
 async function loadLabels() {
   try {
     const r = await api('getTgLabels', S.token);
+    const cp = (k, on) => '<button type="button" class="chip lbl-c' + (on ? ' active' : '') + '" title="Telegram copies the value when it is tapped">Copy</button>';
     $('#lblList').innerHTML = r.lines.map(l => '<div class="lbl-row" data-k="' + esc(l.key) + '"><input class="form-control form-control-sm lbl-i ic-in" maxlength="4" value="' + esc(l.icon) + '" data-def="' + esc(l.defIcon) + '">' +
-      (l.iconOnly ? '<span class="small flex-grow-1">' + esc(l.label) + '</span>' : '<input class="form-control form-control-sm lbl-l flex-grow-1" maxlength="30" value="' + esc(l.label) + '" data-def="' + esc(l.defLabel) + '">') + '</div>').join('');
+      (l.iconOnly ? '<span class="small flex-grow-1">' + esc(l.label) + '</span>' : '<input class="form-control form-control-sm lbl-l flex-grow-1" maxlength="30" value="' + esc(l.label) + '" data-def="' + esc(l.defLabel) + '">') + (l.canCopy ? cp(l.key, l.copy) : '') + '</div>').join('') +
+      ((r.fields || []).length ? '<div class="small fw-semibold mt-3 mb-1">Added fields <span class="text-muted fw-normal">(show the value as tap to copy)</span></div>' + r.fields.map(f => '<div class="lbl-row lbl-fld" data-k="' + esc(f.key) + '"><span class="small flex-grow-1">' + esc(f.label) + '</span>' + cp(f.key, f.copy) + '</div>').join('') : '');
   } catch (e) { $('#lblMsg').textContent = e.message; show($('#lblMsg'), true); }
 }
+$('#lblList').addEventListener('click', e => { const b = e.target.closest('.lbl-c'); if (b) b.classList.toggle('active'); });
 $('#lblSave').addEventListener('click', async () => {
-  const map = {}; $$('#lblList .lbl-row').forEach(r => { const i = $('.lbl-i', r), l = $('.lbl-l', r); map[r.dataset.k] = { i: i.value.trim(), l: l ? l.value.trim() : '' }; });
+  const map = {}; $$('#lblList .lbl-row').forEach(r => { const i = $('.lbl-i', r), l = $('.lbl-l', r), c = $('.lbl-c', r); map[r.dataset.k] = { i: i ? i.value.trim() : '', l: l ? l.value.trim() : '', c: !!(c && c.classList.contains('active')) }; });
   busy($('#lblSave'), true, 'Saving…');
-  try { await api('saveTgLabels', S.token, map); toast('Telegram icons and titles saved.', 'success'); await loadLabels(); tplPreview(); } catch (e) { toast(e.message, 'danger'); }
+  try { await api('saveTgLabels', S.token, map); toast('Telegram icons, titles and copy values saved.', 'success'); await loadLabels(); tplPreview(); } catch (e) { toast(e.message, 'danger'); }
   busy($('#lblSave'), false);
 });
 $('#lblReset').addEventListener('click', async () => {

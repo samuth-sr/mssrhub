@@ -317,3 +317,7 @@ body.desk #chartCard,body.desk #trendCard{align-self:start}
 body.desk #filterCard{padding:16px 20px}
 .card-x > .fw-bold:first-child,.card-x > .d-flex:first-child > .fw-bold{font-size:1rem}
 #pane-records .card-x{margin-bottom:14px}
+body.desk #rpCard{grid-column:1/7;grid-row:4;align-self:start}
+body.desk #qcCard{grid-column:7/13;grid-row:4;align-self:start}
+body.desk #pane-records > .card-x.p-0{grid-row:5}
+.lbl-row .lbl-c{flex:none;padding:3px 10px;font-size:.72rem}
