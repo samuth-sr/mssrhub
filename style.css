@@ -321,3 +321,7 @@ body.desk #rpCard{grid-column:1/7;grid-row:4;align-self:start}
 body.desk #qcCard{grid-column:7/13;grid-row:4;align-self:start}
 body.desk #pane-records > .card-x.p-0{grid-row:5}
 .lbl-row .lbl-c{flex:none;padding:3px 10px;font-size:.72rem}
+/* ===== Merchant history lookup ===== */
+.lk-sum{background:#eef0ff;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.lk-row{border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin-bottom:8px;background:var(--card)}
+.pill-ok{background:#dcfce7;color:#166534}.pill-warn{background:#fef3c7;color:#92400e}.pill-bad{background:#fee2e2;color:#991b1b}

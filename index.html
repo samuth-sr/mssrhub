@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=97" rel="stylesheet">
+  <link href="style.css?v=101" rel="stylesheet">
 </head>
 <body>
 
@@ -53,6 +53,7 @@
         <button type="button" class="chip mt-2" id="whoBtn" title="Change my PIN"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span><i class="bi bi-key ms-1"></i></button>
       </div>
       <div class="d-flex gap-2">
+        <button class="icon-btn" id="lkBtn" type="button" title="Look up a merchant (scan a QR)"><i class="bi bi-search"></i></button>
         <button class="icon-btn theme-toggle" type="button" title="Light / dark mode"><i class="bi bi-moon-stars-fill"></i></button>
         <div class="d-flex gap-2">
         <button class="icon-btn" id="installBtn" title="Install app" type="button"><i class="bi bi-download"></i></button>
@@ -274,6 +275,21 @@
         <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="ruleSave">Save rules</button><span class="small" id="ruleMsg"></span></div>
       </div>
 
+      <div class="card-x" id="qkCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-qr-code me-1"></i>QR Installation type</div>
+          <span class="pill" id="qkStatus">…</span>
+        </div>
+        <div class="small text-muted mb-2">Decided from the scanned MID. <b>New</b>: the QR was made no more than the set days before the installation date (made date = digits 2-3 year, 4-5 month, 6-7 day of the MID). <b>Replacement</b>: the MID is already in the records, or anything older is also Replacement. It is saved in the record as "QR Type" and can be used as <code>{qr_type}</code> in the Telegram message.</div>
+        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="qkOn"><label class="form-check-label small" for="qkOn">Work out the QR type</label></div>
+        <div class="row g-2 mb-2">
+          <div class="col-6 col-md-4"><label class="form-label small mb-1">New if up to (days)</label><input class="form-control form-control-sm" id="qkDays" inputmode="numeric" maxlength="4"></div>
+          <div class="col-6 col-md-4"><label class="form-label small mb-1">New label</label><input class="form-control form-control-sm" id="qkNew" maxlength="24"></div>
+          <div class="col-6 col-md-4"><label class="form-label small mb-1">Replacement label</label><input class="form-control form-control-sm" id="qkRep" maxlength="24"></div>
+        </div>
+        <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="qkSave">Save</button><span class="small" id="qkMsg"></span></div>
+      </div>
+
       <div class="card-x" id="idCard">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="fw-bold"><i class="bi bi-hash me-1"></i>Record ID format</div>
@@ -312,6 +328,20 @@
         <div id="lblList"></div>
         <div class="row g-2 mt-2"><div class="col-6"><button type="button" class="btn btn-brand w-100" id="lblSave">Save</button></div><div class="col-6"><button type="button" class="btn btn-soft w-100" id="lblReset">Reset to built-in</button></div></div>
         <div id="lblMsg" class="small mt-2 hidden"></div>
+      </div>
+
+      <div class="card-x" id="ccCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-at me-1"></i>CC on Telegram alerts</div>
+          <span class="pill" id="ccStatus">…</span>
+        </div>
+        <div class="small text-muted mb-2">Mention the admins and the supervisors of the staff member's branch under every alert, so they get a Telegram notification. They are mentioned by their Telegram username (set in Staff). Tap a name to include or leave out.</div>
+        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ccOn"><label class="form-check-label small" for="ccOn">CC on every alert and wrong-QR warning</label></div>
+        <div class="row g-2 mb-2"><div class="col-6"><label class="form-label small mb-1">Label</label><input class="form-control form-control-sm" id="ccLabel" maxlength="20" placeholder="CC"></div></div>
+        <div class="form-label mb-1">Admins <span class="fw-normal text-muted text-lowercase">(every branch)</span></div><div class="chips mb-2" id="ccAdmins"></div>
+        <div class="form-label mb-1">Supervisors <span class="fw-normal text-muted text-lowercase">(only for the staff of their branch code)</span></div><div class="chips mb-2" id="ccSups"></div>
+        <div class="small text-muted mb-1">Who is mentioned for each branch</div><div id="ccPrev" class="small mb-2"></div>
+        <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="ccSave">Save CC</button><span class="small" id="ccMsg"></span></div>
       </div>
 
       <div class="card-x" id="tgCard">
@@ -609,6 +639,20 @@
   </div>
 </div>
 
+<!-- Merchant history lookup -->
+<div class="modal fade" id="lkModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold"><i class="bi bi-search me-1"></i>Merchant history</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="small text-muted mb-2">Scan any merchant QR, or type a MID, a TID or the merchant name, to see every activity recorded for that merchant.</div>
+        <div class="input-group mb-1"><input id="lkQ" class="form-control" autocomplete="off" placeholder="MID, TID or merchant name"><button type="button" class="btn btn-soft" id="lkScan" aria-label="Scan QR"><i class="bi bi-qr-code-scan"></i></button><button type="button" class="btn btn-brand" id="lkGo">Look up</button></div>
+        <div id="lkOut" class="mt-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Photo stamp settings -->
 <div class="modal fade" id="stampModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -714,6 +758,6 @@
 <script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
-<script src="app.js?v=97" defer></script>
+<script src="app.js?v=101" defer></script>
 </body>
 </html>

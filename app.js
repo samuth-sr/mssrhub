@@ -644,6 +644,7 @@ async function startScan() {
       text = String(text || '').trim(); if (!text || sc.done) return; sc.done = true;
       try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
       if (sn) applySn(text);
+      else if (S.lkScan) { S.lkScan = false; scanModal.hide(); const kr = parseKHQR(text), v = (kr && (kr.mid || kr.tid)) || text; $('#lkQ').value = v; setTimeout(() => { lkModal.show(); lkRun(v); }, 350); }
       else if (S.qcCard) { const qc = S.qcCard; scanModal.hide(); qcScanned(qc, text); }
       else if (S.scanTarget) { const t = S.scanTarget; scanModal.hide(); applyQR(t, text); }
     };
@@ -1939,7 +1940,7 @@ async function loadTemplate() {
     S.tgPlaceholders = t.placeholders; S.tgFieldLabels = t.fieldLabels || {}; tplDefault = t.defaultTemplate; $('#tplText').value = t.template;
     $('#tplStatus').textContent = t.isDefault ? 'Default' : 'Custom';
     $('#tplChips').innerHTML = t.placeholders.map(k => '<button type="button" class="chip" data-k="' + esc(k) + '"' + (S.tgFieldLabels[k] ? ' title="Field: ' + esc(S.tgFieldLabels[k]) + '"' : '') + '>{' + esc(k) + '}</button>').join('');
-    tplPreview(); loadLabels(); loadIdFormat();
+    tplPreview(); loadLabels(); loadIdFormat(); loadCc(); loadQk();
   } catch (e) { tplNote(e.message, false); }
 }
 $('#tplChips').addEventListener('click', e => {
@@ -2213,6 +2214,64 @@ $('#idSave').addEventListener('click', async () => {
   busy(b, false);
 });
 $('#idReset').addEventListener('click', () => { $('#idFmt').value = S.idDefault || '{CODE}-{YYYYMMDD}-{SEQ3}'; $('#idFmt').dispatchEvent(new Event('input')); });
+
+/* ============================ Merchant history lookup (everyone) ============================ */
+const lkModal = new bootstrap.Modal($('#lkModal'));
+$('#lkBtn').addEventListener('click', () => { lkModal.show(); setTimeout(() => $('#lkQ').focus(), 400); });
+$('#lkScan').addEventListener('click', () => { S.qcCard = null; S.scanTarget = null; S.snInput = null; S.lkScan = true; scanMode(false); lkModal.hide(); setTimeout(() => scanModal.show(), 350); });
+$('#scanModal').addEventListener('hidden.bs.modal', () => { if (S.lkScan) { S.lkScan = false; setTimeout(() => lkModal.show(), 250); } });      // the scanner was closed without a QR: back to the lookup
+$('#lkGo').addEventListener('click', () => lkRun($('#lkQ').value));
+$('#lkQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lkRun($('#lkQ').value); } });
+async function lkRun(q) {
+  const out = $('#lkOut'); q = String(q || '').trim();
+  if (q.length < 3) { out.innerHTML = '<div class="small text-danger">Type or scan at least 3 characters.</div>'; return; }
+  out.innerHTML = '<div class="small text-muted">Looking up…</div>';
+  try {
+    const d = await api('lookupMid', S.token, q);
+    if (!d.count) { out.innerHTML = '<div class="small"><b>No record found</b> for “' + esc(d.q) + '”.</div>'; return; }
+    const st = { Pending: 'pill-warn', Approved: 'pill-ok', Returned: 'pill-bad' };
+    out.innerHTML = '<div class="lk-sum"><b>' + esc(d.merchants.join(' · ') || d.q) + '</b><div class="small text-muted">' + esc(d.mids.join(' · ')) + '</div><div class="small mt-1"><b>' + d.count + '</b> record' + (d.count > 1 ? 's' : '') + ' · ' + esc(fmtD(d.first)) + ' → ' + esc(fmtD(d.last)) + (d.count > 100 ? ' · showing the latest 100' : '') + (d.by === 'name' ? ' · found by name' : '') + '</div></div>' +
+      d.rows.map(r => '<div class="lk-row"><div class="d-flex justify-content-between gap-2"><b>' + esc(shortName(r.type)) + (r.sub ? ' · ' + esc(r.sub) : '') + ' · ' + esc(r.activity) + '</b><span class="small text-muted text-nowrap">' + esc(fmtD(r.date)) + '</span></div>' +
+        '<div class="small text-muted">' + esc(r.user) + (r.branch ? ' · ' + esc(r.branch) : '') + (d.by === 'name' ? ' · ' + esc(r.merchant) + ' ' + esc(r.midLabel) + ' ' + esc(r.mid) : '') + ' · <span class="font-monospace">' + esc(r.stamp) + '</span></div>' +
+        (r.remarks ? '<div class="small">' + esc(r.remarks) + '</div>' : '') +
+        '<div class="small mt-1">' + (r.status ? '<span class="pill ' + (st[r.status] || '') + '">' + esc(r.status) + '</span> ' : '') + (r.photos ? '<span class="text-muted">' + r.photos + ' photo' + (r.photos > 1 ? 's' : '') + '</span> ' : '') + (r.link ? '<a href="' + esc(r.link) + '" target="_blank" rel="noopener">Open in Telegram</a>' : '') + '</div></div>').join('');
+  } catch (e) { out.innerHTML = '<div class="small text-danger">' + esc(e.message) + '</div>'; }
+}
+
+/* ============================ CC on Telegram alerts (admin) ============================ */
+const ccNote = (m, ok) => { const el = $('#ccMsg'); el.textContent = m; el.className = 'small ' + (ok ? 'text-success' : 'text-danger'); };
+function ccPaint(d) {
+  $('#ccOn').checked = d.on; $('#ccLabel').value = d.label; $('#ccStatus').textContent = d.on ? 'On' : 'Off';
+  const chip = (u, role) => '<button type="button" class="chip cc-p' + (u.skip ? '' : ' active') + '" data-u="' + esc(u.name) + '" title="' + (u.tg ? 'Mentioned as ' + esc(u.tg) : 'No Telegram username yet: this person cannot be mentioned') + '">' + esc(u.name) + (role === 'sup' && u.branch ? ' · ' + esc(u.branch) : '') + (u.tg ? '' : ' ⚠') + '</button>';
+  $('#ccAdmins').innerHTML = d.adminList.length ? d.adminList.map(u => chip(u, 'adm')).join('') : '<span class="small text-muted">No admin accounts.</span>';
+  $('#ccSups').innerHTML = d.supList.length ? d.supList.map(u => chip(u, 'sup')).join('') : '<span class="small text-muted">No supervisor accounts.</span>';
+  $('#ccPrev').innerHTML = d.preview.length ? d.preview.map(b => '<div><b>' + esc(b.branch) + '</b>: ' + (b.people.length ? b.people.map(p => p.tg ? esc(p.tg) : '<span class="text-muted">' + esc(p.name) + ' (no username)</span>').join(' ') : '<span class="text-muted">nobody</span>') + '</div>').join('') : '<span class="text-muted">No staff with a branch code yet.</span>';
+}
+async function loadCc() { try { ccPaint(await api('getCcConfig', S.token)); ccNote('', true); } catch (e) { ccNote(e.message, false); } }
+$('#ccAdmins').addEventListener('click', e => { const b = e.target.closest('.cc-p'); if (b) b.classList.toggle('active'); });
+$('#ccSups').addEventListener('click', e => { const b = e.target.closest('.cc-p'); if (b) b.classList.toggle('active'); });
+$('#ccSave').addEventListener('click', async () => {
+  const b = $('#ccSave'); busy(b, true, 'Saving…');
+  try {
+    const skip = $$('#ccAdmins .cc-p, #ccSups .cc-p').filter(x => !x.classList.contains('active')).map(x => x.dataset.u);
+    ccPaint(await api('saveCcConfig', S.token, { on: $('#ccOn').checked, label: $('#ccLabel').value.trim(), admins: true, sups: true, skip }));
+    ccNote('Saved. New alerts use it.', true);
+  } catch (e) { ccNote(e.message, false); }
+  busy(b, false);
+});
+
+/* ============================ QR Installation type (New / Replacement) ============================ */
+function qkPaint(d) { $('#qkOn').checked = d.on; $('#qkDays').value = d.days; $('#qkNew').value = d.newLabel; $('#qkRep').value = d.repLabel; $('#qkStatus').textContent = d.on ? 'On' : 'Off'; }
+function qkNote(t, ok) { const m = $('#qkMsg'); m.textContent = t; m.className = 'small ' + (ok ? 'text-success' : 'text-danger'); }
+async function loadQk() { try { qkPaint(await api('getQrKindConfig', S.token)); qkNote('', true); } catch (e) { qkNote(e.message, false); } }
+$('#qkSave').addEventListener('click', async () => {
+  const b = $('#qkSave'); busy(b, true, 'Saving…');
+  try {
+    qkPaint(await api('saveQrKindConfig', S.token, { on: $('#qkOn').checked, days: Number($('#qkDays').value) || 0, newLabel: $('#qkNew').value.trim(), repLabel: $('#qkRep').value.trim() }));
+    qkNote('Saved. New records use it.', true);
+  } catch (e) { qkNote(e.message, false); }
+  busy(b, false);
+});
 
 /* ============================ Photo stamp settings ============================ */
 const stampModal = new bootstrap.Modal($('#stampModal'));
@@ -2841,13 +2900,13 @@ const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review:
 const deskItems = () => {
   const admin = S.user && S.user.role === 'Admin';
   return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], admin && ['review', 'bi-patch-check', 'Review queue'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
-    ['TOOLS'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
+    ['TOOLS'], ['lookup', 'bi-search', 'Merchant history'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
     admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
 };
 let deskBuilt = false;
 function deskBuild() {
   if (!S.user || deskBuilt) return; deskBuilt = true;
-  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', tplCard: 'tg', lblCard: 'tg', tgCard: 'tg' };
+  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', qkCard: 'rules', tplCard: 'tg', lblCard: 'tg', ccCard: 'tg', tgCard: 'tg' };
   Object.keys(sec).forEach(id => { const el = $('#' + id); if (el) el.dataset.sec = sec[id]; });
   $$('#pane-users > .card-x').forEach(el => { if (!el.dataset.sec) el.dataset.sec = 'staff'; });
   $$('#pane-stock > .card-x').forEach(el => { if (/^\s*(Serial numbers|Returns waiting|Recent movements|Stock items)/i.test(el.textContent)) el.classList.add('span-all'); });
@@ -2861,6 +2920,7 @@ function deskGo(k) {
   if (k === 'pin') return $('#whoBtn').click();
   if (k === 'theme') return $('.theme-toggle').click();
   if (k === 'out') return $('#logoutBtn').click();
+  if (k === 'lookup') return $('#lkBtn').click();
   if (k === 'qr') return $('#qcLiveBtn').click();
   if (k === 'repeats') return $('#rpBtn').click();
   if (k === 'stamp') return openStampSettings();
