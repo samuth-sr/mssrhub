@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=107" rel="stylesheet">
+  <link href="style.css?v=112" rel="stylesheet">
 </head>
 <body>
 
@@ -49,7 +49,7 @@
   <header class="topbar">
     <div class="d-flex justify-content-between align-items-center" style="max-width:880px;margin:0 auto">
       <div>
-        <div class="title fs-5"><i class="bi bi-tools me-2"></i>MS SR HUB WEB APP</div>
+        <div class="title fs-5">MS SR HUB WEB APP</div>
         <button type="button" class="chip mt-2" id="whoBtn" title="Change my PIN"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span><i class="bi bi-key ms-1"></i></button>
       </div>
       <div class="d-flex gap-2">
@@ -173,9 +173,20 @@
         <div class="small text-muted mt-1 hidden" id="chartNote"></div>
       </div>
 
-      <div class="card-x p-0 overflow-hidden">
+      <div class="card-x hidden" id="mapCard">
+        <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
+          <div><span class="fw-bold"><i class="bi bi-map me-1"></i>Merchant map</span> <span class="pill ms-1" id="mapCount">0</span></div>
+          <div class="chips recview"><button type="button" class="chip" data-v="list">List</button><button type="button" class="chip active" data-v="map">Map</button></div>
+        </div>
+        <div class="small text-muted mb-2">Every record with GPS is a dot. The filters above (period, staff, category, activity, QR type ...) change the dots.</div>
+        <div id="recMap" class="rec-map"></div>
+        <div class="map-leg" id="mapLegend"></div>
+        <div class="small text-muted mt-1" id="mapNote"></div>
+      </div>
+
+      <div class="card-x p-0 overflow-hidden" id="recCard">
         <div class="d-flex justify-content-between align-items-center p-3 pb-2">
-          <div><span class="fw-bold">Records</span> <span class="pill ms-1" id="recCount">0</span></div>
+          <div><span class="fw-bold">Records</span> <span class="pill ms-1" id="recCount">0</span> <span class="chips recview d-inline-flex ms-2"><button type="button" class="chip active" data-v="list">List</button><button type="button" class="chip" data-v="map">Map</button></span></div>
           <div class="d-flex gap-2"><button class="btn btn-soft btn-sm" id="copyKpiBtn" title="Copy only the important columns, in activity order, for a KPI update"><i class="bi bi-clipboard-data me-1"></i>Copy KPI</button><button class="btn btn-soft btn-sm" id="copyTgBtn" title="Copy the KPI table as text that looks like a table in a Telegram message"><i class="bi bi-telegram me-1"></i>Telegram</button><button class="btn btn-soft btn-sm" id="copyBtn" title="Copy every column"><i class="bi bi-clipboard me-1"></i>Copy all</button><button class="btn btn-soft btn-sm" id="csvBtn"><i class="bi bi-download me-1"></i>CSV</button></div>
         </div>
         <div class="table-responsive">
@@ -288,6 +299,10 @@
           <div class="col-6 col-md-4"><label class="form-label small mb-1">New label</label><input class="form-control form-control-sm" id="qkNew" maxlength="24"></div>
           <div class="col-6 col-md-4"><label class="form-label small mb-1">Replacement label</label><input class="form-control form-control-sm" id="qkRep" maxlength="24"></div>
         </div>
+        <div class="mb-2"><label class="form-label small mb-1">Records of these activities do NOT make a QR a Replacement</label><input class="form-control form-control-sm" id="qkSkip" maxlength="120" placeholder="Onboarding"><div class="small text-muted">Separate with commas. A record whose activity name contains one of these words is ignored when checking if the MID is already in the records.</div></div>
+        <div class="form-check form-switch mb-1"><input class="form-check-input" type="checkbox" role="switch" id="qkGrow"><label class="form-check-label small" for="qkGrow">Add +1 day to the limit every day</label></div>
+        <div class="row g-2 mb-1" id="qkSinceWrap"><div class="col-6"><label class="form-label small mb-1">Counting from</label><input type="date" class="form-control form-control-sm" id="qkSince"></div></div>
+        <div class="small text-muted mb-2" id="qkToday"></div>
         <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="qkSave">Save</button><span class="small" id="qkMsg"></span></div>
       </div>
 
@@ -336,8 +351,8 @@
           <div class="fw-bold"><i class="bi bi-at me-1"></i>CC on Telegram alerts</div>
           <span class="pill" id="ccStatus">…</span>
         </div>
-        <div class="small text-muted mb-2">Mention the admins and the supervisors of the staff member's branch under every alert, so they get a Telegram notification. They are mentioned by their Telegram username (set in Staff). Tap a name to include or leave out.</div>
-        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ccOn"><label class="form-check-label small" for="ccOn">CC on every alert and wrong-QR warning</label></div>
+        <div class="small text-muted mb-2">Mention the admins and the supervisors of the staff member's branch in the <b>review</b> messages (record waiting for review, approved / returned, resubmitted), the <b>wrong-QR</b> warning and the <b>low-stock</b> alert, so they get a Telegram notification. Normal record messages are not CC'd. They are mentioned by their Telegram username (set in Staff). Tap a name to include or leave out.</div>
+        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ccOn"><label class="form-check-label small" for="ccOn">CC on review, wrong-QR and low-stock alerts</label></div>
         <div class="row g-2 mb-2"><div class="col-6"><label class="form-label small mb-1">Label</label><input class="form-control form-control-sm" id="ccLabel" maxlength="20" placeholder="CC"></div></div>
         <div class="form-label mb-1">Admins <span class="fw-normal text-muted text-lowercase">(every branch)</span></div><div class="chips mb-2" id="ccAdmins"></div>
         <div class="form-label mb-1">Supervisors <span class="fw-normal text-muted text-lowercase">(only for the staff of their branch code)</span></div><div class="chips mb-2" id="ccSups"></div>
@@ -655,6 +670,23 @@
   </div>
 </div>
 
+<!-- Document scanner -->
+<div class="modal fade" id="docModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:20px">
+      <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold"><i class="bi bi-file-earmark-text me-1"></i>Scan document</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body text-center">
+        <div class="small text-muted mb-2">Drag the 4 round corners onto the corners of the paper.</div>
+        <canvas id="docView" style="max-width:100%;touch-action:none;border-radius:10px;background:#222"></canvas>
+        <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
+          <button type="button" class="chip active" id="docBw">Black &amp; white</button>
+          <div class="d-flex gap-2"><button type="button" class="btn btn-soft" id="docRetake">Retake</button><button type="button" class="btn btn-brand" id="docUse">Use page</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Photo stamp settings -->
 <div class="modal fade" id="stampModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -760,6 +792,6 @@
 <script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
-<script src="app.js?v=107" defer></script>
+<script src="app.js?v=112" defer></script>
 </body>
 </html>

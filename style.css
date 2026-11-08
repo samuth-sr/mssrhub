@@ -331,3 +331,23 @@ body.desk #pane-records > .card-x.p-0{grid-row:5}
 .send-q.warn{background:#b42318}
 .send-q .btn{margin-left:auto;white-space:nowrap}
 body.desk .send-q{left:auto;right:20px;bottom:20px;max-width:420px}
+
+/* document scanner field */
+.scan-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.scan-th{position:relative;width:64px;height:88px;border:1px solid var(--bs-border-color,#d9dcf0);border-radius:6px;overflow:hidden;background:#fff}
+.scan-th img{width:100%;height:100%;object-fit:cover}
+.scan-th span{position:absolute;left:3px;bottom:2px;font-size:.65rem;background:rgba(0,0,0,.55);color:#fff;border-radius:6px;padding:0 5px}
+.scan-x{position:absolute;right:2px;top:2px;width:20px;height:20px;border:0;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;line-height:18px;padding:0}
+#eCustom .scan-btn,#eCustom .scan-x{display:none}
+
+/* merchant map */
+.rec-map{height:62vh;min-height:340px;border-radius:12px;overflow:hidden;z-index:0}
+.map-leg{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:.8rem;margin-top:8px}
+.map-leg i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.map-cl div{border-radius:50%;background:rgba(79,70,229,.9);color:#fff;font-weight:700;font-size:.8rem;text-align:center;border:3px solid rgba(255,255,255,.92);box-shadow:0 1px 5px rgba(0,0,0,.35)}
+.map-pop b{font-size:.95rem}
+
+.ce-mvs{display:inline-flex;gap:2px;margin-left:auto;flex:none}
+.ce-mv{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;background:rgba(79,70,229,.1);color:var(--brand);font-size:.75rem;cursor:pointer}
+.ce-mv.off{opacity:.25;pointer-events:none}
+.ce-it em+.ce-mvs{margin-left:6px}

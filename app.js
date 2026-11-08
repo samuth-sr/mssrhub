@@ -191,6 +191,7 @@ function customFieldHtml(f) {
   if (f.kind === 'select') return '<div class="mb-3">' + lab + '<select class="form-select" data-fid="' + esc(f.id) + '" data-kind="select"><option value="">Select…</option>' +
     (f.opts || []).map(o => '<option value="' + esc(o) + '">' + esc(o) + '</option>').join('') + '</select></div>';
   if (f.kind === 'info') return '<div class="mb-3 info-lbl">' + (f.label ? '<div class="fw-semibold">' + esc(f.label) + '</div>' : '') + '<div class="small" style="white-space:pre-wrap">' + esc(f.text || '') + '</div></div>';
+  if (f.kind === 'scan') return '<div class="mb-3">' + lab + '<div class="scan-field" data-fid="' + esc(f.id) + '" data-kind="scan"><div class="scan-thumbs"></div><button type="button" class="btn btn-soft scan-btn"><i class="bi bi-file-earmark-text me-1"></i>Scan document</button><input type="file" accept="image/*" capture="environment" class="scan-file hidden"><div class="small text-muted scan-note">Take a photo of the paper. It is straightened and cleaned like a scanner and sent to Telegram as one PDF.</div></div></div>';
   if (f.kind === 'toggle') return '<div class="yn-row" data-fid="' + esc(f.id) + '" data-kind="toggle"><label class="form-check-label">' + esc(f.label) + '</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" aria-label="' + esc(f.label) + '"><span class="yn-t small fw-semibold">No</span></div></div>';
   const vert = cfDir(f) === 'v';
   if (f.kind === 'radio') return '<div class="mb-3">' + lab + '<div class="chips' + (vert ? ' opt-v' : '') + '" data-fid="' + esc(f.id) + '" data-kind="radio">' +
@@ -222,21 +223,23 @@ function customVal(el) {
   if (el.dataset.kind === 'radio') { const a = $('.rc-chip.active', el); return a ? a.dataset.v : ''; }
   if (el.dataset.kind === 'spin') return String($('.spin-in', el).value || '').trim();
   if (el.dataset.kind === 'toggle') return $('input', el).checked ? 'Yes' : 'No';
+  if (el.dataset.kind === 'scan') { const n = (el._pages || []).length; return n ? n + (n > 1 ? ' pages' : ' page') : (el.dataset.saved || ''); }
   return el.dataset.kind === 'check' ? $$('input:checked', el).map(i => i.value) : String(el.value || '').trim();
 }
 function setCustomVal(el, v) {
   if (el.dataset.kind === 'radio') { $$('.rc-chip', el).forEach(b => b.classList.toggle('active', b.dataset.v === (Array.isArray(v) ? v[0] : v))); return; }
   if (el.dataset.kind === 'spin') { const sv = Array.isArray(v) ? v[0] : v; $('.spin-in', el).value = sv == null || sv === '' ? (+el.dataset.min <= 0 && +el.dataset.max >= 0 ? 0 : el.dataset.min) : sv; return; }
+  if (el.dataset.kind === 'scan') { if (!(el._pages || []).length) { el.dataset.saved = Array.isArray(v) ? v[0] || '' : (v == null ? '' : v); scanPaint(el); } return; }
   if (el.dataset.kind === 'toggle') { const i = $('input', el); i.checked = /^yes$/i.test(String(Array.isArray(v) ? v[0] : (v == null ? '' : v))); syncYn(i); return; }
   if (el.dataset.kind === 'check') { const set = Array.isArray(v) ? v : String(v || '').split(', '); $$('input', el).forEach(i => { i.checked = set.includes(i.value); }); }
   else el.value = Array.isArray(v) ? v[0] || '' : (v == null ? '' : v);
 }
 /** (Re)draws the admin-added boxes inside box, keeping what was typed. */
 function renderCustom(box, d) {
-  const old = {}; $$('[data-fid]', box).forEach(i => { old[i.dataset.fid] = customVal(i); });
+  const old = {}, pg = {}; $$('[data-fid]', box).forEach(i => { old[i.dataset.fid] = customVal(i); if (i.dataset.kind === 'scan') pg[i.dataset.fid] = i._pages || []; });
   const list = (d && d.custom) || [];
   box.innerHTML = list.map(customFieldHtml).join('');
-  $$('[data-fid]', box).forEach(i => { if (old[i.dataset.fid] != null) setCustomVal(i, old[i.dataset.fid]); });
+  $$('[data-fid]', box).forEach(i => { if (i.dataset.kind === 'scan') { i._pages = pg[i.dataset.fid] || []; scanPaint(i); } else if (old[i.dataset.fid] != null) setCustomVal(i, old[i.dataset.fid]); });
   show(box, list.length > 0);
 }
 /* ---- Order of the boxes on the form: the admin can move boxes up / down per activity (a.ord = list of keys). Not set = the built-in order. ---- */
@@ -818,8 +821,8 @@ function addMerchant() {
     '<div class="mb-3 hidden" data-fk="newSn"><label class="form-label">New S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-new" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="btype"><label class="form-label">Business type <span class="rq hidden">*</span></label><input class="form-control f-btype mb-2" maxlength="60" autocomplete="off" placeholder="Type, or tap one below">' +
       '<div class="chips btype-chips">' + BIZ_TYPES.map(t => '<button type="button" class="chip" data-t="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div></div>' +
-    '<div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input class="form-control f-ptype mb-2" maxlength="120" autocomplete="off" placeholder="Tap one or more below, or leave blank"><div class="chips ptype-chips"></div></div>' +
-    '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="d-flex align-items-center gap-2 hours-line"><label class="small text-muted mb-0">Open</label><input type="time" class="form-control f-open" aria-label="Open"><label class="small text-muted mb-0 ms-1">Close</label><input type="time" class="form-control f-close" aria-label="Close"></div></div>' +
+    '<div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input type="hidden" class="f-ptype" maxlength="120"><div class="chips ptype-chips"></div></div>' +
+    '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="d-flex align-items-center gap-2 hours-line"><label class="small text-muted mb-0">Open</label><input type="time" class="form-control f-open" aria-label="Open" value="08:00"><label class="small text-muted mb-0 ms-1">Close</label><input type="time" class="form-control f-close" aria-label="Close" value="20:00"></div></div>' +
     '<div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input class="form-control f-group" maxlength="100" autocomplete="off" placeholder="e.g. owner / chain / group name"></div>' +
     '<div class="mb-3 hidden" data-fk="zone"><label class="form-label">Zone / Area <span class="rq hidden">*</span></label><input class="form-control f-zone" maxlength="80" autocomplete="off" placeholder="e.g. Zone A / Area name"></div>' +
     '<div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input class="form-control f-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="e.g. 012 345 678"></div>' +
@@ -1030,7 +1033,7 @@ async function currentLocation() {
   let p = geo.pos && Date.now() - geo.pos.t < 120000 ? geo.pos : await refreshGeo(8000);
   p = p || geo.pos;
   if (!p) return null;
-  try { await geo.lookup; } catch (e) {}
+  try { await Promise.race([geo.lookup, new Promise(r => setTimeout(r, 1500))]); } catch (e) {}      // the street name may take a moment: wait at most 1.5 s, the coordinates are what matter
   return { lat: p.lat, lon: p.lon, addr: addrText(p) };
 }
 /* ---- "Current location" card on the form ---- */
@@ -1313,7 +1316,7 @@ function renderPhotos(card) {
 
 /* ---- submit ---- */
 $('#submitBtn').addEventListener('click', async () => {
-  const items = [], keepNew = {};
+  const items = [], keepNew = {}, docSets = [];
   if (((typeDef(curType) || {}).subs || []).length && S.sub == null) { toast('Select the sub category.', 'danger'); $('#subWrap').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
   for (let i = 0; i < S.cards.length; i++) {
     const c = S.cards[i], g = s => $(s, c.el).value.trim();
@@ -1335,15 +1338,16 @@ $('#submitBtn').addEventListener('click', async () => {
     if (L('commune') === 2 && !$('#fDistrict').value.trim()) { bad('enter the District.'); $('#fDistrict').focus(); return; }
     if (L('hours') && ((L('hours') === 2 && !g('.f-open')) || (!!g('.f-open') !== !!g('.f-close')))) { bad('enter both opening and closing time.', g('.f-open') ? '.f-close' : '.f-open'); return; }
     if (L('phone') && g('.f-phone') && !PHONE_RE.test(g('.f-phone'))) { bad('the phone number looks wrong.', '.f-phone'); return; }
-    const extra = {};
+    const extra = {}, docs = [];
     for (const f of ((ad && ad.custom) || [])) {
       const inp = $('[data-fid="' + f.id + '"]', c.el), v = inp ? customVal(inp) : '';
       if (f.kind === 'spin' && v.length && parseFloat(v) === 0) continue;      // zero = nothing to record
-      if (!v.length) { if (f.req) { bad((f.kind === 'select' || f.kind === 'radio' ? 'choose ' : f.kind === 'check' ? 'tick at least one ' : 'enter ') + f.label + '.'); if (inp && inp.focus) inp.focus(); return; } continue; }
+      if (!v.length) { if (f.req) { bad((f.kind === 'select' || f.kind === 'radio' ? 'choose ' : f.kind === 'check' ? 'tick at least one ' : f.kind === 'scan' ? 'scan ' : 'enter ') + f.label + '.'); if (inp && inp.focus) inp.focus(); return; } continue; }
       if ((f.kind === 'number' || f.kind === 'spin') && !/^-?\d+(\.\d+)?$/.test(v)) { bad(f.label + ' must be a number.'); return; }
       if (f.kind === 'spin' && (+v < f.min || +v > f.max)) { bad(f.label + ' must be between ' + f.min + ' and ' + f.max + '.'); return; }
       if (f.kind === 'phone' && !PHONE_RE.test(v)) { bad(f.label + ' looks wrong.'); return; }
       extra[f.id] = v;
+      if (f.kind === 'scan' && inp._pages && inp._pages.length) docs.push({ label: f.label, pages: inp._pages });
     }
     let stockLines;
     if (ad && ad.stock) {
@@ -1366,6 +1370,7 @@ $('#submitBtn').addEventListener('click', async () => {
       merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), integ: L('integ') ? $('.f-integ', c.el).checked : false, sim: L('sim') ? $('.f-sim', c.el).checked : false, standee: L('standee') ? $('.f-standee', c.el).checked : false, business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
       btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
+    docSets.push(docs);
   }
   const photoSets = items.map(it => it.photos);      // the photos wait on the phone: the record is saved first, the photos are sent to Telegram afterwards
   const bytes = Math.max(0, ...photoSets.map(ps => ps.reduce((u, p) => u + p.length, 0)));
@@ -1380,10 +1385,11 @@ $('#submitBtn').addEventListener('click', async () => {
     if (!S.batchId) S.batchId = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);     // same id on a retry, so a repeated send is saved only once
     if (S.deferOk === undefined) { try { await S.deferProbe; } catch (e) {} }
     const defer = S.deferOk === true, t0 = Date.now();
+    if (!defer && docSets.some(d => d.length)) { toast('Scanned documents need the latest backend (Code.gs). Update it first.', 'danger'); busy(btn, false); return; }
     if (defer) items.forEach((it, i) => { it.photoCount = photoSets[i].length; it.photos = []; });
     const r = await api('submitInstallations', S.token, items, S.batchId, defer || undefined);
     S.batchId = null;
-    if (defer && r.deferred) await qAdd(r.stamps.map((st, i) => ({ id: S.user.username + '|' + st, stamp: st, user: S.user.username, n: i + 1, total: r.stamps.length, photos: photoSets[i], tries: 0, next: 0, t: Date.now() })));
+    if (defer && r.deferred) await qAdd(r.stamps.map((st, i) => ({ id: S.user.username + '|' + st, stamp: st, user: S.user.username, n: i + 1, total: r.stamps.length, photos: photoSets[i], docs: docSets[i], tries: 0, next: 0, t: Date.now() })));
     r.telegram = defer && r.deferred ? 'photos are sending in the background' : r.telegram;
     r.secs = ((Date.now() - t0) / 1000).toFixed(1);
     toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + ') in ' + r.secs + 's. Telegram: ' + r.telegram, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
@@ -1396,6 +1402,192 @@ $('#submitBtn').addEventListener('click', async () => {
     loadSummary(); loadLast();
   } catch (e) { if (!e.net) S.batchId = null; toast(e.message + (e.net ? ' If you retry, nothing is saved twice.' : ''), 'danger'); }
   busy(btn, false);
+});
+
+/* ============================ Document scanner (extra field "Document scanner") ============================ */
+const DOC = { el: null, src: null, pts: [], scale: 1, drag: -1, bw: true };
+const DOC_MAX_PAGES = 10;
+function scanPaint(el) {      // thumbnails of the scanned pages + the note
+  const pages = el._pages || [], th = $('.scan-thumbs', el); if (!th) return;
+  th.innerHTML = pages.map((p, i) => '<div class="scan-th"><img src="' + p + '" alt="Page ' + (i + 1) + '"><button type="button" class="scan-x" data-i="' + i + '" aria-label="Remove page ' + (i + 1) + '">&times;</button><span>' + (i + 1) + '</span></div>').join('');
+  const b = $('.scan-btn', el); if (b) b.innerHTML = '<i class="bi bi-file-earmark-text me-1"></i>' + (pages.length ? 'Add page' : 'Scan document');
+  const n = $('.scan-note', el);
+  if (n) n.textContent = pages.length ? pages.length + (pages.length > 1 ? ' pages' : ' page') + ' ready. They are sent to Telegram as one PDF.' : (el.dataset.saved ? 'Scanned: ' + el.dataset.saved + ' (cannot be changed here)' : 'Take a photo of the paper. It is straightened and cleaned like a scanner and sent to Telegram as one PDF.');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.scan-btn'); if (b) { const f = b.closest('.scan-field'); if ((f._pages || []).length >= DOC_MAX_PAGES) { toast('At most ' + DOC_MAX_PAGES + ' pages.', 'warning'); return; } $('.scan-file', f).click(); return; }
+  const x = e.target.closest('.scan-x'); if (x) { const f = x.closest('.scan-field'); (f._pages || []).splice(+x.dataset.i, 1); scanPaint(f); }
+});
+document.addEventListener('change', async e => {
+  const inp = e.target.closest && e.target.closest('.scan-file'); if (!inp || !inp.files[0]) return;
+  const file = inp.files[0], f = inp.closest('.scan-field'); inp.value = '';
+  try { await docOpen(f, file); } catch (err) { toast('That picture could not be read.', 'warning'); }
+});
+const docModal = new bootstrap.Modal($('#docModal'));
+/** Loads the picture (at most 1800 px on the long side) and finds the paper. */
+async function docOpen(field, file) {
+  const url = URL.createObjectURL(file);
+  const im = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+  const r = Math.min(1, 1800 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+  c.width = Math.round(im.naturalWidth * r); c.height = Math.round(im.naturalHeight * r);
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+  DOC.el = field; DOC.src = c; DOC.pts = docDetect(c); DOC.drag = -1;
+  const v = $('#docView'), w = Math.min(window.innerWidth - 56, 420);      // preview canvas
+  DOC.scale = w / c.width; v.width = Math.round(c.width * DOC.scale); v.height = Math.round(c.height * DOC.scale);
+  docDraw(); docModal.show();
+}
+/** Paper corners (top-left, top-right, bottom-right, bottom-left, in picture pixels): the bright area that is the biggest blob. Falls back to a frame with a margin. */
+function docDetect(c) {
+  const W = c.width, H = c.height, k = 160 / Math.max(W, H), w = Math.max(8, Math.round(W * k)), h = Math.max(8, Math.round(H * k));
+  const s = document.createElement('canvas'); s.width = w; s.height = h; const x = s.getContext('2d'); x.drawImage(c, 0, 0, w, h);
+  const d = x.getImageData(0, 0, w, h).data, g = new Uint8Array(w * h), hist = new Array(256).fill(0);
+  for (let i = 0; i < w * h; i++) { const v = Math.round(0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]); g[i] = v; hist[v]++; }
+  let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];      // Otsu: the brightness that best splits paper from table
+  let wB = 0, sB = 0, best = 0, th = 128; const tot = w * h;
+  for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = tot - wB; if (!wF) break; sB += t * hist[t]; const mB = sB / wB, mF = (sum - sB) / wF, bt = wB * wF * (mB - mF) * (mB - mF); if (bt > best) { best = bt; th = t; } }
+  const mask = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) mask[i] = g[i] > th ? 1 : 0;
+  const lab = new Int32Array(w * h), q = new Int32Array(w * h); let bestN = 0, bestId = 0, id = 0;      // biggest bright blob
+  for (let i = 0; i < w * h; i++) {
+    if (!mask[i] || lab[i]) continue; id++; let qa = 0, qb = 0, n = 0; q[qb++] = i; lab[i] = id;
+    while (qa < qb) { const p = q[qa++]; n++; const px = p % w, py = (p - px) / w; for (const nb of [px > 0 ? p - 1 : -1, px < w - 1 ? p + 1 : -1, py > 0 ? p - w : -1, py < h - 1 ? p + w : -1]) if (nb >= 0 && mask[nb] && !lab[nb]) { lab[nb] = id; q[qb++] = nb; } }
+    if (n > bestN) { bestN = n; bestId = id; }
+  }
+  const frame = () => { const mx = W * 0.06, my = H * 0.06; return [{ x: mx, y: my }, { x: W - mx, y: my }, { x: W - mx, y: H - my }, { x: mx, y: H - my }]; };
+  if (bestN < tot * 0.15 || bestN > tot * 0.985) return frame();
+  let tl = null, tr = null, br = null, bl = null, a1 = 1e9, a2 = -1e9, a3 = -1e9, a4 = 1e9;
+  for (let i = 0; i < w * h; i++) {
+    if (lab[i] !== bestId) continue; const px = i % w, py = (i - px) / w, s1 = px + py, s2 = px - py;
+    if (s1 < a1) { a1 = s1; tl = { x: px, y: py }; } if (s2 > a2) { a2 = s2; tr = { x: px, y: py }; } if (s1 > a3) { a3 = s1; br = { x: px, y: py }; } if (s2 < a4) { a4 = s2; bl = { x: px, y: py }; }
+  }
+  const out = [tl, tr, br, bl].map(p => ({ x: Math.min(W, Math.max(0, (p.x + 0.5) / k)), y: Math.min(H, Math.max(0, (p.y + 0.5) / k)) }));
+  const area = Math.abs((out[0].x * out[1].y - out[1].x * out[0].y) + (out[1].x * out[2].y - out[2].x * out[1].y) + (out[2].x * out[3].y - out[3].x * out[2].y) + (out[3].x * out[0].y - out[0].x * out[3].y)) / 2;
+  return area < W * H * 0.12 ? frame() : out;
+}
+function docDraw() {
+  const v = $('#docView'), x = v.getContext('2d'), p = DOC.pts.map(q => ({ x: q.x * DOC.scale, y: q.y * DOC.scale }));
+  x.clearRect(0, 0, v.width, v.height); x.drawImage(DOC.src, 0, 0, v.width, v.height);
+  x.fillStyle = 'rgba(0,0,0,.45)'; x.beginPath(); x.rect(0, 0, v.width, v.height); x.moveTo(p[0].x, p[0].y); for (let i = 3; i >= 0; i--) x.lineTo(p[i].x, p[i].y); x.closePath(); x.fill('evenodd');
+  x.strokeStyle = '#4f46e5'; x.lineWidth = 2.5; x.beginPath(); p.forEach((q, i) => i ? x.lineTo(q.x, q.y) : x.moveTo(q.x, q.y)); x.closePath(); x.stroke();
+  p.forEach(q => { x.fillStyle = '#fff'; x.strokeStyle = '#4f46e5'; x.lineWidth = 3; x.beginPath(); x.arc(q.x, q.y, 11, 0, 7); x.fill(); x.stroke(); });
+}
+(function () {      // drag a corner
+  const v = $('#docView'), pos = e => { const r = v.getBoundingClientRect(); return { x: (e.clientX - r.left) * (v.width / r.width) / DOC.scale, y: (e.clientY - r.top) * (v.height / r.height) / DOC.scale }; };
+  v.addEventListener('pointerdown', e => { const m = pos(e); let bi = -1, bd = 1e9; DOC.pts.forEach((q, i) => { const dd = Math.hypot(q.x - m.x, q.y - m.y) * DOC.scale; if (dd < bd) { bd = dd; bi = i; } }); if (bd < 40) { DOC.drag = bi; v.setPointerCapture(e.pointerId); e.preventDefault(); } });
+  v.addEventListener('pointermove', e => { if (DOC.drag < 0) return; const m = pos(e); DOC.pts[DOC.drag] = { x: Math.min(DOC.src.width, Math.max(0, m.x)), y: Math.min(DOC.src.height, Math.max(0, m.y)) }; docDraw(); e.preventDefault(); });
+  ['pointerup', 'pointercancel'].forEach(t => v.addEventListener(t, () => { DOC.drag = -1; }));
+})();
+/** Straightens the paper (perspective) into a flat page and cleans it: even lighting, white paper, dark ink. Returns a JPEG data URL. */
+function docRender(src, pts, clean) {
+  const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  let w = Math.max(d(pts[0], pts[1]), d(pts[3], pts[2])), h = Math.max(d(pts[0], pts[3]), d(pts[1], pts[2]));
+  const r = Math.min(1, 1500 / Math.max(w, h)); w = Math.max(40, Math.round(w * r)); h = Math.max(40, Math.round(h * r));
+  // homography from the output rectangle to the picture (4 point pairs, 8 unknowns)
+  const dst = [[0, 0], [w, 0], [w, h], [0, h]], A = [], B = [];
+  for (let i = 0; i < 4; i++) { const [u, v] = dst[i], { x, y } = pts[i]; A.push([u, v, 1, 0, 0, 0, -u * x, -v * x]); B.push(x); A.push([0, 0, 0, u, v, 1, -u * y, -v * y]); B.push(y); }
+  const M = A.map((row, i) => row.concat(B[i]));
+  for (let i = 0; i < 8; i++) { let p = i; for (let j = i + 1; j < 8; j++) if (Math.abs(M[j][i]) > Math.abs(M[p][i])) p = j; [M[i], M[p]] = [M[p], M[i]]; for (let j = i + 1; j < 8; j++) { const f = M[j][i] / M[i][i]; for (let k = i; k < 9; k++) M[j][k] -= f * M[i][k]; } }
+  const hh = new Array(8); for (let i = 7; i >= 0; i--) { let s = M[i][8]; for (let j = i + 1; j < 8; j++) s -= M[i][j] * hh[j]; hh[i] = s / M[i][i]; }
+  const sc = src.getContext('2d').getImageData(0, 0, src.width, src.height), sd = sc.data, sw = src.width, sh = src.height;
+  const out = document.createElement('canvas'); out.width = w; out.height = h; const ox = out.getContext('2d'), od = ox.createImageData(w, h), o = od.data, gray = new Float32Array(w * h);
+  for (let v = 0; v < h; v++) for (let u = 0; u < w; u++) {
+    const den = hh[6] * u + hh[7] * v + 1, X = (hh[0] * u + hh[1] * v + hh[2]) / den, Y = (hh[3] * u + hh[4] * v + hh[5]) / den;
+    const x0 = Math.max(0, Math.min(sw - 2, Math.floor(X))), y0 = Math.max(0, Math.min(sh - 2, Math.floor(Y))), fx = Math.min(1, Math.max(0, X - x0)), fy = Math.min(1, Math.max(0, Y - y0)), i = (v * w + u) * 4;
+    for (let c = 0; c < 3; c++) { const p00 = sd[(y0 * sw + x0) * 4 + c], p10 = sd[(y0 * sw + x0 + 1) * 4 + c], p01 = sd[((y0 + 1) * sw + x0) * 4 + c], p11 = sd[((y0 + 1) * sw + x0 + 1) * 4 + c]; o[i + c] = p00 * (1 - fx) * (1 - fy) + p10 * fx * (1 - fy) + p01 * (1 - fx) * fy + p11 * fx * fy; }
+    o[i + 3] = 255; gray[v * w + u] = 0.299 * o[i] + 0.587 * o[i + 1] + 0.114 * o[i + 2];
+  }
+  if (clean) {      // background = a wide average of the page; paper / background = 1 (white), ink stays dark
+    const rad = Math.max(8, Math.round(Math.max(w, h) / 24)), I = new Float64Array((w + 1) * (h + 1));
+    for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += gray[y * w + x]; I[(y + 1) * (w + 1) + x + 1] = I[y * (w + 1) + x + 1] + row; } }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const x1 = Math.max(0, x - rad), x2 = Math.min(w, x + rad + 1), y1 = Math.max(0, y - rad), y2 = Math.min(h, y + rad + 1);
+      const bg = (I[y2 * (w + 1) + x2] - I[y1 * (w + 1) + x2] - I[y2 * (w + 1) + x1] + I[y1 * (w + 1) + x1]) / ((x2 - x1) * (y2 - y1));
+      let n = gray[y * w + x] / Math.max(40, bg); n = Math.min(1, n);
+      const val = Math.round(255 * Math.min(1, Math.max(0, (n - 0.55) / 0.38))), i = (y * w + x) * 4; o[i] = o[i + 1] = o[i + 2] = val;
+    }
+  }
+  ox.putImageData(od, 0, 0);
+  return out.toDataURL('image/jpeg', clean ? 0.7 : 0.8);
+}
+$('#docUse').addEventListener('click', () => {
+  const btn = $('#docUse'); busy(btn, true, '…');
+  setTimeout(() => {      // lets the button show before the page is worked out
+    try {
+      const url = docRender(DOC.src, DOC.pts, DOC.bw), f = DOC.el; f._pages = (f._pages || []).concat(url); scanPaint(f); docModal.hide();
+    } catch (e) { toast('Could not make the page. Try again.', 'danger'); }
+    busy(btn, false);
+  }, 30);
+});
+$('#docRetake').addEventListener('click', () => { const f = DOC.el; docModal.hide(); if (f) setTimeout(() => $('.scan-file', f).click(), 300); });
+$('#docBw').addEventListener('click', () => { DOC.bw = !DOC.bw; $('#docBw').classList.toggle('active', DOC.bw); $('#docBw').textContent = DOC.bw ? 'Black & white' : 'Colour'; });
+
+/* ============================ Merchant map (Records > Map) ============================ */
+const MAP = { map: null, layer: null, pts: [], first: true };
+const MAP_COL = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899', '#84cc16'];
+const mapColor = t => { const i = (typeof TYPES !== 'undefined' ? TYPES : []).indexOf(t); return MAP_COL[(i < 0 ? 0 : i) % MAP_COL.length]; };
+const locLatLon = r => { const m = /(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)\s*$/.exec(String(r.loc || '')); if (!m) return null; const la = +m[1], lo = +m[2]; return la >= -90 && la <= 90 && lo >= -180 && lo <= 180 ? [la, lo] : null; };
+function recViewSet(v) {
+  S.recView = v === 'map' ? 'map' : 'list';
+  const map = S.recView === 'map';
+  show($('#mapCard'), map); show($('#recCard'), !map);
+  $$('.recview .chip').forEach(b => b.classList.toggle('active', b.dataset.v === S.recView));
+  if (map) renderMap();
+}
+document.addEventListener('click', e => { const b = e.target.closest('.recview .chip'); if (b) recViewSet(b.dataset.v); });
+function mapInit() {
+  if (MAP.map || typeof L === 'undefined' || !L.map) return !!MAP.map;
+  MAP.map = L.map('recMap', { zoomControl: true, attributionControl: true }).setView([11.5564, 104.9282], 11);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(MAP.map);
+  MAP.layer = L.layerGroup().addTo(MAP.map);
+  MAP.map.on('zoomend', mapDraw);
+  return true;
+}
+function renderMap() {
+  const rows = filtered(), pts = [];
+  rows.forEach(r => { const ll = locLatLon(r); if (ll) pts.push({ r, ll }); });
+  MAP.pts = pts;
+  $('#mapCount').textContent = pts.length;
+  const cats = {}; pts.forEach(p => { cats[p.r.type] = (cats[p.r.type] || 0) + 1; });
+  $('#mapLegend').innerHTML = Object.keys(cats).map(t => '<span><i style="background:' + mapColor(t) + '"></i>' + esc(shortName(t)) + ' ' + cats[t] + '</span>').join('') + '<span class="ms-auto fw-bold">' + pts.length + ' on the map' + (rows.length - pts.length ? ' · ' + (rows.length - pts.length) + ' without GPS' : '') + '</span>';
+  $('#mapNote').textContent = rows.length ? (pts.length ? '' : 'None of these records has a GPS location.') : 'No records for this filter.';
+  if (!mapInit()) { $('#mapNote').textContent = 'The map could not load. Check the connection.'; return; }
+  setTimeout(() => {
+    MAP.map.invalidateSize();
+    if (pts.length) { const b = L.latLngBounds(pts.map(p => p.ll)); MAP.map.fitBounds(b, { padding: [30, 30], maxZoom: 17 }); }
+    mapDraw();
+  }, 60);
+}
+/** Dots, with the close ones grouped into a numbered circle (about 46 px apart on the screen). */
+function mapDraw() {
+  if (!MAP.map || !MAP.layer) return;
+  MAP.layer.clearLayers();
+  const G = 46, cells = {};
+  MAP.pts.forEach(p => { const pt = MAP.map.latLngToContainerPoint(p.ll), k = Math.floor(pt.x / G) + ':' + Math.floor(pt.y / G); (cells[k] = cells[k] || []).push(p); });
+  Object.keys(cells).forEach(k => {
+    const list = cells[k];
+    if (list.length === 1 || MAP.map.getZoom() >= 18) {
+      list.forEach(p => {
+        const m = L.circleMarker(p.ll, { radius: 7, color: '#fff', weight: 2, fillColor: mapColor(p.r.type), fillOpacity: 1 }).addTo(MAP.layer);
+        m.bindPopup(mapPopup(p.r), { maxWidth: 260 });
+      });
+    } else {
+      const lat = list.reduce((t, p) => t + p.ll[0], 0) / list.length, lon = list.reduce((t, p) => t + p.ll[1], 0) / list.length, sz = list.length > 99 ? 44 : list.length > 9 ? 38 : 32;
+      const m = L.marker([lat, lon], { icon: L.divIcon({ className: 'map-cl', html: '<div style="width:' + sz + 'px;height:' + sz + 'px;line-height:' + (sz - 6) + 'px">' + list.length + '</div>', iconSize: [sz, sz] }) }).addTo(MAP.layer);
+      m.on('click', () => MAP.map.fitBounds(L.latLngBounds(list.map(p => p.ll)), { padding: [40, 40], maxZoom: 19 }));
+    }
+  });
+}
+function mapPopup(r) {
+  const ll = locLatLon(r), qt = r.fields && r.fields['QR Type'];
+  return '<div class="map-pop"><b>' + esc(r.merchant || r.mid || '—') + '</b><div class="small text-muted">' + esc(shortName(r.type)) + (r.sub ? ' · ' + esc(r.sub) : '') + ' · ' + esc(r.activity) + (qt ? ' · <b>' + esc(qt) + '</b>' : '') + '</div>' +
+    '<div class="small">' + esc([r.mid ? midLabelFor(r.type, r.mid) + ' ' + r.mid : '', r.tid ? 'TID ' + r.tid : ''].filter(Boolean).join(' · ')) + '</div>' +
+    '<div class="small text-muted">' + esc(r.user) + (r.branch ? ' · ' + esc(r.branch) : '') + ' · ' + esc(fmtD(r.date || r.ts)) + '</div>' +
+    '<div class="small mt-1"><a target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + ll[0] + ',' + ll[1] + '">Open in Google Maps ↗</a> · <a href="#" class="map-rec" data-s="' + esc(r.stamp) + '">View record</a></div></div>';
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('.map-rec'); if (!a) return; e.preventDefault();
+  const st = a.dataset.s; recViewSet('list');
+  const i = filtered().findIndex(r => r.stamp === st), tr = i >= 0 ? $('#recBody .rec-row[data-i="' + i + '"]') : null;
+  if (tr) { setTimeout(() => { tr.click(); tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80); }
 });
 
 /* ============================ Background sending of photos (save first, Telegram afterwards) ============================ */
@@ -1414,7 +1606,7 @@ function qOpen() {
 const qTx = (mode, fn) => qOpen().then(db => new Promise((ok, no) => { const tx = db.transaction(['jobs', 'blobs'], mode), st = tx.objectStore('jobs'); let out; try { out = fn(st, tx.objectStore('blobs')); } catch (e) { no(e); return; } tx.oncomplete = () => ok(out && out.result !== undefined ? out.result : out); tx.onerror = () => no(tx.error); tx.onabort = () => no(tx.error); }));
 const Q = { jobs: [], busy: false };      // Q.jobs = the waiting jobs without their photos (the photos stay in the database until sent)
 async function qAdd(list) {
-  try { await qTx('readwrite', (st, bl) => { list.forEach(j => { const { photos, ...meta } = j; st.put(meta); bl.put({ id: j.id, photos }); }); }); }
+  try { await qTx('readwrite', (st, bl) => { list.forEach(j => { const { photos, docs, ...meta } = j; st.put(meta); bl.put({ id: j.id, photos, docs }); }); }); }
   catch (e) { toast('Could not keep the photos for sending. Keep the app open until they are sent.', 'warning'); Q.mem = (Q.mem || []).concat(list); }      // no storage: they are sent from memory
   qMeta(); qKick(0);
 }
@@ -1424,8 +1616,8 @@ async function qAll() {
   return (list || []).concat(Q.mem || []);
 }
 async function qDel(id) { Q.mem = (Q.mem || []).filter(j => j.id !== id); try { await qTx('readwrite', (st, bl) => { st.delete(id); bl.delete(id); }); } catch (e) {} }
-async function qPhotos(j) { if (j.photos) return j.photos; try { const b = await qTx('readonly', (st, bl) => bl.get(j.id)); return (b && b.photos) || []; } catch (e) { return []; } }
-async function qPut(j) { if ((Q.mem || []).some(x => x.id === j.id)) return; const { photos, ...meta } = j; try { await qTx('readwrite', st => { st.put(meta); }); } catch (e) {} }
+async function qBlob(j) { if (j.photos) return { photos: j.photos, docs: j.docs || [] }; try { const b = await qTx('readonly', (st, bl) => bl.get(j.id)); return { photos: (b && b.photos) || [], docs: (b && b.docs) || [] }; } catch (e) { return { photos: [], docs: [] }; } }
+async function qPut(j) { if ((Q.mem || []).some(x => x.id === j.id)) return; const { photos, docs, ...meta } = j; try { await qTx('readwrite', st => { st.put(meta); }); } catch (e) {} }
 const Q_WAIT = [3, 8, 20, 45, 90, 180];      // seconds before the next try
 const Q_WARN = 4;      // the staff is told after this many failed tries
 async function qMeta() {
@@ -1451,7 +1643,7 @@ async function qRun() {
     for (const j of list) {
       if ((j.next || 0) > now) { nextAt = nextAt ? Math.min(nextAt, j.next) : j.next; continue; }
       try {
-        const r = await api('sendRecordTelegram', S.token, j.stamp, j.n, j.total, await qPhotos(j));
+        const bl = await qBlob(j), r = await api('sendRecordTelegram', S.token, j.stamp, j.n, j.total, bl.photos, bl.docs);
         await qDel(j.id);
         if (r && r.pdf && r.pdf !== 'ok' && r.pdf !== 'none') toast('Photos sent, but the PDF file was not (' + r.pdf + ').', 'warning');
       } catch (e) {
@@ -1633,6 +1825,7 @@ function recDetail(r) {
 }
 function renderRows() {
   const rows = filtered();
+  if (S.recView === 'map') renderMap();
   $('#recCount').textContent = rows.length;
   $('#recBody').innerHTML = rows.length ? rows.map((r, i) =>
     '<tr class="rec-row" data-i="' + i + '"><td class="text-nowrap"><div class="fw-semibold">' + esc(fmtD(r.date || r.ts)) + '</div><div class="rec-sub">' + esc(r.stamp) + '</div></td>' +
@@ -2091,7 +2284,7 @@ let catDraft = [], catSeq = 0;
 const cfDir = f => f.dir === 'v' || f.dir === 'h' ? f.dir : (f.kind === 'check' ? 'v' : 'h');
 /** "Icon per value" boxes of a field: Yes / No for a toggle, each listed value for a drop-down / option / tick-box field. */
 const vicHtml = f => { const keys = f.kind === 'toggle' ? ['Yes', 'No'] : (f.opts || []); return keys.length ? '<span class="small text-muted">Telegram icon per value</span><div class="vic-row">' + keys.map(k => '<label class="vic-i"><input class="form-control form-control-sm cf-vic ic-in" maxlength="4" data-v="' + esc(k) + '" placeholder="–" value="' + esc((f.vic || {})[k] || '') + '"><span>' + esc(k) + '</span></label>').join('') + '</div>' : ''; };
-const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes'], ['spin', 'Spin number'], ['toggle', 'Toggle (Yes / No)'], ['info', 'Info label (not saved)']];
+const CF_KINDS = [['text', 'Text'], ['number', 'Number'], ['phone', 'Phone'], ['serial', 'S/N (scan)'], ['date', 'Date'], ['select', 'Drop-down'], ['radio', 'Option buttons'], ['check', 'Check boxes'], ['spin', 'Spin number'], ['toggle', 'Toggle (Yes / No)'], ['scan', 'Document scanner'], ['info', 'Info label (not saved)']];
 /** One row per box: Off / Optional / Must (red). */
 function fieldRows(a) {
   return '<details class="mt-2 a-fields"><summary class="small fw-semibold" style="cursor:pointer">Boxes to fill <span class="text-muted fw-normal">(' + FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => FIELD_NAMES[k] + (lvl(a, k) === 2 ? '*' : '')).join(', ') + ')</span></summary>' +
@@ -2184,9 +2377,9 @@ function renderCatEditor() {
   const t = catDraft[catSel.ti];
   if (t && catSel.ai >= t.acts.length) catSel.ai = Math.max(0, t.acts.length - 1);
   if (t && !t.acts.length) catSel.view = 'cat';
-  const col1 = '<div class="ce-col"><div class="ce-h">Categories</div>' + catDraft.map((c, ci) => '<button type="button" class="ce-it ce-cat' + (ci === catSel.ti ? ' on' : '') + '" data-cti="' + ci + '"><span>' + esc(c.name || 'New category') + '</span><em>' + ((c.subs || []).length ? c.subs.length + ' subs' : c.acts.length + ' acts') + '</em></button>').join('') + '<button type="button" class="btn ce-add ce-addcat">+ Category</button></div>';
+  const col1 = '<div class="ce-col"><div class="ce-h">Categories</div>' + catDraft.map((c, ci) => '<button type="button" class="ce-it ce-cat' + (ci === catSel.ti ? ' on' : '') + '" data-cti="' + ci + '"><span>' + esc(c.name || 'New category') + '</span><em>' + ((c.subs || []).length ? c.subs.length + ' subs' : c.acts.length + ' acts') + '</em>' + ceMv('cat', ci, catDraft.length) + '</button>').join('') + '<button type="button" class="btn ce-add ce-addcat">+ Category</button></div>';
   const col2 = t ? '<div class="ce-col"><div class="ce-h">' + esc(t.name || 'New category') + ' · activities</div><button type="button" class="ce-it ce-catset' + (catSel.view === 'cat' ? ' on' : '') + '"><span><i class="bi bi-gear me-1"></i>Category settings</span><em>' + (t.subs || []).length + ' subs</em></button>' +
-    t.acts.map((x, xi) => '<button type="button" class="ce-it ce-actb' + (catSel.view === 'act' && xi === catSel.ai ? ' on' : '') + '" data-cai="' + xi + '"><span>' + esc(x.n || 'New activity') + '</span></button>').join('') + '<button type="button" class="btn ce-add ce-addact">+ Activity</button></div>' : '<div class="ce-col"></div>';
+    t.acts.map((x, xi) => '<button type="button" class="ce-it ce-actb' + (catSel.view === 'act' && xi === catSel.ai ? ' on' : '') + '" data-cai="' + xi + '"><span>' + esc(x.n || 'New activity') + '</span>' + ceMv('act', xi, t.acts.length) + '</button>').join('') + '<button type="button" class="btn ce-add ce-addact">+ Activity</button></div>' : '<div class="ce-col"></div>';
   const col3 = !t ? '<div class="ce-col ce-main text-muted">Add a category to begin.</div>' : '<div class="ce-col ce-main">' + (catSel.view === 'cat' ? ceCatPanel(t, catSel.ti) : ceActPanel(t, catSel.ti, t.acts[catSel.ai], catSel.ai)) + '</div>';
   $('#catList').innerHTML = '<div class="ce-grid">' + col1 + col2 + col3 + '</div>';
   if (catSel.view === 'act') cePreview();
@@ -2267,7 +2460,19 @@ $('#catList').addEventListener('input', e => {
   if (e.target.classList.contains('c-name')) { const b = $('#catList .ce-cat.on span'), h = $('#catList .ce-h:not(:first-child), #catList .ce-col + .ce-col .ce-h'); if (b) b.textContent = e.target.value || 'New category'; if (h) h.textContent = (e.target.value || 'New category') + ' · activities'; }
   else if (e.target.classList.contains('a-name')) { const b = $('#catList .ce-actb.on span'); if (b) b.textContent = e.target.value || 'New activity'; }
 });
+/** Up / down arrows on a category or an activity (the order here is the order staff see). */
+const ceMv = (kind, i, n) => '<span class="ce-mvs"><span class="ce-mv' + (i === 0 ? ' off' : '') + '" data-k="' + kind + '" data-i="' + i + '" data-d="-1" role="button" aria-label="Move up"><i class="bi bi-chevron-up"></i></span><span class="ce-mv' + (i === n - 1 ? ' off' : '') + '" data-k="' + kind + '" data-i="' + i + '" data-d="1" role="button" aria-label="Move down"><i class="bi bi-chevron-down"></i></span></span>';
 $('#catList').addEventListener('click', e => {
+  const mv = e.target.closest('.ce-mv');
+  if (mv) {
+    if (mv.classList.contains('off')) return;
+    const list = mv.dataset.k === 'cat' ? catDraft : (catDraft[catSel.ti] || {}).acts, i = +mv.dataset.i, j = i + +mv.dataset.d;
+    if (!list || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    if (mv.dataset.k === 'cat') { if (catSel.ti === i) catSel.ti = j; else if (catSel.ti === j) catSel.ti = i; }
+    else { if (catSel.ai === i) catSel.ai = j; else if (catSel.ai === j) catSel.ai = i; }
+    renderCatEditor(); return;
+  }
   const t = catDraft[catSel.ti];
   const cat = e.target.closest('.ce-cat'), act = e.target.closest('.ce-actb');
   if (cat) { catSel = { ti: +cat.dataset.cti, ai: 0, view: catDraft[+cat.dataset.cti].acts.length ? 'act' : 'cat' }; renderCatEditor(); }
@@ -2368,13 +2573,14 @@ $('#ccSave').addEventListener('click', async () => {
 });
 
 /* ============================ QR Installation type (New / Replacement) ============================ */
-function qkPaint(d) { $('#qkOn').checked = d.on; $('#qkDays').value = d.days; $('#qkNew').value = d.newLabel; $('#qkRep').value = d.repLabel; $('#qkStatus').textContent = d.on ? 'On' : 'Off'; }
+function qkPaint(d) { $('#qkOn').checked = d.on; $('#qkDays').value = d.days; $('#qkSkip').value = d.skip || ''; $('#qkGrow').checked = !!d.grow; $('#qkSince').value = d.since || ''; show($('#qkSinceWrap'), !!d.grow); $('#qkToday').textContent = d.grow ? 'Limit today: ' + d.effDays + ' days (' + d.days + ' + ' + (d.effDays - d.days) + ' day' + (d.effDays - d.days === 1 ? '' : 's') + ' since ' + d.since + '). Counts every day, also at the weekend.' : ''; $('#qkNew').value = d.newLabel; $('#qkRep').value = d.repLabel; $('#qkStatus').textContent = d.on ? 'On' : 'Off'; }
 function qkNote(t, ok) { const m = $('#qkMsg'); m.textContent = t; m.className = 'small ' + (ok ? 'text-success' : 'text-danger'); }
 async function loadQk() { try { qkPaint(await api('getQrKindConfig', S.token)); qkNote('', true); } catch (e) { qkNote(e.message, false); } }
+$('#qkGrow').addEventListener('change', () => { show($('#qkSinceWrap'), $('#qkGrow').checked); if ($('#qkGrow').checked && !$('#qkSince').value) $('#qkSince').value = ymd(new Date()); });
 $('#qkSave').addEventListener('click', async () => {
   const b = $('#qkSave'); busy(b, true, 'Saving…');
   try {
-    qkPaint(await api('saveQrKindConfig', S.token, { on: $('#qkOn').checked, days: Number($('#qkDays').value) || 0, newLabel: $('#qkNew').value.trim(), repLabel: $('#qkRep').value.trim() }));
+    qkPaint(await api('saveQrKindConfig', S.token, { on: $('#qkOn').checked, days: Number($('#qkDays').value) || 0, skip: $('#qkSkip').value.trim(), grow: $('#qkGrow').checked, since: $('#qkSince').value, newLabel: $('#qkNew').value.trim(), repLabel: $('#qkRep').value.trim() }));
     qkNote('Saved. New records use it.', true);
   } catch (e) { qkNote(e.message, false); }
   busy(b, false);
@@ -3008,7 +3214,7 @@ S.deskKey = 'records';
 const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', rules: 'Edit rules & record ID' };
 const deskItems = () => {
   const admin = S.user && S.user.role === 'Admin';
-  return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], admin && ['review', 'bi-patch-check', 'Review queue'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
+  return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], ['map', 'bi-map', 'Merchant map'], admin && ['review', 'bi-patch-check', 'Review queue'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
     ['TOOLS'], ['lookup', 'bi-search', 'Merchant history'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
     admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
 };
@@ -3035,7 +3241,8 @@ function deskGo(k) {
   if (k === 'stamp') return openStampSettings();
   S.deskKey = k;
   if (k === 'new') switchTab('new');
-  else if (k === 'records') switchTab('records');
+  else if (k === 'records') { switchTab('records'); recViewSet('list'); }
+  else if (k === 'map') { switchTab('records'); recViewSet('map'); }
   else if (k === 'review') { switchTab('records'); S.rvStatus = 'Pending'; reviewModal.show(); loadReview(); }
   else if (k === 'stock') switchTab('stock');
   else { switchTab('users'); if (k === 'cats') setTimeout(() => $('#catEditBtn').click(), 80); }
