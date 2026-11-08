@@ -481,6 +481,9 @@ async function showApp() {
   switchTab('new');
   loadSummary(); loadLast();
   refreshLocation();
+  loadStampCfg();
+  S.deferProbe = api('deferInfo', S.token).then(() => { S.deferOk = true; }, e => { S.deferOk = e.net ? undefined : false; });      // an older backend: the photos go with the record as before
+  qMeta(); qKick(1500);
 }
 
 function logout(silent) {
@@ -836,7 +839,7 @@ function addMerchant() {
     '<input type="file" accept="image/*" capture="environment" class="cam-file hidden">' +
     '<input type="file" accept="image/*,video/*" multiple class="photo-file hidden">' +
     '<div class="form-check form-switch mt-2"><input class="form-check-input stamp-sw" type="checkbox" role="switch"><label class="form-check-label small">Stamp date, GPS &amp; name on photos from <b>Take photo</b></label></div>' +
-    '<div class="small text-muted mt-1"><button type="button" class="btn btn-link btn-sm p-0 align-baseline stamp-link">Stamp settings</button> · Prefer another camera app? Take the photos there, then tap <b>Choose photos</b>.</div>' +
+    '<div class="small text-muted mt-1">' + (S.user && S.user.role === 'Admin' ? '<button type="button" class="btn btn-link btn-sm p-0 align-baseline stamp-link">Stamp settings</button> · ' : '') + 'Prefer another camera app? Take the photos there, then tap <b>Choose photos</b>.</div>' +
     '<div class="progress prog mt-2"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div></div>' +
     '<div class="photo-grid"></div></div>';
   $('#merchantList').appendChild(el);
@@ -873,10 +876,10 @@ function addMerchant() {
   $('.photo-file', el).onchange = async e => { await addPhotos(card, Array.from(e.target.files), false); e.target.value = ''; };
   $('.btn-cam', el).onclick = () => { if (stampOn && stampCfg.compass) startCompass(); $('.cam-file', el).click(); };
   $('.cam-file', el).onchange = async e => { await addPhotos(card, Array.from(e.target.files), true); e.target.value = ''; };
-  $('.stamp-link', el).onclick = openStampSettings;
-  const sw = $('.stamp-sw', el); sw.checked = stampOn;
+  const sl = $('.stamp-link', el); if (sl) sl.onclick = openStampSettings;
+  const sw = $('.stamp-sw', el); if (sw) sw.checked = stampOn;
   $('.btn-cam', el).addEventListener('click', () => { if (stampOn && needGeo()) refreshGeo(10000); });   // warm up GPS while the camera opens
-  sw.addEventListener('change', () => { stampOn = sw.checked; store.set('it_stamp', stampOn ? '1' : '0'); $$('.stamp-sw').forEach(x => { x.checked = stampOn; }); });
+  if (sw) sw.addEventListener('change', () => { stampOn = sw.checked; store.set('it_stamp', stampOn ? '1' : '0'); $$('.stamp-sw').forEach(x => { x.checked = stampOn; }); });
   $('.btn-remove', el).onclick = () => {
     if (S.cards.length === 1) { toast('At least one merchant is required.', 'warning'); return; }
     S.cards = S.cards.filter(c => c !== card); el.remove(); renumber();
@@ -917,6 +920,14 @@ let stampCfg = (() => {
   return Object.assign({}, STAMP_DEF, c);
 })();
 const saveStampCfg = () => store.set('it_stamp_cfg', JSON.stringify(stampCfg));
+/** The stamp is set by the admin: every phone takes it from the server (the last copy is kept for offline use). Staff cannot change it. */
+async function loadStampCfg() {
+  try {
+    const r = await api('getStampConfig', S.token);
+    if (r.set || (S.user && S.user.role !== 'Admin')) stampCfg = Object.assign({}, STAMP_DEF, r.set ? r.cfg : {}, { logoData: r.set ? (r.logoData || '') : '' });      // before the admin saves once, the admin's own phone keeps its settings
+    saveStampCfg();
+  } catch (e) {}
+}
 const needGeo = () => stampCfg.coords || stampCfg.addr || stampCfg.map;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const p2 = n => String(n).padStart(2, '0');
@@ -1207,7 +1218,7 @@ function drawStamp(ctx, w, h, d, ms) {
   // logo, top-right, in a white rounded box
   if (d.logo) {
     // the white box hugs the logo, so the logo itself grows with the Logo size slider
-    const sc = (d.logoScale || 100) / 100, asp = d.logo.width / d.logo.height, pad = Math.max(3, Math.round(base * 0.012 * sc));
+    const sc = (d.logoScale || 100) / 100, asp = d.logo.width / d.logo.height, pad = Math.max(2, Math.round(base * 0.0045 * sc));
     let ih = base * 0.07 * sc, iw = ih * asp;
     const maxW = w * 0.7 - 2 * pad, maxH = h * 0.4 - 2 * pad;
     if (iw > maxW) { iw = maxW; ih = iw / asp; }
@@ -1215,7 +1226,7 @@ function drawStamp(ctx, w, h, d, ms) {
     iw = Math.round(iw); ih = Math.round(ih);
     const bw = iw + pad * 2, bh = ih + pad * 2, x0 = w - mx - bw, y0 = my;
     ctx.save(); ctx.globalAlpha = opOf(d.opLogo);
-    ctx.fillStyle = '#fff'; ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, bw, bh, pad) : ctx.rect(x0, y0, bw, bh)); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x0, y0, bw, bh, Math.max(3, pad * 1.6)) : ctx.rect(x0, y0, bw, bh)); ctx.fill();
     ctx.drawImage(d.logo, x0 + pad, y0 + pad, iw, ih); ctx.restore();
   }
   // compass, top-left
@@ -1356,8 +1367,9 @@ $('#submitBtn').addEventListener('click', async () => {
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
       btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
   }
-  const bytes = items.reduce((t, it) => t + it.photos.reduce((u, p) => u + p.length, 0), 0);
-  if (bytes > 32e6) { toast('Photos and videos are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
+  const photoSets = items.map(it => it.photos);      // the photos wait on the phone: the record is saved first, the photos are sent to Telegram afterwards
+  const bytes = Math.max(0, ...photoSets.map(ps => ps.reduce((u, p) => u + p.length, 0)));
+  if (bytes > 32e6) { toast('Photos and videos of one merchant are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
   const btn = $('#submitBtn');
   busy(btn, true, 'Submitting…');
   try {
@@ -1366,9 +1378,15 @@ $('#submitBtn').addEventListener('click', async () => {
     if (!loc && items.some(it => it.locLv === 2)) { toast('The location is required. Allow GPS (tap the refresh arrow) or choose the spot with the pin button.', 'danger'); busy(btn, false); return; }
     items.forEach(it => { if (loc && it.locLv > 0) it.location = loc; delete it.locLv; });
     if (!S.batchId) S.batchId = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);     // same id on a retry, so a repeated send is saved only once
-    const r = await api('submitInstallations', S.token, items, S.batchId);
+    if (S.deferOk === undefined) { try { await S.deferProbe; } catch (e) {} }
+    const defer = S.deferOk === true, t0 = Date.now();
+    if (defer) items.forEach((it, i) => { it.photoCount = photoSets[i].length; it.photos = []; });
+    const r = await api('submitInstallations', S.token, items, S.batchId, defer || undefined);
     S.batchId = null;
-    toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + '). Telegram: ' + r.telegram, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
+    if (defer && r.deferred) await qAdd(r.stamps.map((st, i) => ({ id: S.user.username + '|' + st, stamp: st, user: S.user.username, n: i + 1, total: r.stamps.length, photos: photoSets[i], tries: 0, next: 0, t: Date.now() })));
+    r.telegram = defer && r.deferred ? 'photos are sending in the background' : r.telegram;
+    r.secs = ((Date.now() - t0) / 1000).toFixed(1);
+    toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + ') in ' + r.secs + 's. Telegram: ' + r.telegram, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
     if (r.stock) toast(r.stock, 'warning');
     Object.assign(keep, keepNew);
     if (items[0] && items[0].activity) rememberAct(items[0].activity);
@@ -1379,6 +1397,86 @@ $('#submitBtn').addEventListener('click', async () => {
   } catch (e) { if (!e.net) S.batchId = null; toast(e.message + (e.net ? ' If you retry, nothing is saved twice.' : ''), 'danger'); }
   busy(btn, false);
 });
+
+/* ============================ Background sending of photos (save first, Telegram afterwards) ============================ */
+const QDB = { db: null };
+function qOpen() {
+  if (QDB.db) return Promise.resolve(QDB.db);
+  return new Promise((ok, no) => {
+    try {
+      const rq = indexedDB.open('hub-send-queue', 1);
+      rq.onupgradeneeded = () => { rq.result.createObjectStore('jobs', { keyPath: 'id' }); rq.result.createObjectStore('blobs', { keyPath: 'id' }); };
+      rq.onsuccess = () => { QDB.db = rq.result; ok(QDB.db); };
+      rq.onerror = () => no(rq.error);
+    } catch (e) { no(e); }
+  });
+}
+const qTx = (mode, fn) => qOpen().then(db => new Promise((ok, no) => { const tx = db.transaction(['jobs', 'blobs'], mode), st = tx.objectStore('jobs'); let out; try { out = fn(st, tx.objectStore('blobs')); } catch (e) { no(e); return; } tx.oncomplete = () => ok(out && out.result !== undefined ? out.result : out); tx.onerror = () => no(tx.error); tx.onabort = () => no(tx.error); }));
+const Q = { jobs: [], busy: false };      // Q.jobs = the waiting jobs without their photos (the photos stay in the database until sent)
+async function qAdd(list) {
+  try { await qTx('readwrite', (st, bl) => { list.forEach(j => { const { photos, ...meta } = j; st.put(meta); bl.put({ id: j.id, photos }); }); }); }
+  catch (e) { toast('Could not keep the photos for sending. Keep the app open until they are sent.', 'warning'); Q.mem = (Q.mem || []).concat(list); }      // no storage: they are sent from memory
+  qMeta(); qKick(0);
+}
+async function qAll() {
+  let list = [];
+  try { list = await qTx('readonly', st => st.getAll()); } catch (e) {}
+  return (list || []).concat(Q.mem || []);
+}
+async function qDel(id) { Q.mem = (Q.mem || []).filter(j => j.id !== id); try { await qTx('readwrite', (st, bl) => { st.delete(id); bl.delete(id); }); } catch (e) {} }
+async function qPhotos(j) { if (j.photos) return j.photos; try { const b = await qTx('readonly', (st, bl) => bl.get(j.id)); return (b && b.photos) || []; } catch (e) { return []; } }
+async function qPut(j) { if ((Q.mem || []).some(x => x.id === j.id)) return; const { photos, ...meta } = j; try { await qTx('readwrite', st => { st.put(meta); }); } catch (e) {} }
+const Q_WAIT = [3, 8, 20, 45, 90, 180];      // seconds before the next try
+const Q_WARN = 4;      // the staff is told after this many failed tries
+async function qMeta() {
+  const list = (await qAll()).filter(j => S.user && j.user === S.user.username), el = $('#sendQ');
+  if (!el) return;
+  const bad = list.filter(j => (j.tries || 0) >= Q_WARN);
+  if (!list.length) { show(el, false); return; }
+  el.className = 'send-q' + (bad.length ? ' warn' : '');
+  el.innerHTML = bad.length
+    ? '<i class="bi bi-exclamation-triangle-fill"></i><span><b>' + bad.length + ' record' + (bad.length > 1 ? 's' : '') + ' saved, but the photos are not in Telegram yet.</b> <span class="small">' + esc(bad[0].err || 'No connection') + '</span></span><button type="button" class="btn btn-sm btn-light" id="sendQNow">Retry now</button>'
+    : '<span class="spinner-border spinner-border-sm"></span><span>Sending photos to Telegram… ' + list.length + ' left</span>';
+  show(el, true);
+}
+let qTimer;
+function qKick(ms) { clearTimeout(qTimer); qTimer = setTimeout(qRun, ms); }
+async function qRun() {
+  if (Q.busy || !S.token || !S.user) return;
+  Q.busy = true;
+  try {
+    const now = Date.now();
+    const list = (await qAll()).filter(j => j.user === S.user.username).sort((a, b) => a.t - b.t);
+    let nextAt = 0;
+    for (const j of list) {
+      if ((j.next || 0) > now) { nextAt = nextAt ? Math.min(nextAt, j.next) : j.next; continue; }
+      try {
+        const r = await api('sendRecordTelegram', S.token, j.stamp, j.n, j.total, await qPhotos(j));
+        await qDel(j.id);
+        if (r && r.pdf && r.pdf !== 'ok' && r.pdf !== 'none') toast('Photos sent, but the PDF file was not (' + r.pdf + ').', 'warning');
+      } catch (e) {
+        if (!S.token) break;      // signed out meanwhile: the job waits for the next sign-in
+        j.tries = (j.tries || 0) + 1; j.err = e.message; j.next = Date.now() + Q_WAIT[Math.min(j.tries - 1, Q_WAIT.length - 1)] * 1000;
+        if (/was not found/i.test(e.message)) j.next = Date.now() + 600000;
+        await qPut(j); if (Q.mem) { const m = Q.mem.find(x => x.id === j.id); if (m) Object.assign(m, j); }
+        nextAt = nextAt ? Math.min(nextAt, j.next) : j.next;
+        if (e.net) break;      // no connection: stop this round, try again later
+      }
+      await qMeta();
+    }
+    await qMeta();
+    if (nextAt) qKick(Math.max(1000, nextAt - Date.now()));
+  } finally { Q.busy = false; }
+}
+document.addEventListener('click', async e => {
+  if (!e.target.closest('#sendQNow')) return;
+  const list = await qAll(); for (const j of list) { j.next = 0; await qPut(j); if (Q.mem) { const m = Q.mem.find(x => x.id === j.id); if (m) m.next = 0; } }
+  qKick(0);
+});
+window.addEventListener('online', () => qKick(500));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) qKick(500); });
+setInterval(() => { if (S.token) qKick(0); }, 30000);
+window.addEventListener('beforeunload', e => { if (Q.mem && Q.mem.length) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ============================ Records ============================ */
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -1438,11 +1536,11 @@ async function loadRecords() {
   const r = range(), admin = S.user.role === 'Admin', wide = isWide();
   $('#recBody').innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
   try {
-    const f = { user: $('#fUser').value, type: $('#fType').value, sub: $('#fSub').value, activity: $('#fActivity').value, status: $('#fStatus').value, from: r.from, to: r.to };
+    const f = { user: $('#fUser').value, type: $('#fType').value, sub: $('#fSub').value, activity: $('#fActivity').value, status: $('#fStatus').value, qrType: $('#fQrType').value, from: r.from, to: r.to };
     if (admin && S.branchOff.size) f.branches = S.branches.filter(b => !S.branchOff.has(b));
     const data = await api('getRecords', S.token, f);
     S.rows = data.rows;
-    S.pending = data.pending || 0; paintPending(); paintStatus(data);
+    S.pending = data.pending || 0; paintPending(); paintStatus(data); paintQrType(data);
     if (wide) slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }].concat(data.users.map(u => ({ v: u, l: u }))));
     if (admin) {
       S.branches = data.branches || []; S.branchOff = new Set(Array.from(S.branchOff).filter(b => S.branches.includes(b))); paintBranches();
@@ -1459,6 +1557,15 @@ function paintStatus(data) {
   if (any) slicer('slStatus', 'fStatus', STATUS_OPTS);
 }
 bindSlicer('slStatus', 'fStatus', () => loadRecords());
+function paintQrType(data) {      // New / Replacement buttons (only when the records have a QR type)
+  const qc = (data && data.qrCounts) || {}, names = Object.keys(qc).sort(), cur = $('#fQrType').value;
+  show($('#qrTypeWrap'), names.length > 0 || !!cur);
+  if (!names.length && !cur) return;
+  if (cur && names.indexOf(cur) < 0) names.push(cur);
+  const all = names.reduce((t, n) => t + (qc[n] || 0), 0);
+  slicer('slQrType', 'fQrType', [{ v: '', l: 'All (' + all + ')' }].concat(names.map(n => ({ v: n, l: n + ' (' + (qc[n] || 0) + ')' }))));
+}
+bindSlicer('slQrType', 'fQrType', () => loadRecords());
 function paintPending() {
   const n = S.pending || 0, b = $('#rvBadge'); b.textContent = n; show(b, n > 0);
   const db = $('#dnBadge'); if (db) { db.textContent = n; show(db, n > 0); }
@@ -1529,7 +1636,7 @@ function renderRows() {
   $('#recCount').textContent = rows.length;
   $('#recBody').innerHTML = rows.length ? rows.map((r, i) =>
     '<tr class="rec-row" data-i="' + i + '"><td class="text-nowrap"><div class="fw-semibold">' + esc(fmtD(r.date || r.ts)) + '</div><div class="rec-sub">' + esc(r.stamp) + '</div></td>' +
-    '<td><span class="pill">' + esc(shortName(r.type)) + '</span>' + (r.sub ? ' <span class="rec-sub">' + esc(r.sub) + '</span>' : '') + '<div class="fw-semibold">' + esc(r.activity) + (r.review && r.review.status ? ' ' + stPill(r.review.status) : '') + '</div></td>' +
+    '<td><span class="pill">' + esc(shortName(r.type)) + '</span>' + (r.sub ? ' <span class="rec-sub">' + esc(r.sub) + '</span>' : '') + '<div class="fw-semibold">' + esc(r.activity) + (r.fields && r.fields['QR Type'] ? ' <span class="pill">' + esc(r.fields['QR Type']) + '</span>' : '') + (r.review && r.review.status ? ' ' + stPill(r.review.status) : '') + '</div></td>' +
     '<td><div class="fw-semibold">' + esc(r.merchant) + '</div><div class="rec-sub">' + esc([r.mid ? midLabelFor(r.type, r.mid) + ' ' + r.mid : '', r.tid ? 'TID ' + r.tid : ''].filter(Boolean).join(' · ')) + '</div></td>' +
     '<td><span class="pill">' + esc(r.user) + '</span></td>' +
     '<td class="text-center text-nowrap">' + (r.photos || '') + '</td>' +
@@ -2357,7 +2464,9 @@ $('#stLogoFile').addEventListener('change', e => {
 $('#stLogoClear').addEventListener('click', () => { stDraft.logoData = ''; $('#stLogoNote').textContent = 'Logo removed. Press Save to keep this.'; drawStampPreview(); });
 $('#stSave').addEventListener('click', () => {
   readStampForm(); stampCfg = Object.assign({}, STAMP_DEF, stDraft); saveStampCfg();
-  stampModal.hide(); toast('Photo stamp saved.', 'success'); if (stampCfg.compass) startCompass();
+  const { logoData, ...pub } = stampCfg;
+  api('saveStampConfig', S.token, pub, logoData || '').then(() => toast('Photo stamp saved for all staff.', 'success'), e => toast('Saved on this phone only: ' + e.message, 'danger'));
+  stampModal.hide(); if (stampCfg.compass) startCompass();
   if (geo.pos) { loadMap(geo.pos); try { geo.mapLookup.then(paintLoc); } catch (e) {} }   // new zoom: redraw the map picture
   if (stampOn && needGeo()) refreshGeo(10000);
 });
