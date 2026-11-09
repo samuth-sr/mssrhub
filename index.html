@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=121" rel="stylesheet">
+  <link href="style.css?v=123" rel="stylesheet">
 </head>
 <body>
 
@@ -50,7 +50,7 @@
     <div class="d-flex justify-content-between align-items-center" style="max-width:880px;margin:0 auto">
       <div>
         <div class="title fs-5">MS SR HUB WEB APP</div>
-        <button type="button" class="chip mt-2" id="whoBtn" title="Change my PIN"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span><i class="bi bi-key ms-1"></i></button>
+        <button type="button" class="chip mt-2" id="whoBtn" title="Change my PIN"><i class="bi bi-person-circle"></i><span id="whoName"></span><span id="whoRole" class="opacity-75"></span></button>
       </div>
       <div class="d-flex gap-2">
         <button class="icon-btn" id="lkBtn" type="button" title="Look up a merchant (scan a QR)"><i class="bi bi-search"></i></button>
@@ -215,13 +215,11 @@
       </div>
     </section>
 
+    <!-- MERCHANT MAP (desktop: its own tab; on a phone the map card stays in Records) -->
+    <section id="pane-map" class="hidden"></section>
+
     <!-- USERS (admin) -->
     <section id="pane-stock" class="hidden">
-      <div class="card-x" id="lkCard">
-        <div class="fw-bold mb-2"><i class="bi bi-search me-1"></i>S/N lookup</div>
-        <div class="input-group"><input id="lkQ" class="form-control" maxlength="60" autocomplete="off" autocapitalize="characters" placeholder="Scan or type S/N or SIM number"><button type="button" class="btn btn-soft" id="lkScan" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button><button type="button" class="btn btn-primary" id="lkGo">Look up</button></div>
-        <div id="lkRes" class="mt-2"></div>
-      </div>
       <div class="card-x hidden" id="stPendCard">
         <div class="fw-bold mb-1"><i class="bi bi-arrow-return-left me-1"></i>Returns waiting for your decision <span class="rv-badge" id="stPendN">0</span></div>
         <div class="small text-muted mb-2">Staff brought these back. Choose one: <b>In stock</b>, <b>Faulty</b> (with a reason) or <b>Send to HO</b>.</div>
@@ -241,8 +239,11 @@
         <div class="row g-3"><div class="col-12 col-md-6"><div class="form-label">Used by branch</div><div id="stByBranch"></div></div><div class="col-12 col-md-6"><div class="form-label">Used by staff</div><div id="stByStaff"></div></div>
         <div class="col-12 col-md-6"><div class="form-label">Top merchants</div><div id="stByMer"></div></div><div class="col-12 hidden" id="stLiabWrap"><div class="form-label">Merchant liability <span class="text-muted fw-normal small">(items given free: lost / damaged)</span></div><div class="row g-3"><div class="col-12 col-md-6"><div class="small text-muted">By merchant</div><div id="stLiabMer"></div></div><div class="col-12 col-md-6"><div class="small text-muted">By item</div><div id="stLiabItem"></div></div></div></div><div class="col-12 col-md-6"><div class="form-label">Most used items</div><div id="stByItem"></div></div></div>
       </div>
-      <div class="card-x">
+      <div class="card-x" id="snCard">
         <div class="fw-bold mb-2"><i class="bi bi-upc-scan me-1"></i>Serial numbers</div>
+        <div class="input-group"><input id="lkQ" class="form-control" maxlength="60" autocomplete="off" autocapitalize="characters" placeholder="Scan or type S/N or SIM number"><button type="button" class="btn btn-soft" id="lkScan" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button><button type="button" class="btn btn-primary" id="lkGo">Look up</button></div>
+        <div id="lkRes" class="mt-2"></div>
+        <div class="form-label mt-3 mb-1 small text-muted">List</div>
         <div class="chips mb-2" id="snStatus"></div>
         <input id="snFind" class="form-control mb-2" placeholder="Search S/N, SIM number, merchant, MID, TID…">
         <div id="snRows"></div>
@@ -303,6 +304,34 @@
           <div class="col-6"><label class="form-label small mb-1">Days allowed <span class="text-muted">(1 = same day)</span></label><input type="number" min="1" max="60" class="form-control" id="ruleDays"></div>
         </div>
         <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="ruleSave">Save rules</button><span class="small" id="ruleMsg"></span></div>
+      </div>
+
+      <div class="card-x" id="archCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-archive me-1"></i>Archive</div>
+          <span class="pill" id="arStatus">…</span>
+        </div>
+        <div class="small text-muted mb-2">Records older than the age below move to the <b>Installations_Archive</b> sheet, so the live sheet stays small and the app stays fast. Archived records are read-only and show in Records only for <b>All time</b> or a period that reaches back to them. Merchant history, QR type and the ID numbers always check the archive too. A record still waiting for review is never archived.</div>
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-6 col-md-4"><label class="form-label">Archive records older than (months)</label><input id="arMonths" type="number" min="1" max="36" class="form-control"></div>
+          <div class="col-6 col-md-4"><button type="button" class="btn btn-soft w-100" id="arSave">Save age</button></div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-2" id="arStats"></div>
+        <button type="button" class="btn btn-brand" id="arRun" disabled><i class="bi bi-archive me-1"></i>Archive now</button>
+        <div class="small mt-2" id="arMsg"></div>
+      </div>
+
+      <div class="card-x" id="bkCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-cloud-arrow-up me-1"></i>Backup</div>
+          <span class="pill" id="bkStatus">…</span>
+        </div>
+        <div class="small text-muted mb-2">A copy of the whole spreadsheet (every sheet) and a settings file go to the Drive folder <b>SR HUB Backups</b>, <b>every 5th of the month</b> at about 02:00. The newest 12 are kept. A line is sent to the admin Telegram chat each time. The bot token is never put in the backup.</div>
+        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="bkOn"><label class="form-check-label small" for="bkOn">Back up automatically on the 5th of every month</label></div>
+        <div class="small mb-2" id="bkLast"></div>
+        <div class="d-flex flex-wrap gap-2 mb-2"><button type="button" class="btn btn-brand btn-sm" id="bkRun"><i class="bi bi-cloud-arrow-up me-1"></i>Back up now</button><a class="btn btn-soft btn-sm hidden" id="bkFolder" target="_blank" rel="noopener"><i class="bi bi-folder2-open me-1"></i>Open the folder</a></div>
+        <div class="small text-danger mb-2 hidden" id="bkErr"></div>
+        <div id="bkList" class="small"></div>
       </div>
 
       <div class="card-x" id="colsCard">
@@ -821,6 +850,6 @@
 <script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
-<script src="app.js?v=121" defer></script>
+<script src="app.js?v=123" defer></script>
 </body>
 </html>

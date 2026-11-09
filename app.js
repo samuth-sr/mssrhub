@@ -402,7 +402,7 @@ function setType(t) {
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbytu3ct8u_JOTkHqhjMnnAd2M8i8yvu-5U1D2TQlz1nvOgmOiM2ZVgEiw6NBHhUwhPP/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzZAlJjcU8Bbr-0XAzdnO5Zq_ptRwtws6KfvYRDzh_pSiEfbi8qgK9bDG9H0cy9lLvU/exec';
 
 async function api(fn, ...args) {
   let json;
@@ -530,12 +530,13 @@ $('#pinForm').addEventListener('submit', async e => {
 
 /* ============================ Tabs ============================ */
 function switchTab(name) {
-  ['new', 'records', 'stock', 'users'].forEach(t => show($('#pane-' + t), t === name));
+  ['new', 'records', 'map', 'stock', 'users'].forEach(t => show($('#pane-' + t), t === name));
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (name === 'records') { loadRecords(); loadTeam(); }
+  if (name === 'map') mapTabOpen();
   if (name === 'stock') loadStock();
-  if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); loadCols(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
+  if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); loadCols(); loadArch(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
   deskPaint(name);
 }
 $$('.bottom-nav button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -1530,7 +1531,7 @@ const MAP = { map: null, layer: null, pts: [], first: true };
 const MAP_COL = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899', '#84cc16'];
 const mapColor = t => { const i = (typeof TYPES !== 'undefined' ? TYPES : []).indexOf(t); return MAP_COL[(i < 0 ? 0 : i) % MAP_COL.length]; };
 const locLatLon = r => { const m = /(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)\s*$/.exec(String(r.loc || '')); if (!m) return null; const la = +m[1], lo = +m[2]; return la >= -90 && la <= 90 && lo >= -180 && lo <= 180 ? [la, lo] : null; };
-/** The map is its own card on the Records page; Hide / Show keeps the phone from loading map tiles when it is not needed (remembered). */
+/** The map is its own card (desktop: its own tab, phone: a card in Records); Hide / Show keeps the phone from loading map tiles when it is not needed (remembered). */
 const mapOpen = () => { try { return store.get('it_map_open') !== '0'; } catch (e) { return true; } };
 function mapToggleSet(open) {
   try { store.set('it_map_open', open ? '1' : '0'); } catch (e) {}
@@ -1547,6 +1548,11 @@ function mapFullSet(on) {
 }
 document.addEventListener('click', e => { if (e.target.closest('#mapFull')) mapFullSet(!$('#mapCard').classList.contains('map-full')); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#mapCard').classList.contains('map-full')) mapFullSet(false); });
+/** Desktop: the Merchant map tab was opened. */
+function mapTabOpen() {
+  show($('#mapBody'), true);
+  if (!MF.loaded) mfLoad(true); else setTimeout(() => { if (MAP.map) MAP.map.invalidateSize(); }, 60);
+}
 function mapInit() {
   if (MAP.map || typeof L === 'undefined' || !L.map) return !!MAP.map;
   MAP.map = L.map('recMap', { zoomControl: true, attributionControl: true }).setView([11.5564, 104.9282], 11);
@@ -1663,6 +1669,7 @@ function mapPopup(r) {
 document.addEventListener('click', e => {
   const a = e.target.closest('.map-rec'); if (!a) return; e.preventDefault();
   const st = a.dataset.s; if ($('#mapCard').classList.contains('map-full')) mapFullSet(false);
+  if (document.body.classList.contains('desk') && !$('#pane-map').classList.contains('hidden')) { switchTab('records'); setTimeout(() => { const i2 = filtered().findIndex(r => r.stamp === st), t2 = i2 >= 0 ? $('#recBody .rec-row[data-i="' + i2 + '"]') : null; if (t2) { t2.click(); t2.scrollIntoView({ behavior: 'smooth', block: 'center' }); } else toast('Record ' + st + ' is not in the Records list. Change the Records period or filters to see it.', 'info'); }, 900); return; }
   const i = filtered().findIndex(r => r.stamp === st), tr = i >= 0 ? $('#recBody .rec-row[data-i="' + i + '"]') : null;
   if (!tr) { toast('Record ' + st + ' is not in the Records list. Change the Records period or filters to see it.', 'info'); return; }
   if (tr) { setTimeout(() => { tr.click(); tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80); }
@@ -1903,10 +1910,10 @@ function recDetail(r) {
 }
 function renderRows() {
   const rows = filtered();
-  if (mapOpen()) { if (!MF.loaded) mfLoad(true); } else mapToggleSet(false);      // the map has its own filters: it loads once, then only when its own filters change
+  if (document.body.classList.contains('desk')) { /* the map has its own tab */ } else if (mapOpen()) { if (!MF.loaded) mfLoad(true); } else mapToggleSet(false);      // the map has its own filters: it loads once, then only when its own filters change
   $('#recCount').textContent = rows.length;
   $('#recBody').innerHTML = rows.length ? rows.map((r, i) =>
-    '<tr class="rec-row" data-i="' + i + '"><td class="text-nowrap"><div class="fw-semibold">' + esc(fmtD(r.date || r.ts)) + '</div><div class="rec-sub">' + esc(r.stamp) + '</div></td>' +
+    '<tr class="rec-row" data-i="' + i + '"><td class="text-nowrap"><div class="fw-semibold">' + esc(fmtD(r.date || r.ts)) + '</div><div class="rec-sub">' + esc(r.stamp) + (r.archived ? ' <span class="pill">Archived</span>' : '') + '</div></td>' +
     '<td><span class="pill">' + esc(shortName(r.type)) + '</span>' + (r.sub ? ' <span class="rec-sub">' + esc(r.sub) + '</span>' : '') + '<div class="fw-semibold">' + esc(r.activity) + (r.fields && r.fields['QR Type'] ? ' <span class="pill">' + esc(r.fields['QR Type']) + '</span>' : '') + (r.review && r.review.status ? ' ' + stPill(r.review.status) : '') + '</div></td>' +
     '<td><div class="fw-semibold">' + esc(r.merchant) + '</div><div class="rec-sub">' + esc([r.mid ? midLabelFor(r.type, r.mid) + ' ' + r.mid : '', r.tid ? 'TID ' + r.tid : ''].filter(Boolean).join(' · ')) + '</div></td>' +
     '<td><span class="pill">' + esc(r.user) + '</span></td>' +
@@ -2623,7 +2630,7 @@ async function mhRun(q) {
       d.rows.map(r => '<div class="lk-row"><div class="d-flex justify-content-between gap-2"><b>' + esc(shortName(r.type)) + (r.sub ? ' · ' + esc(r.sub) : '') + ' · ' + esc(r.activity) + '</b><span class="small text-muted text-nowrap">' + esc(fmtD(r.date)) + '</span></div>' +
         '<div class="small text-muted">' + esc(r.user) + (r.branch ? ' · ' + esc(r.branch) : '') + (d.by === 'name' ? ' · ' + esc(r.merchant) + ' ' + esc(r.midLabel) + ' ' + esc(r.mid) : '') + ' · <span class="font-monospace">' + esc(r.stamp) + '</span></div>' +
         (r.remarks ? '<div class="small">' + esc(r.remarks) + '</div>' : '') +
-        '<div class="small mt-1">' + (r.status ? '<span class="pill ' + (st[r.status] || '') + '">' + esc(r.status) + '</span> ' : '') + (r.photos ? '<span class="text-muted">' + r.photos + ' photo' + (r.photos > 1 ? 's' : '') + '</span> ' : '') + (r.link ? '<a href="' + esc(r.link) + '" target="_blank" rel="noopener">Open in Telegram</a>' : '') + '</div></div>').join('');
+        '<div class="small mt-1">' + (r.status ? '<span class="pill ' + (st[r.status] || '') + '">' + esc(r.status) + '</span> ' : '') + (r.archived ? '<span class="pill">Archived</span> ' : '') + (r.photos ? '<span class="text-muted">' + r.photos + ' photo' + (r.photos > 1 ? 's' : '') + '</span> ' : '') + (r.link ? '<a href="' + esc(r.link) + '" target="_blank" rel="noopener">Open in Telegram</a>' : '') + '</div></div>').join('');
   } catch (e) { out.innerHTML = '<div class="small text-danger">' + esc(e.message) + '</div>'; }
 }
 
@@ -3292,17 +3299,17 @@ $('#lblReset').addEventListener('click', async () => {
 /* ============================ Desktop mode (admin + supervisor, wide screens) ============================ */
 const DESK_MIN = 1100;
 S.deskKey = 'records';
-const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', cols: 'Sheet columns', rules: 'Edit rules & record ID' };
+const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', map: 'Merchant map', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', cols: 'Sheet columns', arch: 'Archive & backup', rules: 'Edit rules & record ID' };
 const deskItems = () => {
   const admin = S.user && S.user.role === 'Admin';
   return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], ['map', 'bi-map', 'Merchant map'], admin && ['review', 'bi-patch-check', 'Review queue'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
     ['TOOLS'], ['lookup', 'bi-search', 'Merchant history'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
-    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['cols', 'bi-layout-three-columns', 'Sheet columns'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
+    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['cols', 'bi-layout-three-columns', 'Sheet columns'], admin && ['arch', 'bi-archive', 'Archive & backup'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
 };
 let deskBuilt = false;
 function deskBuild() {
   if (!S.user || deskBuilt) return; deskBuilt = true;
-  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', qkCard: 'rules', colsCard: 'cols', tplCard: 'tg', lblCard: 'tg', ccCard: 'tg', tgCard: 'tg' };
+  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', qkCard: 'rules', colsCard: 'cols', archCard: 'arch', bkCard: 'arch', tplCard: 'tg', lblCard: 'tg', ccCard: 'tg', tgCard: 'tg' };
   Object.keys(sec).forEach(id => { const el = $('#' + id); if (el) el.dataset.sec = sec[id]; });
   $$('#pane-users > .card-x').forEach(el => { if (!el.dataset.sec) el.dataset.sec = 'staff'; });
   $$('#pane-stock > .card-x').forEach(el => { if (/^\s*(Serial numbers|Returns waiting|Recent movements|Stock items)/i.test(el.textContent)) el.classList.add('span-all'); });
@@ -3322,8 +3329,8 @@ function deskGo(k) {
   if (k === 'stamp') return openStampSettings();
   S.deskKey = k;
   if (k === 'new') switchTab('new');
-  else if (k === 'records') { switchTab('records'); recViewSet('list'); }
-  else if (k === 'map') { switchTab('records'); recViewSet('map'); }
+  else if (k === 'records') switchTab('records');
+  else if (k === 'map') switchTab('map');
   else if (k === 'review') { switchTab('records'); S.rvStatus = 'Pending'; reviewModal.show(); loadReview(); }
   else if (k === 'stock') switchTab('stock');
   else { switchTab('users'); if (k === 'cats') setTimeout(() => $('#catEditBtn').click(), 80); }
@@ -3331,11 +3338,58 @@ function deskGo(k) {
 /** Marks the sidebar item, the page title and (in Setup) which card is shown. */
 function deskPaint(name) {
   document.body.dataset.pane = name;
-  if (name === 'new') S.deskKey = 'new'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules', 'cols'].includes(S.deskKey)) S.deskKey = 'staff';
-  $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules', 'cols'].includes(S.deskKey) ? S.deskKey : 'staff';
+  if (name === 'new') S.deskKey = 'new'; else if (name === 'map') S.deskKey = 'map'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules', 'cols', 'arch'].includes(S.deskKey)) S.deskKey = 'staff';
+  $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules', 'cols', 'arch'].includes(S.deskKey) ? S.deskKey : 'staff';
+  document.body.dataset.key = S.deskKey;
   $('#deskTitle').textContent = DESK_TITLES[S.deskKey] || '';
   $$('#deskNav .dn-it').forEach(b => b.classList.toggle('active', b.dataset.k === S.deskKey));
 }
+/* ============================ Archive and backup (admin) ============================ */
+const nfmt = n => Number(n || 0).toLocaleString();
+async function loadArch() {
+  if (!(S.user && S.user.role === 'Admin') || !$('#archCard')) return;
+  try {
+    const d = await api('getArchiveInfo', S.token);
+    $('#arMonths').value = d.months;
+    $('#arStatus').textContent = nfmt(d.archived) + ' archived';
+    $('#arStats').innerHTML = [['In the live sheet', d.live], ['In the archive', d.archived], ['Ready to archive', d.due]].map(x => '<div class="pill py-2 px-3">' + x[0] + ' <b>' + nfmt(x[1]) + '</b></div>').join('');
+    $('#arMsg').innerHTML = 'Records dated before <b>' + esc(fmtD(d.cutoff)) + '</b> are archived.' + (d.last ? '<br>Last archive: ' + esc(d.last.time) + ' · ' + nfmt(d.last.moved) + ' moved by ' + esc(d.last.by || '') : '');
+    $('#arRun').disabled = !d.due; S.arDue = d.due;
+  } catch (e) { $('#arMsg').textContent = e.message; }
+  loadBackup();
+}
+$('#arSave').onclick = async () => {
+  const b = $('#arSave'); busy(b, true, 'Saving…');
+  try { await api('saveArchiveConfig', S.token, +$('#arMonths').value); toast('Archive age saved.', 'success'); await loadArch(); } catch (e) { toast(e.message, 'danger'); }
+  busy(b, false);
+};
+$('#arRun').onclick = async () => {
+  if (!confirm('Archive ' + nfmt(S.arDue) + ' records older than ' + $('#arMonths').value + ' months?\n\nA copy of the live sheet is made first. Archived records become read-only.')) return;
+  const b = $('#arRun'); busy(b, true, 'Archiving…');
+  try { const r = await api('runArchive', S.token); toast(nfmt(r.moved) + ' records archived.', 'success'); S.rows = []; await loadArch(); }
+  catch (e) { toast(e.message, 'danger'); }
+  busy(b, false); $('#arRun').disabled = !S.arDue;
+};
+async function loadBackup() {
+  try { paintBackup(await api('getBackupInfo', S.token)); } catch (e) { $('#bkErr').textContent = e.message; show($('#bkErr'), true); }
+}
+function paintBackup(d) {
+  $('#bkStatus').textContent = d.on ? 'On · every 5th' : 'Off'; $('#bkOn').checked = !!d.on;
+  $('#bkLast').innerHTML = d.last ? (d.last.ok ? '✅ Last backup: <b>' + esc(d.last.time) + '</b> · ' + Math.round((d.last.size || 0) / 1024).toLocaleString() + ' KB' : '⚠️ Last backup failed (' + esc(d.last.time) + '): ' + esc(d.last.error || '')) : 'No backup yet.';
+  $('#bkErr').textContent = d.error || ''; show($('#bkErr'), !!d.error);
+  show($('#bkFolder'), !!d.folderUrl); if (d.folderUrl) $('#bkFolder').href = d.folderUrl;
+  $('#bkList').innerHTML = (d.files || []).length ? '<div class="form-label">Backups in the folder (newest ' + d.keep + ')</div>' + d.files.map(f => '<div class="d-flex justify-content-between py-1 border-top"><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.name) + '</a><span class="text-muted">' + Math.round(f.size / 1024).toLocaleString() + ' KB</span></div>').join('') : '';
+}
+$('#bkOn').onchange = async e => {
+  try { paintBackup(await api('saveBackupConfig', S.token, { on: e.target.checked })); toast(e.target.checked ? 'Monthly backup is on (5th of each month).' : 'Monthly backup is off.', 'success'); }
+  catch (x) { toast(x.message, 'danger'); e.target.checked = !e.target.checked; }
+};
+$('#bkRun').onclick = async () => {
+  const b = $('#bkRun'); busy(b, true, 'Backing up…');
+  try { paintBackup(await api('runBackupNow', S.token)); toast('Backup done.', 'success'); } catch (e) { toast(e.message, 'danger'); }
+  busy(b, false);
+};
+
 /* ============================ Sheet columns (admin) ============================ */
 S.cols = { list: [], std: [], base: '' };
 async function loadCols() {
@@ -3370,48 +3424,81 @@ $('#colsSave').onclick = async () => {
   busy(b, false); colsPaint();
 };
 
-/* ============================ Admin desktop: drag and drop the cards ============================ */
+/* ============================ Admin desktop: move the cards (unlock to drag; sizes follow the content) ============================ */
 const CL_PANES = [['records', '#pane-records'], ['stock', '#pane-stock'], ['users', '#pane-users']];
-const clKey = () => 'it_cardlay_' + (S.user ? S.user.username : '');
+const CL_W = { filterCard: 12, chartCard: 8, teamCard: 4, trendCard: 8, rpCard: 6, qcCard: 6, recCard: 12 };      // standard width in 12 columns; every other card: 4 (Stock), 12 when it is a wide list
+const CL_STEPS = [[4, '⅓'], [6, '½'], [8, '⅔'], [12, 'Full']];
+const clKey = () => 'it_cardlay2_' + (S.user ? S.user.username : '');
 const clGet = () => { try { return JSON.parse(localStorage.getItem(clKey()) || '{}') || {}; } catch (e) { return {}; } };
 const clPut = o => { try { localStorage.setItem(clKey(), JSON.stringify(o)); } catch (e) {} };
 const clCards = sel => $$(sel + ' > .card-x');
+const clLocked = () => { try { return localStorage.getItem('it_cardlock') !== '0'; } catch (e) { return true; } };
+const clStdW = (c, k) => CL_W[c.id] || (k === 'stock' ? (c.classList.contains('span-all') ? 12 : 4) : 6);
+let clRO = null;
+function clFit(c) {      // a card is as tall as its content: it takes as many 8 px rows as it needs (16 px gap included)
+  const h = c.getBoundingClientRect().height; if (!h) return;
+  const rs = Math.max(1, Math.ceil((h + 16) / 8));
+  if (c.dataset.rs !== String(rs)) { c.dataset.rs = rs; c.style.setProperty('--rs', rs); }
+}
+function clWidth(c, w) { c.dataset.w = w; c.style.setProperty('--w', w); const b = $('.cl-size', c); if (b) b.textContent = (CL_STEPS.find(s => s[0] === w) || ['', w])[1]; }
 function clInit() {
   if (!(S.user && isWide())) return;
-  CL_PANES.forEach(([k, sel]) => clCards(sel).forEach((c, i) => {
-    if (!c.dataset.cid) c.dataset.cid = c.id || (k + i);
-    if (!$('.cl-grip', c)) { const g = document.createElement('span'); g.className = 'cl-grip'; g.draggable = true; g.title = 'Drag to move this card'; g.innerHTML = '<i class="bi bi-grip-vertical"></i>'; c.prepend(g); }
-    if (!c.dataset.d0) { c.dataset.i0 = i; c.dataset.d0 = '1'; c.dataset.gc0 = c.style.gridColumn || ''; c.dataset.gr0 = c.style.gridRow || ''; }
-  }));
-  if (!$('#clReset')) { const b = document.createElement('button'); b.type = 'button'; b.id = 'clReset'; b.className = 'btn btn-soft btn-sm'; b.innerHTML = '<i class="bi bi-arrow-counterclockwise me-1"></i>Reset layout'; b.title = 'Put the cards back in the standard places'; $('#deskTitle').after(b); b.onclick = clReset; }
-  clApply();
+  const lay = clGet();
+  if (!clRO && window.ResizeObserver) clRO = new ResizeObserver(es => es.forEach(e => clFit(e.target)));
+  CL_PANES.forEach(([k, sel]) => {
+    const pane = $(sel); if (!pane) return;
+    if (k !== 'users') pane.classList.add('mas');
+    clCards(sel).forEach((c, i) => {
+      if (!c.dataset.cid) { c.dataset.cid = c.id || (k + i); c.dataset.i0 = i; }
+      if (!$('.cl-grip', c)) {
+        const g = document.createElement('span'); g.className = 'cl-grip'; g.draggable = true; g.title = 'Drag to move this card'; g.innerHTML = '<i class="bi bi-grip-vertical"></i>'; c.prepend(g);
+        if (k !== 'users') { const s = document.createElement('button'); s.type = 'button'; s.className = 'cl-size'; s.title = 'Card width'; c.prepend(s); }
+      }
+      if (k !== 'users') { clWidth(c, (lay[k] && lay[k].w && lay[k].w[c.dataset.cid]) || clStdW(c, k)); if (clRO) clRO.observe(c); clFit(c); }
+    });
+  });
+  if (!$('#clBar')) {
+    const b = document.createElement('div'); b.id = 'clBar';
+    b.innerHTML = '<button type="button" class="btn btn-soft btn-sm" id="clLock"></button><button type="button" class="btn btn-soft btn-sm" id="clReset" title="Put the cards back in the standard places and sizes"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset layout</button>';
+    $('#deskTitle').after(b); $('#clReset').onclick = clReset; $('#clLock').onclick = () => { try { localStorage.setItem('it_cardlock', clLocked() ? '0' : '1'); } catch (e) {} clLockPaint(); };
+  }
+  clApply(); clLockPaint();
 }
-/** Puts the saved order (and, on the Records page, the saved grid places) back. */
+function clLockPaint() {
+  const lk = clLocked(); document.body.classList.toggle('cl-unlocked', !lk);
+  $('#clLock').innerHTML = lk ? '<i class="bi bi-lock-fill me-1"></i>Layout locked · Unlock' : '<i class="bi bi-unlock-fill me-1"></i>Unlocked · Lock';
+  $('#clLock').classList.toggle('btn-brand', !lk);
+}
+/** Puts the saved order back (the widths were put on the cards in clInit). */
 function clApply() {
   const lay = clGet();
   CL_PANES.forEach(([k, sel]) => {
     const pane = $(sel), L = lay[k]; if (!pane || !L) return;
     (L.order || []).forEach(id => { const c = $('[data-cid="' + id + '"]', pane); if (c && c.parentNode === pane) pane.appendChild(c); });
-    Object.keys(L.grid || {}).forEach(id => { const c = $('[data-cid="' + id + '"]', pane); if (c) { c.style.gridColumn = L.grid[id][0]; c.style.gridRow = L.grid[id][1]; } });
   });
 }
 function clSave(k, sel) {
-  const lay = clGet(), pane = $(sel), L = lay[k] = { order: clCards(sel).map(c => c.dataset.cid) };
-  if (k === 'records') { L.grid = {}; clCards(sel).forEach(c => { const cs = getComputedStyle(c); L.grid[c.dataset.cid] = [c.style.gridColumn || cs.gridColumn, c.style.gridRow || cs.gridRow]; }); }
+  const lay = clGet(), L = lay[k] = { order: clCards(sel).map(c => c.dataset.cid), w: {} };
+  clCards(sel).forEach(c => { if (c.dataset.w) L.w[c.dataset.cid] = +c.dataset.w; });
   clPut(lay);
 }
 function clReset() {
   try { localStorage.removeItem(clKey()); } catch (e) {}
-  CL_PANES.forEach(([k, sel]) => { const p = $(sel); clCards(sel).sort((a, b) => (+a.dataset.i0 || 0) - (+b.dataset.i0 || 0)).forEach(c => { c.style.gridColumn = c.dataset.gc0 || ''; c.style.gridRow = c.dataset.gr0 || ''; p.appendChild(c); }); });
+  CL_PANES.forEach(([k, sel]) => { const p = $(sel); clCards(sel).sort((a, b) => (+a.dataset.i0 || 0) - (+b.dataset.i0 || 0)).forEach(c => { p.appendChild(c); if (k !== 'users') clWidth(c, clStdW(c, k)); }); });
   toast('The cards are back in the standard places.', 'success');
 }
 function clSwap(a, b, k, sel) {
   if (a === b || a.parentNode !== b.parentNode) return;
   if (k === 'users' && a.dataset.sec !== b.dataset.sec) { toast('Drop it on a card of the same page.', 'warning'); return; }
-  if (k === 'records') { const ga = [a.style.gridColumn || getComputedStyle(a).gridColumn, a.style.gridRow || getComputedStyle(a).gridRow], gb = [b.style.gridColumn || getComputedStyle(b).gridColumn, b.style.gridRow || getComputedStyle(b).gridRow]; a.style.gridColumn = gb[0]; a.style.gridRow = gb[1]; b.style.gridColumn = ga[0]; b.style.gridRow = ga[1]; }
   const ph = document.createElement('span'); a.before(ph); b.before(a); ph.replaceWith(b);
   clSave(k, sel);
 }
+document.addEventListener('click', e => {      // the width button of a card: ⅓ → ½ → ⅔ → Full
+  const s = e.target.closest && e.target.closest('.cl-size'); if (!s) return;
+  const c = s.closest('.card-x'), k = (CL_PANES.find(p => c.parentNode === $(p[1])) || [])[0]; if (!k) return;
+  const cur = +c.dataset.w || 6, i = CL_STEPS.findIndex(x => x[0] === cur);
+  clWidth(c, CL_STEPS[(i + 1) % CL_STEPS.length][0]); clSave(k, CL_PANES.find(p => p[0] === k)[1]);
+});
 let clDrag = null;
 document.addEventListener('dragstart', e => {
   const g = e.target.closest && e.target.closest('.cl-grip'); if (!g) return;
@@ -3430,9 +3517,11 @@ document.addEventListener('dragend', () => { $$('.cl-over,.cl-drag').forEach(x =
 
 function deskSync() {
   const on = !!(S.user && isWide() && window.innerWidth >= DESK_MIN);
-  if (on) { deskBuild(); clInit(); }
+  if (on) { deskBuild(); }
+  { const mc = $('#mapCard'), pm = $('#pane-map'), pr = $('#pane-records'); if (mc && on && mc.parentNode !== pm) pm.appendChild(mc); else if (mc && !on && mc.parentNode === pm) pr.insertBefore(mc, $('#recCard')); }
   document.body.classList.toggle('desk', on);
+  if (on) clInit();
   show($('#deskNav'), on);
-  if (on) { const pane = ['new', 'records', 'stock', 'users'].find(t => !$('#pane-' + t).classList.contains('hidden')) || 'records'; deskPaint(pane); }
+  if (on) { const pane = ['new', 'records', 'map', 'stock', 'users'].find(t => !$('#pane-' + t).classList.contains('hidden')) || 'records'; deskPaint(pane); }
 }
 window.addEventListener('resize', deskSync);

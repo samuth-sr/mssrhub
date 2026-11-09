@@ -252,7 +252,7 @@ body.desk #pane-stock > .card-x{margin:0}
 body.desk #pane-stock > .span-all,body.desk #stPendCard{grid-column:1/-1}
 /* Setup */
 body.desk #pane-users > .card-x{display:none;margin:0 0 16px}
-body.desk #pane-users[data-show="staff"] > [data-sec="staff"],body.desk #pane-users[data-show="cats"] > [data-sec="cats"],body.desk #pane-users[data-show="rules"] > [data-sec="rules"],body.desk #pane-users[data-show="tg"] > [data-sec="tg"],body.desk #pane-users[data-show="cols"] > [data-sec="cols"]{display:block}
+body.desk #pane-users[data-show="staff"] > [data-sec="staff"],body.desk #pane-users[data-show="cats"] > [data-sec="cats"],body.desk #pane-users[data-show="rules"] > [data-sec="rules"],body.desk #pane-users[data-show="tg"] > [data-sec="tg"],body.desk #pane-users[data-show="cols"] > [data-sec="cols"],body.desk #pane-users[data-show="arch"] > [data-sec="arch"]{display:block}
 body.desk #pane-users{max-width:920px}
 body.desk #pane-users[data-show="tg"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;max-width:none}
 body.desk #pane-users[data-show="tg"] > .card-x{margin:0}
@@ -382,17 +382,22 @@ body.map-fs .send-q{z-index:2100}
 #mapCard.map-full .map-main{min-height:0}
 #mapCard.map-full .map-fp{overflow:auto;max-height:100%}
 @media (max-width:899px){#mapCard.map-full .map-wrap{grid-template-rows:auto 1fr}#mapCard.map-full .map-fp.open{max-height:42vh}}
-/* admin desktop: drag and drop the cards */
-.cl-grip{display:none}
+/* admin desktop: move the cards (unlock first); card sizes follow their content */
+.cl-grip,.cl-size{display:none}
 body.desk .card-x{position:relative}
-body.desk .cl-grip{display:flex;position:absolute;top:8px;right:8px;z-index:3;width:26px;height:26px;align-items:center;justify-content:center;border-radius:8px;color:var(--muted);cursor:grab;opacity:.35;background:transparent}
-body.desk .card-x:hover > .cl-grip{opacity:1;background:var(--bg)}
-body.desk .cl-grip:active{cursor:grabbing}
+body.desk .mas:not(.hidden){display:grid!important;grid-template-columns:repeat(12,minmax(0,1fr));grid-auto-rows:8px;grid-auto-flow:row dense;gap:0 16px;align-items:start}
+body.desk .mas > .card-x{grid-column:span var(--w,12)!important;grid-row:auto / span var(--rs,1)!important;margin:0!important;align-self:start}
+body.desk.cl-unlocked .cl-grip{display:flex;position:absolute;top:8px;right:8px;z-index:3;width:28px;height:28px;align-items:center;justify-content:center;border-radius:8px;color:var(--brand);cursor:grab;background:var(--bg)}
+body.desk.cl-unlocked .cl-size{display:flex;position:absolute;top:8px;right:42px;z-index:3;min-width:34px;height:28px;padding:0 8px;align-items:center;justify-content:center;border-radius:8px;border:0;color:var(--brand);font-weight:700;background:var(--bg)}
+body.desk.cl-unlocked .cl-grip:active{cursor:grabbing}
+body.desk.cl-unlocked .mas > .card-x,body.desk.cl-unlocked #pane-users[data-show="tg"] > .card-x{outline:1.5px dashed #c7d2fe;outline-offset:2px}
 body.desk .card-x.cl-drag{opacity:.45}
-body.desk .card-x.cl-over{outline:2.5px dashed var(--brand);outline-offset:3px}
-#clReset{display:none}
-body.desk #clReset{display:inline-flex;position:fixed;top:30px;right:34px;z-index:5}
-body.desk[data-pane="new"] #clReset{display:none}
+body.desk .card-x.cl-over{outline:2.5px dashed var(--brand)!important;outline-offset:3px}
+#clBar{display:none}
+body.desk #clBar{display:flex;gap:8px;position:fixed;top:30px;right:34px;z-index:5}
+body.desk[data-pane="new"] #clBar,body.desk[data-pane="map"] #clBar{display:none}
+body.desk[data-pane="users"]:not([data-key="tg"]) #clBar{display:none}
+body.desk #mapToggle{display:none}
 /* sheet columns */
 .col-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:10px;margin-bottom:5px;background:#fff;cursor:grab}
 .col-row.over{outline:2px dashed var(--brand)}
