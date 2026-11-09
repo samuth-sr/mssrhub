@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=117" rel="stylesheet">
+  <link href="style.css?v=121" rel="stylesheet">
 </head>
 <body>
 
@@ -176,12 +176,29 @@
       <div class="card-x" id="mapCard">
         <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
           <div><span class="fw-bold"><i class="bi bi-map me-1"></i>Merchant map</span> <span class="pill ms-1" id="mapCount">0</span></div>
-          <span class="d-flex gap-1"><button type="button" class="btn btn-soft btn-sm" id="mapFull" title="Full screen"><i class="bi bi-arrows-fullscreen me-1"></i><span>Full screen</span></button><button type="button" class="btn btn-soft btn-sm" id="mapToggle"><i class="bi bi-chevron-up me-1"></i>Hide</button></span>
+          <span class="d-flex gap-1"><button type="button" class="btn btn-soft btn-sm" id="mapFilt"><i class="bi bi-funnel me-1"></i>Filters</button><button type="button" class="btn btn-soft btn-sm" id="mapFull" title="Full screen"><i class="bi bi-arrows-fullscreen me-1"></i><span>Full screen</span></button><button type="button" class="btn btn-soft btn-sm" id="mapToggle"><i class="bi bi-chevron-up me-1"></i>Hide</button></span>
         </div>
-        <div id="mapBody"><div class="small text-muted mb-2">Every record with GPS is a dot. The filters above (period, staff, category, activity, QR type ...) change the dots.</div>
-        <div id="recMap" class="rec-map"></div>
-        <div class="map-leg" id="mapLegend"></div>
-        <div class="small text-muted mt-1" id="mapNote"></div></div>
+        <div id="mapBody">
+        <div class="map-wrap">
+          <div class="map-fp" id="mapFp">
+            <div class="mf-h">Period</div><div class="slicer" id="mfPeriod"></div>
+            <div class="row g-1 mt-1 hidden" id="mfCustom"><div class="col-6"><input type="date" class="form-control form-control-sm" id="mfFrom"></div><div class="col-6"><input type="date" class="form-control form-control-sm" id="mfTo"></div></div>
+            <div class="hidden" id="mfBrW"><div class="mf-h">Branch</div><div class="slicer" id="mfBranch"></div></div>
+            <div class="hidden" id="mfUserW"><div class="mf-h">Staff</div><select class="form-select form-select-sm" id="mfUser"></select></div>
+            <div class="mf-h">Category</div><select class="form-select form-select-sm" id="mfType"></select>
+            <div class="hidden" id="mfSubW"><div class="mf-h">Sub category</div><select class="form-select form-select-sm" id="mfSub"></select></div>
+            <div class="mf-h">Activity</div><select class="form-select form-select-sm" id="mfAct"></select>
+            <div class="hidden" id="mfQrW"><div class="mf-h">QR type</div><div class="slicer" id="mfQr"></div></div>
+            <div class="mf-h">Search merchant / MID</div><input type="search" class="form-control form-control-sm" id="mfQ" placeholder="Name, MID or TID" autocomplete="off">
+            <div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>These filters only change the dots. The Records table and chart keep their own filters.</div>
+            <div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-soft btn-sm" id="mfReset">Reset</button><button type="button" class="btn btn-soft btn-sm" id="mfRefresh"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button></div>
+          </div>
+          <div class="map-main">
+            <div id="recMap" class="rec-map"></div>
+            <div class="map-leg" id="mapLegend"></div>
+            <div class="small text-muted mt-1" id="mapNote"></div>
+          </div>
+        </div></div>
       </div>
 
       <div class="card-x p-0 overflow-hidden" id="recCard">
@@ -212,7 +229,7 @@
       </div>
       <div class="card-x">
         <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="stPeriod"></div></div>
-        <div class="mb-3 hidden" id="stBranchWrap"><div class="form-label">Branch</div><div class="chips" id="stBranch"></div></div>
+        <div class="mb-3 hidden" id="stBranchWrap"><div class="form-label">Branch</div><div class="chips" id="stBranch"></div><div class="small text-muted mt-2 hidden" id="stViewNote"></div></div>
         <div class="mb-0"><div class="form-label">Item</div><div class="chips" id="stItem"></div></div>
       </div>
       <div class="card-x">
@@ -286,6 +303,17 @@
           <div class="col-6"><label class="form-label small mb-1">Days allowed <span class="text-muted">(1 = same day)</span></label><input type="number" min="1" max="60" class="form-control" id="ruleDays"></div>
         </div>
         <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="ruleSave">Save rules</button><span class="small" id="ruleMsg"></span></div>
+      </div>
+
+      <div class="card-x" id="colsCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-layout-three-columns me-1"></i>Sheet columns</div>
+          <span class="pill" id="colsN">…</span>
+        </div>
+        <div class="small text-muted mb-2">The order of the columns in the <b>Installations</b> sheet. Drag a column (or use the arrows), then Save: the real sheet columns move with all their data. Do not rename the headers in the sheet. The first time, a backup tab is made.</div>
+        <div id="colList"></div>
+        <div class="d-flex gap-2 mt-2 flex-wrap"><button type="button" class="btn btn-brand btn-sm" id="colsSave" disabled>Save order</button><button type="button" class="btn btn-soft btn-sm" id="colsStd">Standard order</button><button type="button" class="btn btn-soft btn-sm" id="colsReload">Reload</button></div>
+        <div class="small text-muted mt-2" id="colsMsg"></div>
       </div>
 
       <div class="card-x" id="qkCard">
@@ -618,11 +646,10 @@
         <div id="eCustom" class="hidden"></div>
         <div class="mb-1 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea id="eRem" class="form-control" rows="2"></textarea></div>
         <div class="hidden" data-fk="photo" id="ePhWrap"><label class="form-label">Photos / videos <span class="rq hidden">*</span> <span class="small text-muted fw-normal" id="ePhNow"></span></label>
-          <div class="small text-muted mb-2" id="ePhHint">Keep the current photos, or choose new ones: they replace <b>all</b> the old ones and are sent to Telegram again.</div>
+          <div class="small text-muted mb-2" id="ePhHint">Keep the current photos, or choose new ones: they replace <b>all</b> the old ones. They are sent to Telegram in a new message and the old pictures there are deleted.</div>
           <div class="row g-2"><div class="col-6"><button type="button" class="btn btn-soft w-100" id="eCam"><i class="bi bi-camera me-1"></i>Take photo</button></div><div class="col-6"><button type="button" class="btn btn-soft w-100" id="ePick"><i class="bi bi-images me-1"></i>Photos or Videos</button></div></div>
-          <input type="file" accept="image/*" capture="environment" class="hidden" id="eRepCam"><input type="file" accept="image/*,video/*" class="hidden" id="eRepPick"><input type="file" accept="image/*" capture="environment" class="hidden" id="eCamFile"><input type="file" accept="image/*,video/*" multiple class="hidden" id="ePickFile">
+          <input type="file" accept="image/*" capture="environment" class="hidden" id="eCamFile"><input type="file" accept="image/*,video/*" multiple class="hidden" id="ePickFile">
           <div class="progress prog mt-2" id="ePrg"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div></div>
-          <div class="photo-grid hidden" id="eMedGrid"></div>
           <div class="photo-grid" id="ePhGrid"></div>
           <button type="button" class="btn btn-link btn-sm p-0 hidden" id="ePhClear">Keep the current photos instead</button></div>
         <div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Saving also updates the message in Telegram. Changing the category, sub category or activity gives the record a new ID. Edit rules are set by the admin.</div>
@@ -794,12 +821,6 @@
 <script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
-<script src="app.js?v=117" defer></script>
-<div id="eView" class="ev hidden" role="dialog" aria-label="Photo">
-  <div class="ev-top"><span id="evTitle">Photo</span><button type="button" id="evClose" aria-label="Close">✕</button></div>
-  <div class="ev-img"><img id="evImg" alt=""><video id="evVid" controls playsinline class="hidden"></video><div class="ev-spin hidden" id="evSpin"><div class="spinner-border text-light"></div></div></div>
-  <div class="ev-msg small" id="evMsg"></div>
-  <div class="ev-btns"><button type="button" class="btn btn-light" id="evCam"><i class="bi bi-camera me-1"></i>Take photo</button><button type="button" class="btn btn-light" id="evPick"><i class="bi bi-images me-1"></i>Choose</button><button type="button" class="btn btn-danger" id="evDel"><i class="bi bi-trash me-1"></i>Remove</button><button type="button" class="btn btn-outline-light hidden" id="evUndo">Undo</button></div>
-</div>
+<script src="app.js?v=121" defer></script>
 </body>
 </html>

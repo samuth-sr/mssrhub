@@ -103,6 +103,7 @@ function setCatalog(c) {
   tabs.innerHTML = TYPES.map(t => '<button type="button" data-type="' + esc(t) + '"><i class="bi ' + iconOf(t) + '"></i><span class="tl">' + esc(shortName(t)) + '</span></button>').join('');
   $$('#typeTabs button').forEach(b => b.classList.toggle('active', b.dataset.type === curType));
   if (typeof fillTypeSlicer === 'function') { fillTypeSlicer(); fillSubFilter(); fillActivityFilter(); }
+  try { if ($('#mfType')) mfFillCats(); } catch (e) {}
   try { localStorage.setItem('it_catalog', JSON.stringify(c)); } catch (e) {}
 }
 (function () { let c = null; try { c = JSON.parse(localStorage.getItem('it_catalog')); } catch (e) {} setCatalog(c); })();
@@ -534,7 +535,7 @@ function switchTab(name) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (name === 'records') { loadRecords(); loadTeam(); }
   if (name === 'stock') loadStock();
-  if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
+  if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); loadCols(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
   deskPaint(name);
 }
 $$('.bottom-nav button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -1308,7 +1309,7 @@ async function addPhotos(card, files, fromCamera) {
   renderPhotos(card);
 }
 function renderPhotos(card) {
-  const grid = card.grid || $('.photo-grid', card.el);
+  const grid = $('.photo-grid', card.el);
   grid.innerHTML = '';
   card.photos.forEach((src, i) => {
     const d = document.createElement('div'); d.className = 'ph';
@@ -1534,7 +1535,7 @@ const mapOpen = () => { try { return store.get('it_map_open') !== '0'; } catch (
 function mapToggleSet(open) {
   try { store.set('it_map_open', open ? '1' : '0'); } catch (e) {}
   show($('#mapBody'), open); $('#mapToggle').innerHTML = open ? '<i class="bi bi-chevron-up me-1"></i>Hide' : '<i class="bi bi-chevron-down me-1"></i>Show';
-  if (open) renderMap();
+  if (open) { if (MF.loaded) renderMap(); else mfLoad(true); }
 }
 document.addEventListener('click', e => { if (e.target.closest('#mapToggle')) mapToggleSet(!mapOpen()); });
 /** Full screen: the map card covers the whole screen (works on every phone); Close or Esc goes back. */
@@ -1554,14 +1555,77 @@ function mapInit() {
   MAP.map.on('zoomend', mapDraw);
   return true;
 }
+/* The map has its own filters and its own data (getMapPoints): the Records filters do not change it. */
+const MF = { period: 'all', branchOff: new Set(), branches: [], qr: '', loaded: false, seq: 0, t: null, total: 0 };
+const MF_PERIODS = [{ v: 'all', l: 'All time' }, { v: 'today', l: 'Today' }, { v: 'week', l: 'This week' }, { v: 'month', l: 'This month' }, { v: 'lastm', l: 'Last month' }, { v: 'custom', l: 'Custom…' }];
+function mfRange() {
+  const now = new Date(), p = MF.period;
+  if (p === 'today') return { from: ymd(now), to: ymd(now) };
+  if (p === 'week') { const d = new Date(now); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return { from: ymd(d), to: ymd(now) }; }
+  if (p === 'month') return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: ymd(now) };
+  if (p === 'lastm') return { from: ymd(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: ymd(new Date(now.getFullYear(), now.getMonth(), 0)) };
+  if (p === 'custom') return { from: $('#mfFrom').value, to: $('#mfTo').value };
+  return { from: '', to: '' };
+}
+const mfChips = (el, opts, cur) => { el.innerHTML = opts.map(o => '<button type="button" class="chip' + (o.v === cur ? ' active' : '') + '" data-v="' + esc(o.v) + '">' + esc(o.l) + '</button>').join(''); };
+function mfFillCats() {
+  const ty = $('#mfType'), cur = ty.value;
+  ty.innerHTML = '<option value="">All categories</option>' + (CATALOG || []).map(t => '<option>' + esc(t.name) + '</option>').join(''); ty.value = (CATALOG || []).some(t => t.name === cur) ? cur : '';
+  mfFillSub();
+}
+function mfFillSub() {
+  const t = $('#mfType').value, names = new Set();
+  (CATALOG || []).filter(x => !t || x.name === t).forEach(x => (x.subs || []).forEach(s => names.add(s.n)));
+  const sb = $('#mfSub'), cur = sb.value; sb.innerHTML = '<option value="">All</option>' + Array.from(names).map(n => '<option>' + esc(n) + '</option>').join(''); sb.value = names.has(cur) ? cur : '';
+  show($('#mfSubW'), names.size > 0); mfFillAct();
+}
+function mfFillAct() {
+  const t = $('#mfType').value, fs = $('#mfSub').value, set = new Set();
+  (CATALOG || []).filter(x => !t || x.name === t).forEach(x => x.acts.forEach(ad => { if (actInSub(x, ad, fs)) set.add(ad.n); }));
+  const el = $('#mfAct'), cur = el.value; el.innerHTML = '<option value="">All activities</option>' + Array.from(set).map(n => '<option>' + esc(n) + '</option>').join(''); el.value = set.has(cur) ? cur : '';
+}
+function mfLoad(now) { clearTimeout(MF.t); MF.t = setTimeout(mfFetch, now ? 0 : 280); }
+async function mfFetch() {
+  if (!S.token) return;
+  const my = ++MF.seq, r = mfRange();
+  const f = { from: r.from, to: r.to, user: $('#mfUser').value, type: $('#mfType').value, sub: $('#mfSub').value, activity: $('#mfAct').value, qrType: MF.qr, q: $('#mfQ').value.trim() };
+  if (S.user && S.user.role === 'Admin' && MF.branchOff.size && MF.branches.length) f.branches = MF.branches.filter(b => !MF.branchOff.has(b));
+  $('#mapNote').textContent = 'Loading…';
+  try {
+    const d = await api('getMapPoints', S.token, f);
+    if (my !== MF.seq) return;
+    MF.loaded = true; MF.branches = d.branches || []; MF.total = d.total || 0;
+    if (S.user && S.user.role === 'Admin') { MF.branchOff = new Set(Array.from(MF.branchOff).filter(b => MF.branches.includes(b))); mfChips($('#mfBranch'), MF.branches.map(b => ({ v: b, l: b })), ''); $$('#mfBranch .chip').forEach(x => x.classList.toggle('active', !MF.branchOff.has(x.dataset.v))); show($('#mfBrW'), MF.branches.length > 1); }
+    const wide = isWide(); show($('#mfUserW'), wide);
+    if (wide) { const cu = $('#mfUser').value; $('#mfUser').innerHTML = '<option value="">All staff</option>' + (d.users || []).map(u => '<option>' + esc(u) + '</option>').join(''); $('#mfUser').value = (d.users || []).includes(cu) ? cu : ''; }
+    const qs = Object.keys(d.qrCounts || {}); show($('#mfQrW'), qs.length > 0 || !!MF.qr);
+    mfChips($('#mfQr'), [{ v: '', l: 'All' }].concat(qs.map(k => ({ v: k, l: k + ' ' + d.qrCounts[k] }))), MF.qr);
+    MAP.pts = []; (d.points || []).forEach(r => { const ll = locLatLon(r); if (ll) MAP.pts.push({ r, ll }); });
+    renderMap();
+  } catch (e) { if (my === MF.seq) $('#mapNote').textContent = 'Could not load the map: ' + e.message; }
+}
+function mfInit() {
+  mfChips($('#mfPeriod'), MF_PERIODS, MF.period); mfFillCats();
+  $('#mfPeriod').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; MF.period = b.dataset.v; $$('#mfPeriod .chip').forEach(x => x.classList.toggle('active', x === b)); show($('#mfCustom'), MF.period === 'custom'); if (MF.period !== 'custom') mfLoad(true); });
+  $('#mfFrom').addEventListener('change', () => mfLoad(true)); $('#mfTo').addEventListener('change', () => mfLoad(true));
+  $('#mfBranch').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; const c = b.dataset.v; if (MF.branchOff.has(c)) MF.branchOff.delete(c); else if (MF.branches.filter(x => !MF.branchOff.has(x)).length > 1) MF.branchOff.add(c); else { toast('Keep at least one branch included.', 'warning'); return; } b.classList.toggle('active', !MF.branchOff.has(c)); mfLoad(); });
+  $('#mfQr').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; MF.qr = b.dataset.v; $$('#mfQr .chip').forEach(x => x.classList.toggle('active', x === b)); mfLoad(true); });
+  $('#mfUser').addEventListener('change', () => mfLoad(true));
+  $('#mfType').addEventListener('change', () => { mfFillSub(); mfLoad(true); });
+  $('#mfSub').addEventListener('change', () => { mfFillAct(); mfLoad(true); });
+  $('#mfAct').addEventListener('change', () => mfLoad(true));
+  $('#mfQ').addEventListener('input', () => mfLoad());
+  $('#mfRefresh').onclick = () => mfLoad(true);
+  $('#mfReset').onclick = () => { MF.period = 'all'; MF.branchOff = new Set(); MF.qr = ''; $('#mfQ').value = ''; $('#mfUser').value = ''; $('#mfType').value = ''; $('#mfFrom').value = ''; $('#mfTo').value = ''; mfChips($('#mfPeriod'), MF_PERIODS, 'all'); show($('#mfCustom'), false); mfFillSub(); mfLoad(true); };
+  $('#mapFilt').onclick = () => $('#mapFp').classList.toggle('open');
+}
+mfInit();
 function renderMap() {
-  const rows = filtered(), pts = [];
-  rows.forEach(r => { const ll = locLatLon(r); if (ll) pts.push({ r, ll }); });
-  MAP.pts = pts;
+  const pts = MAP.pts, nogps = Math.max(0, MF.total - pts.length);
   $('#mapCount').textContent = pts.length;
   const cats = {}; pts.forEach(p => { cats[p.r.type] = (cats[p.r.type] || 0) + 1; });
-  $('#mapLegend').innerHTML = Object.keys(cats).map(t => '<span><i style="background:' + mapColor(t) + '"></i>' + esc(shortName(t)) + ' ' + cats[t] + '</span>').join('') + '<span class="ms-auto fw-bold">' + pts.length + ' on the map' + (rows.length - pts.length ? ' · ' + (rows.length - pts.length) + ' without GPS' : '') + '</span>';
-  $('#mapNote').textContent = rows.length ? (pts.length ? '' : 'None of these records has a GPS location.') : 'No records for this filter.';
+  $('#mapLegend').innerHTML = Object.keys(cats).map(t => '<span><i style="background:' + mapColor(t) + '"></i>' + esc(shortName(t)) + ' ' + cats[t] + '</span>').join('') + '<span class="ms-auto fw-bold">' + pts.length + ' on the map' + (nogps ? ' · ' + nogps + ' without GPS' : '') + '</span>';
+  $('#mapNote').textContent = MF.total ? (pts.length ? '' : 'None of these records has a GPS location.') : 'No records for these filters.';
   if (!mapInit()) { $('#mapNote').textContent = 'The map could not load. Check the connection.'; return; }
   setTimeout(() => {
     MAP.map.invalidateSize();
@@ -1600,6 +1664,7 @@ document.addEventListener('click', e => {
   const a = e.target.closest('.map-rec'); if (!a) return; e.preventDefault();
   const st = a.dataset.s; if ($('#mapCard').classList.contains('map-full')) mapFullSet(false);
   const i = filtered().findIndex(r => r.stamp === st), tr = i >= 0 ? $('#recBody .rec-row[data-i="' + i + '"]') : null;
+  if (!tr) { toast('Record ' + st + ' is not in the Records list. Change the Records period or filters to see it.', 'info'); return; }
   if (tr) { setTimeout(() => { tr.click(); tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80); }
 });
 
@@ -1838,7 +1903,7 @@ function recDetail(r) {
 }
 function renderRows() {
   const rows = filtered();
-  if (mapOpen()) renderMap(); else mapToggleSet(false);
+  if (mapOpen()) { if (!MF.loaded) mfLoad(true); } else mapToggleSet(false);      // the map has its own filters: it loads once, then only when its own filters change
   $('#recCount').textContent = rows.length;
   $('#recBody').innerHTML = rows.length ? rows.map((r, i) =>
     '<tr class="rec-row" data-i="' + i + '"><td class="text-nowrap"><div class="fw-semibold">' + esc(fmtD(r.date || r.ts)) + '</div><div class="rec-sub">' + esc(r.stamp) + '</div></td>' +
@@ -2697,9 +2762,12 @@ const stBars = (rows, cls) => { const mx = Math.max(1, ...rows.map(r => r.n)); r
 const stPillOf = st => '<span class="st-pill ' + (st === 'In stock' || st === 'Reserved' ? 'st-i' : st === 'Used' ? 'st-u' : st === 'Faulty' ? 'st-f' : 'st-h') + '">' + esc(st) + '</span>';
 async function loadStock() {
   const admin = S.user.role === 'Admin';
-  show($('#stBranchWrap'), admin); show($('#stItemsCard'), admin);
+  if (!admin && !S.st.init) { S.st.init = true; S.st.branch = String(S.user.branch || '').toUpperCase().split(/[\s,;]+/).filter(Boolean)[0] || ''; }      // a supervisor starts on their own branch and may look at the others
+  show($('#stBranchWrap'), true); show($('#stItemsCard'), admin);
   try {
-    const d = S.st.data = await api('getStockDash', S.token, { from: stFrom(), branch: admin ? S.st.branch : '', item: S.st.item });
+    const d = S.st.data = await api('getStockDash', S.token, { from: stFrom(), branch: S.st.branch, item: S.st.item });
+    S.st.mine = String(d.branch || '').toUpperCase();
+    { const other = !admin && S.st.branch !== S.st.mine; $('#stViewNote').innerHTML = other ? '<i class="bi bi-eye me-1"></i>You are looking at ' + (S.st.branch ? 'branch <b>' + esc(S.st.branch) + '</b>' : '<b>all branches</b>') + '. You can only use or change the stock of your own branch (<b>' + esc(S.st.mine) + '</b>).' : ''; show($('#stViewNote'), other); }
     S.stockItems = d.items;
     $('#stPeriod').innerHTML = [['month', 'This month'], ['30', 'Last 30 days'], ['all', 'All time']].map(p => '<button type="button" class="chip' + (S.st.period === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('');
     $('#stBranch').innerHTML = [''].concat(d.branches).map(b => '<button type="button" class="chip' + (S.st.branch === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (b || 'All') + '</button>').join('');
@@ -2716,7 +2784,7 @@ async function loadStock() {
     $('#stRecent').innerHTML = d.recent.length ? d.recent.map(l => '<div class="py-1 border-top"><b>' + esc(l.action === 'Stock in' ? 'Stock in (input)' : l.action === 'Return - in stock' ? 'Returned to stock (decided)' : l.action) + '</b> · ' + esc(l.item) + (l.sn ? ' ' + esc(l.sn) : ' ×' + l.qty) + ' <span class="text-muted">· ' + esc(l.branch) + ' · ' + esc(l.by) + (l.merchant ? ' · ' + esc(l.merchant) : '') + (l.reason ? ' · ' + esc(l.reason) : '') + ' · ' + esc(fmtTs(l.ts)) + '</span></div>').join('') : '<div class="text-muted">Nothing yet</div>';
     const rq = $('#rqItem').value; $('#rqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join(''); if (rq) $('#rqItem').value = rq;
     show($('#rqBranchWrap'), admin);
-    $('#rqList').innerHTML = (d.resQty || []).length ? d.resQty.map(r => '<div class="d-flex justify-content-between align-items-center py-1 border-top" data-item="' + esc(r.item) + '" data-branch="' + esc(r.branch) + '" data-tid="' + esc(r.tid) + '"><div class="min-w-0"><b>' + esc(r.item) + ' × 1</b> <span class="st-pill st-i">Reserved</span><div class="text-muted text-truncate">TID ' + esc(r.tid) + (r.merchant ? ' · ' + esc(r.merchant) : '') + ' · ' + esc(r.branch) + ' · ' + esc(r.by) + ' · ' + esc(fmtD(r.ts)) + (r.note ? ' · ' + esc(r.note) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none rq-rel">Release</button></div>').join('') : '<div class="text-muted">Nothing reserved.</div>';
+    $('#rqList').innerHTML = (d.resQty || []).length ? d.resQty.map(r => '<div class="d-flex justify-content-between align-items-center py-1 border-top" data-item="' + esc(r.item) + '" data-branch="' + esc(r.branch) + '" data-tid="' + esc(r.tid) + '"><div class="min-w-0"><b>' + esc(r.item) + ' × 1</b> <span class="st-pill st-i">Reserved</span><div class="text-muted text-truncate">TID ' + esc(r.tid) + (r.merchant ? ' · ' + esc(r.merchant) : '') + ' · ' + esc(r.branch) + ' · ' + esc(r.by) + ' · ' + esc(fmtD(r.ts)) + (r.note ? ' · ' + esc(r.note) : '') + '</div></div>' + (S.user.role === 'Admin' || String(r.branch).toUpperCase() === S.st.mine ? '<button type="button" class="btn btn-soft btn-sm flex-none rq-rel">Release</button>' : '') + '</div>').join('') : '<div class="text-muted">Nothing reserved.</div>';
     const opts = d.items.map(i => '<option value="' + esc(i.name) + '">' + esc(i.name) + (i.kind === 'qty' ? ' (qty)' : '') + '</option>').join('');
     $('#siItemList').innerHTML = d.items.map(i => '<option value="' + esc(i.name) + '">' + (i.kind === 'qty' ? 'quantity' : 'serial numbers') + '</option>').join('');
     $('#aqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join('');
@@ -2826,8 +2894,8 @@ $('#snStatus').addEventListener('click', e => { const b = e.target.closest('.chi
 let snFindT = null; $('#snFind').addEventListener('input', () => { clearTimeout(snFindT); snFindT = setTimeout(loadSnRows, 300); });
 async function loadSnRows() {
   try {
-    const d = await api('getStockSNs', S.token, { status: S.st.status, q: $('#snFind').value.trim(), item: S.st.item, branch: S.user.role === 'Admin' ? S.st.branch : '' });
-    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" data-st="' + esc(r.status) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + (r.simNo ? ' · 📶 ' + esc(r.simNo) : '') + (r.company ? ' · ' + esc(r.company) : '') + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.tid ? ' · TID ' + esc(r.tid) : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button></div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
+    const d = await api('getStockSNs', S.token, { status: S.st.status, q: $('#snFind').value.trim(), item: S.st.item, branch: S.st.branch });
+    $('#snRows').innerHTML = d.rows.length ? d.rows.map(r => '<div class="sn-row" data-sn="' + esc(r.sn) + '" data-st="' + esc(r.status) + '" style="cursor:default"><div class="min-w-0"><b>' + esc(r.sn) + '</b> ' + stPillOf(r.status) + '<div class="small text-muted text-truncate">' + esc(r.item) + (r.simNo ? ' · 📶 ' + esc(r.simNo) : '') + (r.company ? ' · ' + esc(r.company) : '') + ' · ' + esc(r.branch) + (r.merchant ? ' · ' + esc(r.merchant) + (r.mid ? ' (MID ' + esc(r.mid) + ')' : '') : '') + (r.tid ? ' · TID ' + esc(r.tid) : '') + (r.usedBy ? ' · ' + esc(r.usedBy) : '') + (r.usedDate ? ' · ' + esc(fmtD(r.usedDate)) : '') + (r.pair ? ' · paired with ' + esc(r.pair) : '') + (r.reason ? ' · ' + esc(r.reason) : '') + (r.rec ? ' · ' + esc(r.rec) : '') + '</div></div>' + (S.user.role === 'Admin' || String(r.branch).toUpperCase() === S.st.mine ? '<button type="button" class="btn btn-soft btn-sm flex-none sn-adj">' + (r.status === 'Reserved' ? 'Release' : 'Change') + '</button>' : '') + '</div>').join('') + (d.total > d.rows.length ? '<div class="small text-muted">Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow down.</div>' : '') : '<div class="small text-muted">No serial numbers here.</div>';
   } catch (e) { toast(e.message, 'danger'); }
 }
 const adjModal = new bootstrap.Modal($('#adjModal')); S.adj = { sn: '', status: 'In stock' };
@@ -2922,7 +2990,7 @@ function eFillActs(cur) {
 $('#eType').addEventListener('change', () => { window._eType = $('#eType').value; eFillSubs($('#eType').value, ''); eFillActs(''); refreshMidLabel($('#eMid'), window._eType); updateEditDateLabel(); });
 $('#eSub').addEventListener('change', () => { eFillActs($('#eAct').value); updateEditDateLabel(); });
 async function eAddPhotos(files, fromCamera) {
-  const room = MAX_PHOTOS - (S.eMedia ? eMedCount() : S.ePh.length);
+  const room = MAX_PHOTOS - S.ePh.length;
   if (room <= 0) { toast('Photo limit reached (' + MAX_PHOTOS + ').', 'warning'); return; }
   files = files.slice(0, room);
   const prog = $('#ePrg'), bar = $('.progress-bar', prog), doStamp = !!(fromCamera && stampOn);
@@ -2943,76 +3011,10 @@ async function eAddPhotos(files, fromCamera) {
   setTimeout(() => { prog.style.display = 'none'; }, 350);
   ePhPaint();
 }
-/* ---- pictures already in Telegram (records sent after v117): tap to view / replace / remove, "+" photos are added ---- */
-const eMed = () => S.eMedia;                                       // null = old record (no saved references): the old "replace all" way
-const eMedCount = () => (S.eMedia || []).filter(x => !x.del).length + S.ePh.length;
-async function eLoadMedia(stamp, n) {
-  S.eMedia = null; S.eMedLoading = n > 0;
-  ePhPaint();
-  if (!(n > 0)) return;
-  try {
-    const r = await api('getRecordPhotos', S.token, stamp);
-    if ($('#eStamp').value !== stamp) return;
-    S.eMedia = r.items && r.items.length ? r.items.map(x => ({ i: x.i, k: x.k, t: x.t, rep: null, del: false })) : null;
-  } catch (e) { S.eMedia = null; }
-  S.eMedLoading = false; ePhPaint();
-}
-function eMedPaint() {
-  const g = $('#eMedGrid'); g.innerHTML = '';
-  if (S.eMedLoading) { for (let i = 0; i < (S.eMedN || 1); i++) { const d = document.createElement('div'); d.className = 'ph sk'; g.appendChild(d); } return; }
-  (S.eMedia || []).forEach((x, i) => {
-    const d = document.createElement('div'); d.className = 'ph med' + (x.del ? ' gone' : '') + (x.rep ? ' chg' : '');
-    const src = x.rep || x.t, vid = x.rep ? isVideoSrc(x.rep) : x.k === 'v';
-    d.innerHTML = (src ? '<img src="' + src + '" alt="">' : '<span class="d-flex h-100 align-items-center justify-content-center text-muted"><i class="bi bi-image fs-4"></i></span>') + (vid ? '<span class="vbadge"><i class="bi bi-play-fill"></i></span>' : '') + (x.del ? '<span class="mb rm">removed</span>' : x.rep ? '<span class="mb">new</span>' : '');
-    d.onclick = () => eViewOpen(i);
-    g.appendChild(d);
-  });
-}
-let eViewI = -1;
-function eViewOpen(i) {
-  const x = S.eMedia[i]; if (!x) return; eViewI = i;
-  $('#evTitle').textContent = 'Photo ' + (i + 1) + ' of ' + S.eMedia.length;
-  const img = $('#evImg'), vid = $('#evVid'); show(img, true); show(vid, false); vid.pause && vid.pause();
-  img.src = x.rep && !isVideoSrc(x.rep) ? x.rep : (x.t || '');
-  if (x.rep && isVideoSrc(x.rep)) { show(img, false); show(vid, true); vid.src = x.rep; }
-  $('#evMsg').textContent = x.del ? 'This picture will be removed when you save.' : x.rep ? 'This is the new picture. It replaces the old one when you save.' : '';
-  show($('#evDel'), !x.del && i > 0); show($('#evUndo'), !!(x.del || x.rep));
-  $('#evMsg').textContent += (i === 0 && !x.del && !x.rep ? ' The first picture holds the message text: replace it, it cannot be removed.' : '');
-  show($('#eView'), true);
-  if (!x.rep && !x.del && x.k === 'p') {      // the sharp picture loads in the background
-    show($('#evSpin'), true);
-    api('getRecordPhoto', S.token, $('#eStamp').value, x.i).then(r => { if (eViewI === i && r.src && !x.rep) img.src = r.src; }).catch(() => {}).finally(() => show($('#evSpin'), false));
-  }
-}
-function eViewClose() { show($('#eView'), false); $('#evVid').pause && $('#evVid').pause(); eViewI = -1; eMedPaint(); ePhPaint(); }
-$('#evClose').onclick = eViewClose;
-$('#evCam').onclick = () => $('#eRepCam').click(); $('#evPick').onclick = () => $('#eRepPick').click();
-$('#evDel').onclick = () => { const x = S.eMedia[eViewI]; if (!x || eViewI === 0) return; if (S.eMedia.filter(y => !y.del).length + S.ePh.length <= 1) { toast('Keep at least one picture.', 'warning'); return; } x.del = true; x.rep = null; eViewClose(); };
-$('#evUndo').onclick = () => { const x = S.eMedia[eViewI]; if (!x) return; x.del = false; x.rep = null; eViewClose(); };
-async function eRepFile(f, cam) {
-  const x = S.eMedia && S.eMedia[eViewI]; if (!x || !f) return;
-  $('#evMsg').textContent = 'Preparing…';
-  try {
-    const pq = PQ[((effDef($('#eType').value, $('#eAct').value, $('#eSub').value || '') || {}).pq) || ''] || PQ[''];
-    let d;
-    if (isVideoFile(f)) { if (f.size > MAX_VIDEO_MB * 1048576) throw new Error('Video is too big (max ' + MAX_VIDEO_MB + ' MB).'); d = await readVideo(f); }
-    else d = await compress(f, Object.assign({ stamp: !!(cam && stampOn), data: (cam && stampOn) ? await stampData() : null }, pq));
-    x.rep = d; x.del = false; eViewClose();
-  } catch (e) { $('#evMsg').textContent = 'Could not read that file.'; }
-}
-$('#eRepCam').onchange = e => { const f = e.target.files[0]; e.target.value = ''; eRepFile(f, true); };
-$('#eRepPick').onchange = e => { const f = e.target.files[0]; e.target.value = ''; eRepFile(f, false); };
 function ePhPaint() {
-  const med = !!S.eMedia || !!S.eMedLoading;
-  show($('#eMedGrid'), med); if (med) eMedPaint();
-  renderPhotos({ el: $('#ePhWrap'), grid: $('#ePhGrid'), photos: S.ePh });
-  show($('#ePhClear'), S.ePh.length > 0 && !med);
-  if (med) {
-    const ch = S.eMedia ? S.eMedia.filter(x => x.rep).length : 0, rm = S.eMedia ? S.eMedia.filter(x => x.del).length : 0;
-    $('#ePhHint').innerHTML = S.eMedLoading ? 'Loading the pictures…' : 'Tap a picture to see it, replace it or remove it. <b>Take photo</b> / <b>Photos or Videos</b> add more (posted as a reply under the message). Saving changes the same Telegram message' + (ch || rm || S.ePh.length ? '<br><b>' + [ch ? ch + ' replaced' : '', rm ? rm + ' removed' : '', S.ePh.length ? S.ePh.length + ' added' : ''].filter(Boolean).join(' · ') + '</b>' : '.');
-    return;
-  }
-  $('#ePhHint').innerHTML = S.ePh.length ? '<b>' + S.ePh.length + ' new</b> photo(s) will replace <b>all</b> the old ones.' : 'Keep the current photos, or choose new ones: they replace <b>all</b> the old ones and are sent to Telegram again.';
+  renderPhotos({ el: $('#ePhWrap'), photos: S.ePh });
+  show($('#ePhClear'), S.ePh.length > 0);
+  $('#ePhHint').innerHTML = S.ePh.length ? '<b>' + S.ePh.length + ' new</b> photo(s) will replace <b>all</b> the old ones.' : 'Keep the current photos, or choose new ones: they replace <b>all</b> the old ones. They are sent to Telegram in a new message and the old pictures there are deleted.';
 }
 $('#ePhGrid').addEventListener('click', () => setTimeout(ePhPaint, 0));
 $('#eCam').onclick = () => $('#eCamFile').click(); $('#ePick').onclick = () => $('#ePickFile').click();
@@ -3024,7 +3026,7 @@ function openEdit() {
   show($('#eError'), false);
   $('#eCat').textContent = r.type;
   $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + (r.review && r.review.status === 'Returned' ? ' · fix and resubmit' : ' · edit ' + ((r.edits || 0) + 1) + ' of ' + S.rules.max);
-  S.ePh = []; S.eMedia = null; S.eMedLoading = false; S.eMedN = Math.min(r.photos || 0, MAX_PHOTOS); renderPhotos({ el: $('#ePhWrap'), grid: $('#ePhGrid'), photos: S.ePh }); show($('#ePhClear'), false); show($('#eMedGrid'), false); show($('#eView'), false);
+  S.ePh = []; renderPhotos({ el: $('#ePhWrap'), photos: S.ePh }); show($('#ePhClear'), false);
   $('#ePhNow').textContent = r.photos > 0 ? '· ' + r.photos + ' now' : '';
   $('#eType').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">' + esc(t) + '</option>').join(''); $('#eType').value = r.type;
   eFillSubs(r.type, r.sub || ''); eFillActs(r.activity);
@@ -3041,7 +3043,6 @@ function openEdit() {
   $('#ePhone').value = r.phone || ''; $('#eTag').value = r.tag || ''; $('#eSerial').value = r.serial || ''; $('#eOldSn').value = r.oldSn || ''; $('#eNewSn').value = r.newSn || '';
   updateEditDateLabel();
   editModal.show();
-  eLoadMedia(r.stamp, r.photos || 0);
 }
 $('#eAct').addEventListener('change', updateEditDateLabel);
 $('#editForm').addEventListener('submit', async e => {
@@ -3049,12 +3050,10 @@ $('#editForm').addEventListener('submit', async e => {
   const btn = $('#eSave'), err = $('#eError');
   show(err, false); busy(btn, true, 'Saving…');
   try {
-    const phOps = S.eMedia ? { rep: Object.fromEntries(S.eMedia.filter(x => x.rep && !x.del).map(x => [x.i, x.rep])), del: S.eMedia.filter(x => x.del).map(x => x.i), add: S.ePh } : null;
-    const hasOps = phOps && (Object.keys(phOps.rep).length || phOps.del.length || phOps.add.length);
-    if ((phOps ? [...Object.values(phOps.rep), ...phOps.add] : S.ePh).reduce((t, p) => t + p.length, 0) > 32e6) throw new Error('The new photos and videos are too big to send together. Remove a video or some photos.');
+    if (S.ePh.reduce((t, p) => t + p.length, 0) > 32e6) throw new Error('The new photos and videos are too big to send together. Remove a video or some photos.');
     { const mv = $('#eMid').value.trim(), pf = midPrefix(window._eType); if (mv && mv !== NOQR && pf && mv[0] !== pf) throw new Error('The MID of ' + window._eType + ' must start with ' + pf + '.'); }
     const r = await api('updateRecord', S.token, {
-      stamp: $('#eStamp').value, type: $('#eType').value, sub: $('#eSub').value, photos: !phOps && S.ePh.length ? S.ePh : undefined, ph: hasOps ? phOps : undefined, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
+      stamp: $('#eStamp').value, type: $('#eType').value, sub: $('#eSub').value, photos: S.ePh.length ? S.ePh : undefined, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
       mid: $('#eMid').value.trim(), tid: $('#eTid').value.trim(), integ: $('#eInteg').checked, sim: $('#eSim').checked, standee: $('#eStandee').checked, business: $('#eBiz').value.trim(), remarks: $('#eRem').value.trim(),
       extra: Object.fromEntries($$('#eCustom [data-fid]').map(i => [i.dataset.fid, customVal(i)])), btype: $('#eBType').value.trim(), group: $('#eGroup').value.trim(), hours: $('#eOpen').value && $('#eClose').value ? $('#eOpen').value + ' - ' + $('#eClose').value : '',
       ptype: $('#eProd').value.trim(), commune: $('#eCommune').value.trim(), zone: $('#eZone').value.trim(), serial: $('#eSerial').value.trim(), phone: $('#ePhone').value.trim(), tag: $('#eTag').value.trim(), oldSn: $('#eOldSn').value.trim(), newSn: $('#eNewSn').value.trim()
@@ -3293,17 +3292,17 @@ $('#lblReset').addEventListener('click', async () => {
 /* ============================ Desktop mode (admin + supervisor, wide screens) ============================ */
 const DESK_MIN = 1100;
 S.deskKey = 'records';
-const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', rules: 'Edit rules & record ID' };
+const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', cols: 'Sheet columns', rules: 'Edit rules & record ID' };
 const deskItems = () => {
   const admin = S.user && S.user.role === 'Admin';
   return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], ['map', 'bi-map', 'Merchant map'], admin && ['review', 'bi-patch-check', 'Review queue'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
     ['TOOLS'], ['lookup', 'bi-search', 'Merchant history'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
-    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
+    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['cols', 'bi-layout-three-columns', 'Sheet columns'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
 };
 let deskBuilt = false;
 function deskBuild() {
   if (!S.user || deskBuilt) return; deskBuilt = true;
-  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', qkCard: 'rules', tplCard: 'tg', lblCard: 'tg', ccCard: 'tg', tgCard: 'tg' };
+  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', qkCard: 'rules', colsCard: 'cols', tplCard: 'tg', lblCard: 'tg', ccCard: 'tg', tgCard: 'tg' };
   Object.keys(sec).forEach(id => { const el = $('#' + id); if (el) el.dataset.sec = sec[id]; });
   $$('#pane-users > .card-x').forEach(el => { if (!el.dataset.sec) el.dataset.sec = 'staff'; });
   $$('#pane-stock > .card-x').forEach(el => { if (/^\s*(Serial numbers|Returns waiting|Recent movements|Stock items)/i.test(el.textContent)) el.classList.add('span-all'); });
@@ -3332,14 +3331,106 @@ function deskGo(k) {
 /** Marks the sidebar item, the page title and (in Setup) which card is shown. */
 function deskPaint(name) {
   document.body.dataset.pane = name;
-  if (name === 'new') S.deskKey = 'new'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules'].includes(S.deskKey)) S.deskKey = 'staff';
-  $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules'].includes(S.deskKey) ? S.deskKey : 'staff';
+  if (name === 'new') S.deskKey = 'new'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules', 'cols'].includes(S.deskKey)) S.deskKey = 'staff';
+  $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules', 'cols'].includes(S.deskKey) ? S.deskKey : 'staff';
   $('#deskTitle').textContent = DESK_TITLES[S.deskKey] || '';
   $$('#deskNav .dn-it').forEach(b => b.classList.toggle('active', b.dataset.k === S.deskKey));
 }
+/* ============================ Sheet columns (admin) ============================ */
+S.cols = { list: [], std: [], base: '' };
+async function loadCols() {
+  if (!(S.user && S.user.role === 'Admin') || !$('#colList')) return;
+  try {
+    const d = await api('getSheetColumns', S.token);
+    S.cols = { list: d.cols.map(c => ({ name: c.name, kind: c.kind })), std: d.def || [], base: d.cols.map(c => c.name).join('\u0001') };
+    colsPaint();
+  } catch (e) { $('#colsMsg').textContent = e.message; }
+}
+const COL_KIND = { fixed: '', yn: 'Yes / No', stock: 'Stock', review: 'Review', field: 'Added field' };
+function colsPaint() {
+  const L = S.cols.list;
+  $('#colsN').textContent = L.length;
+  $('#colList').innerHTML = L.map((c, i) => '<div class="col-row" draggable="true" data-i="' + i + '"><span class="no">' + (i + 1) + '</span><i class="bi bi-grip-vertical text-muted"></i><span class="cn text-truncate">' + esc(c.name) + '</span><span class="ck">' + esc(COL_KIND[c.kind] || '') + '</span><button type="button" class="mv" data-d="-1" aria-label="Move up"><i class="bi bi-arrow-up"></i></button><button type="button" class="mv" data-d="1" aria-label="Move down"><i class="bi bi-arrow-down"></i></button></div>').join('');
+  $('#colsSave').disabled = L.map(c => c.name).join('\u0001') === S.cols.base;
+}
+const colsMove = (i, j) => { const L = S.cols.list; if (j < 0 || j >= L.length || i === j) return; L.splice(j, 0, L.splice(i, 1)[0]); colsPaint(); };
+$('#colList').addEventListener('click', e => { const b = e.target.closest('.mv'); if (!b) return; const i = +b.closest('.col-row').dataset.i; colsMove(i, i + +b.dataset.d); });
+let colDrag = -1;
+$('#colList').addEventListener('dragstart', e => { const r = e.target.closest('.col-row'); if (!r) return; colDrag = +r.dataset.i; try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(colDrag)); } catch (x) {} });
+$('#colList').addEventListener('dragover', e => { const r = e.target.closest('.col-row'); if (!r || colDrag < 0) return; e.preventDefault(); $$('#colList .over').forEach(x => x !== r && x.classList.remove('over')); r.classList.add('over'); });
+$('#colList').addEventListener('drop', e => { const r = e.target.closest('.col-row'); if (!r || colDrag < 0) return; e.preventDefault(); const to = +r.dataset.i, from = colDrag; colDrag = -1; colsMove(from, to); });
+$('#colList').addEventListener('dragend', () => { colDrag = -1; $$('#colList .over').forEach(x => x.classList.remove('over')); });
+$('#colsReload').onclick = loadCols;
+$('#colsStd').onclick = () => { const kinds = Object.fromEntries(S.cols.list.map(c => [c.name, c.kind])); const std = S.cols.std.filter(n => n in kinds); S.cols.list = std.concat(S.cols.list.map(c => c.name).filter(n => !std.includes(n))).map(n => ({ name: n, kind: kinds[n] })); colsPaint(); };
+$('#colsSave').onclick = async () => {
+  if (!confirm('Move the columns of the Installations sheet to this order?\n\nThe data moves with its column. Staff can keep working. The first time, a backup tab is made.')) return;
+  const b = $('#colsSave'); busy(b, true, 'Saving…');
+  try { const r = await api('saveSheetColumns', S.token, S.cols.list.map(c => c.name)); toast('Sheet columns saved (' + r.moved + ' moved).', 'success'); await loadCols(); }
+  catch (e) { toast(e.message, 'danger'); }
+  busy(b, false); colsPaint();
+};
+
+/* ============================ Admin desktop: drag and drop the cards ============================ */
+const CL_PANES = [['records', '#pane-records'], ['stock', '#pane-stock'], ['users', '#pane-users']];
+const clKey = () => 'it_cardlay_' + (S.user ? S.user.username : '');
+const clGet = () => { try { return JSON.parse(localStorage.getItem(clKey()) || '{}') || {}; } catch (e) { return {}; } };
+const clPut = o => { try { localStorage.setItem(clKey(), JSON.stringify(o)); } catch (e) {} };
+const clCards = sel => $$(sel + ' > .card-x');
+function clInit() {
+  if (!(S.user && isWide())) return;
+  CL_PANES.forEach(([k, sel]) => clCards(sel).forEach((c, i) => {
+    if (!c.dataset.cid) c.dataset.cid = c.id || (k + i);
+    if (!$('.cl-grip', c)) { const g = document.createElement('span'); g.className = 'cl-grip'; g.draggable = true; g.title = 'Drag to move this card'; g.innerHTML = '<i class="bi bi-grip-vertical"></i>'; c.prepend(g); }
+    if (!c.dataset.d0) { c.dataset.i0 = i; c.dataset.d0 = '1'; c.dataset.gc0 = c.style.gridColumn || ''; c.dataset.gr0 = c.style.gridRow || ''; }
+  }));
+  if (!$('#clReset')) { const b = document.createElement('button'); b.type = 'button'; b.id = 'clReset'; b.className = 'btn btn-soft btn-sm'; b.innerHTML = '<i class="bi bi-arrow-counterclockwise me-1"></i>Reset layout'; b.title = 'Put the cards back in the standard places'; $('#deskTitle').after(b); b.onclick = clReset; }
+  clApply();
+}
+/** Puts the saved order (and, on the Records page, the saved grid places) back. */
+function clApply() {
+  const lay = clGet();
+  CL_PANES.forEach(([k, sel]) => {
+    const pane = $(sel), L = lay[k]; if (!pane || !L) return;
+    (L.order || []).forEach(id => { const c = $('[data-cid="' + id + '"]', pane); if (c && c.parentNode === pane) pane.appendChild(c); });
+    Object.keys(L.grid || {}).forEach(id => { const c = $('[data-cid="' + id + '"]', pane); if (c) { c.style.gridColumn = L.grid[id][0]; c.style.gridRow = L.grid[id][1]; } });
+  });
+}
+function clSave(k, sel) {
+  const lay = clGet(), pane = $(sel), L = lay[k] = { order: clCards(sel).map(c => c.dataset.cid) };
+  if (k === 'records') { L.grid = {}; clCards(sel).forEach(c => { const cs = getComputedStyle(c); L.grid[c.dataset.cid] = [c.style.gridColumn || cs.gridColumn, c.style.gridRow || cs.gridRow]; }); }
+  clPut(lay);
+}
+function clReset() {
+  try { localStorage.removeItem(clKey()); } catch (e) {}
+  CL_PANES.forEach(([k, sel]) => { const p = $(sel); clCards(sel).sort((a, b) => (+a.dataset.i0 || 0) - (+b.dataset.i0 || 0)).forEach(c => { c.style.gridColumn = c.dataset.gc0 || ''; c.style.gridRow = c.dataset.gr0 || ''; p.appendChild(c); }); });
+  toast('The cards are back in the standard places.', 'success');
+}
+function clSwap(a, b, k, sel) {
+  if (a === b || a.parentNode !== b.parentNode) return;
+  if (k === 'users' && a.dataset.sec !== b.dataset.sec) { toast('Drop it on a card of the same page.', 'warning'); return; }
+  if (k === 'records') { const ga = [a.style.gridColumn || getComputedStyle(a).gridColumn, a.style.gridRow || getComputedStyle(a).gridRow], gb = [b.style.gridColumn || getComputedStyle(b).gridColumn, b.style.gridRow || getComputedStyle(b).gridRow]; a.style.gridColumn = gb[0]; a.style.gridRow = gb[1]; b.style.gridColumn = ga[0]; b.style.gridRow = ga[1]; }
+  const ph = document.createElement('span'); a.before(ph); b.before(a); ph.replaceWith(b);
+  clSave(k, sel);
+}
+let clDrag = null;
+document.addEventListener('dragstart', e => {
+  const g = e.target.closest && e.target.closest('.cl-grip'); if (!g) return;
+  clDrag = g.closest('.card-x'); clDrag.classList.add('cl-drag');
+  try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', clDrag.dataset.cid || ''); e.dataTransfer.setDragImage(clDrag, 20, 20); } catch (x) {}
+});
+document.addEventListener('dragover', e => {
+  if (!clDrag) return; const t = e.target.closest && e.target.closest('.card-x'); if (!t || t === clDrag || t.parentNode !== clDrag.parentNode) return;
+  e.preventDefault(); $$('.cl-over').forEach(x => x !== t && x.classList.remove('cl-over')); t.classList.add('cl-over');
+});
+document.addEventListener('drop', e => {
+  if (!clDrag) return; const t = e.target.closest && e.target.closest('.card-x'); if (!t) return; e.preventDefault();
+  const k = (CL_PANES.find(p => clDrag.parentNode === $(p[1])) || [])[0]; if (k) clSwap(clDrag, t, k, CL_PANES.find(p => p[0] === k)[1]);
+});
+document.addEventListener('dragend', () => { $$('.cl-over,.cl-drag').forEach(x => x.classList.remove('cl-over', 'cl-drag')); clDrag = null; });
+
 function deskSync() {
   const on = !!(S.user && isWide() && window.innerWidth >= DESK_MIN);
-  if (on) deskBuild();
+  if (on) { deskBuild(); clInit(); }
   document.body.classList.toggle('desk', on);
   show($('#deskNav'), on);
   if (on) { const pane = ['new', 'records', 'stock', 'users'].find(t => !$('#pane-' + t).classList.contains('hidden')) || 'records'; deskPaint(pane); }
