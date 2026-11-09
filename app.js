@@ -780,21 +780,25 @@ async function decodeFile(card, file) {
   const btn = $('.btn-upload', card.el);
   busy(btn, true, 'Reading…');
   let text = null, loaded = null;
+  const deadline = Date.now() + 5000;      // never wait more than 5 seconds for a QR picture
+  const left = () => Math.max(0, deadline - Date.now());
+  const within = p => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('slow')), left()))]);
   try {
-    loaded = await loadImage(file);
+    loaded = await within(loadImage(file));
     const reader = new ZXing.BrowserQRCodeReader();
     // 1) original image, 2+) resized copies (helps with huge or tiny screenshots)
     const sources = [loaded.url, () => scaledDataUrl(loaded.img, 1000), () => scaledDataUrl(loaded.img, 600), () => scaledDataUrl(loaded.img, 1600)];
     for (const src of sources) {
-      try { text = (await reader.decodeFromImageUrl(typeof src === 'function' ? src() : src)).getText(); break; }
+      if (!left()) break;
+      try { text = (await within(reader.decodeFromImageUrl(typeof src === 'function' ? src() : src))).getText(); break; }
       catch (e) { /* try next */ }
     }
-  } catch (e) { /* unreadable image */ }
+  } catch (e) { /* unreadable or too slow */ }
   if (loaded) URL.revokeObjectURL(loaded.url);
   busy(btn, false);
 
   if (text) applyQR(card, text);
-  else { markNoQR(card); toast('No QR code found in that image.', 'warning'); }
+  else { markNoQR(card); toast('No QR code found in that image (stopped after 5 seconds). Try a clearer picture or scan with the camera.', 'warning'); }
 }
 
 /* ============================ Merchant cards ============================ */
@@ -1304,7 +1308,7 @@ async function addPhotos(card, files, fromCamera) {
   renderPhotos(card);
 }
 function renderPhotos(card) {
-  const grid = $('.photo-grid', card.el);
+  const grid = card.grid || $('.photo-grid', card.el);
   grid.innerHTML = '';
   card.photos.forEach((src, i) => {
     const d = document.createElement('div'); d.className = 'ph';
@@ -1525,14 +1529,23 @@ const MAP = { map: null, layer: null, pts: [], first: true };
 const MAP_COL = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899', '#84cc16'];
 const mapColor = t => { const i = (typeof TYPES !== 'undefined' ? TYPES : []).indexOf(t); return MAP_COL[(i < 0 ? 0 : i) % MAP_COL.length]; };
 const locLatLon = r => { const m = /(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)\s*$/.exec(String(r.loc || '')); if (!m) return null; const la = +m[1], lo = +m[2]; return la >= -90 && la <= 90 && lo >= -180 && lo <= 180 ? [la, lo] : null; };
-function recViewSet(v) {
-  S.recView = v === 'map' ? 'map' : 'list';
-  const map = S.recView === 'map';
-  show($('#mapCard'), map); show($('#recCard'), !map);
-  $$('.recview .chip').forEach(b => b.classList.toggle('active', b.dataset.v === S.recView));
-  if (map) renderMap();
+/** The map is its own card on the Records page; Hide / Show keeps the phone from loading map tiles when it is not needed (remembered). */
+const mapOpen = () => { try { return store.get('it_map_open') !== '0'; } catch (e) { return true; } };
+function mapToggleSet(open) {
+  try { store.set('it_map_open', open ? '1' : '0'); } catch (e) {}
+  show($('#mapBody'), open); $('#mapToggle').innerHTML = open ? '<i class="bi bi-chevron-up me-1"></i>Hide' : '<i class="bi bi-chevron-down me-1"></i>Show';
+  if (open) renderMap();
 }
-document.addEventListener('click', e => { const b = e.target.closest('.recview .chip'); if (b) recViewSet(b.dataset.v); });
+document.addEventListener('click', e => { if (e.target.closest('#mapToggle')) mapToggleSet(!mapOpen()); });
+/** Full screen: the map card covers the whole screen (works on every phone); Close or Esc goes back. */
+function mapFullSet(on) {
+  const c = $('#mapCard'); c.classList.toggle('map-full', on); document.body.classList.toggle('map-fs', on);
+  $('#mapFull').innerHTML = on ? '<i class="bi bi-fullscreen-exit me-1"></i><span>Close</span>' : '<i class="bi bi-arrows-fullscreen me-1"></i><span>Full screen</span>';
+  if (on && !mapOpen()) mapToggleSet(true);
+  setTimeout(() => { if (MAP.map) { MAP.map.invalidateSize(); if (MAP.pts.length) MAP.map.fitBounds(L.latLngBounds(MAP.pts.map(p => p.ll)), { padding: [30, 30], maxZoom: 17 }); mapDraw(); } }, 120);
+}
+document.addEventListener('click', e => { if (e.target.closest('#mapFull')) mapFullSet(!$('#mapCard').classList.contains('map-full')); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#mapCard').classList.contains('map-full')) mapFullSet(false); });
 function mapInit() {
   if (MAP.map || typeof L === 'undefined' || !L.map) return !!MAP.map;
   MAP.map = L.map('recMap', { zoomControl: true, attributionControl: true }).setView([11.5564, 104.9282], 11);
@@ -1585,7 +1598,7 @@ function mapPopup(r) {
 }
 document.addEventListener('click', e => {
   const a = e.target.closest('.map-rec'); if (!a) return; e.preventDefault();
-  const st = a.dataset.s; recViewSet('list');
+  const st = a.dataset.s; if ($('#mapCard').classList.contains('map-full')) mapFullSet(false);
   const i = filtered().findIndex(r => r.stamp === st), tr = i >= 0 ? $('#recBody .rec-row[data-i="' + i + '"]') : null;
   if (tr) { setTimeout(() => { tr.click(); tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80); }
 });
@@ -1726,7 +1739,7 @@ $('#slBranch').addEventListener('click', e => {
 });
 async function loadRecords() {
   const r = range(), admin = S.user.role === 'Admin', wide = isWide();
-  $('#recBody').innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+  $('#recBody').innerHTML = '<tr><td colspan="4" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
   try {
     const f = { user: $('#fUser').value, type: $('#fType').value, sub: $('#fSub').value, activity: $('#fActivity').value, status: $('#fStatus').value, qrType: $('#fQrType').value, from: r.from, to: r.to };
     if (admin && S.branchOff.size) f.branches = S.branches.filter(b => !S.branchOff.has(b));
@@ -1815,7 +1828,7 @@ function locLink(t) {
 }
 /** The less important details of a record, shown when its row is opened (empty ones are left out). */
 function recDetail(r) {
-  const it = [['Time', fmtTs(r.ts)], ['Stamp', r.stamp], ['Business', r.business], ['Business type', r.btype], ['Hours', r.hours], ['Group', r.group], ['Product type', r.ptype], ['District', r.commune], ['Zone', r.zone],
+  const it = [['Time', fmtTs(r.ts)], ['Stamp', r.stamp], ['Photos', r.photos || ''], ['Business', r.business], ['Business type', r.btype], ['Hours', r.hours], ['Group', r.group], ['Product type', r.ptype], ['District', r.commune], ['Zone', r.zone],
     ['Phone', r.phone], ['Tag', r.tag], ['Serial No', r.serial], ['Old S/N', r.oldSn], ['New S/N', r.newSn], ['Remarks', r.remarks]]
     .concat(r.review && r.review.status ? [['Review', r.review.status + (r.review.by ? ' · ' + r.review.by : '') + (r.review.time ? ' · ' + r.review.time : '')], ['Review note', r.review.note]] : []);
   const fl = r.fields && Object.keys(r.fields).length ? Object.keys(r.fields).map(k => [k, r.fields[k]]) : (r.extra ? [['Fields', r.extra]] : []);
@@ -1825,17 +1838,16 @@ function recDetail(r) {
 }
 function renderRows() {
   const rows = filtered();
-  if (S.recView === 'map') renderMap();
+  if (mapOpen()) renderMap(); else mapToggleSet(false);
   $('#recCount').textContent = rows.length;
   $('#recBody').innerHTML = rows.length ? rows.map((r, i) =>
     '<tr class="rec-row" data-i="' + i + '"><td class="text-nowrap"><div class="fw-semibold">' + esc(fmtD(r.date || r.ts)) + '</div><div class="rec-sub">' + esc(r.stamp) + '</div></td>' +
     '<td><span class="pill">' + esc(shortName(r.type)) + '</span>' + (r.sub ? ' <span class="rec-sub">' + esc(r.sub) + '</span>' : '') + '<div class="fw-semibold">' + esc(r.activity) + (r.fields && r.fields['QR Type'] ? ' <span class="pill">' + esc(r.fields['QR Type']) + '</span>' : '') + (r.review && r.review.status ? ' ' + stPill(r.review.status) : '') + '</div></td>' +
     '<td><div class="fw-semibold">' + esc(r.merchant) + '</div><div class="rec-sub">' + esc([r.mid ? midLabelFor(r.type, r.mid) + ' ' + r.mid : '', r.tid ? 'TID ' + r.tid : ''].filter(Boolean).join(' · ')) + '</div></td>' +
     '<td><span class="pill">' + esc(r.user) + '</span></td>' +
-    '<td class="text-center text-nowrap">' + (r.photos || '') + '</td>' +
-    '<td class="text-end text-nowrap rec-go"><i class="bi bi-chevron-down"></i></td></tr>' +
-    '<tr class="rec-detail hidden"><td colspan="6">' + recDetail(r) + '</td></tr>'
-  ).join('') : '<tr><td colspan="6"><div class="empty"><i class="bi bi-inbox"></i>No records for this filter</div></td></tr>';
+    '</tr>' +
+    '<tr class="rec-detail hidden"><td colspan="4">' + recDetail(r) + '</td></tr>'
+  ).join('') : '<tr><td colspan="4"><div class="empty"><i class="bi bi-inbox"></i>No records for this filter</div></td></tr>';
 }
 $('#recBody').addEventListener('click', e => {      // tap a row: its details open under it
   if (e.target.closest('a')) return;
@@ -2693,14 +2705,15 @@ async function loadStock() {
     $('#stBranch').innerHTML = [''].concat(d.branches).map(b => '<button type="button" class="chip' + (S.st.branch === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (b || 'All') + '</button>').join('');
     $('#stItem').innerHTML = [''].concat(d.items.map(i => i.name)).map(b => '<button type="button" class="chip' + (S.st.item === b ? ' active' : '') + '" data-v="' + esc(b) + '">' + (esc(b) || 'All') + '</button>').join('');
     const t = d.totals, p = d.period;
-    $('#stKpi').innerHTML = [['In stock now', t.remaining], ['Stock in', p.stockIn], ['Used', p.out], ['Merchant liability', (d.liab || {}).total || 0], ['Reserved', t.reserved], ['To decide', t.pending], ['Returned to stock', p.back], ['Faulty', t.faulty], ['Sent to HO', t.ho], ['Low items', t.low]].map(k => '<div class="kpi-s"' + (k[0] === 'Low items' && k[1] ? ' style="background:#fffbeb;border-color:#fcd34d"' : '') + '><b>' + k[1] + '</b><span>' + k[0] + '</span></div>').join('');
+    $('#stKpi').innerHTML = [['In stock now', t.remaining], ['Stock in (input)', p.stockIn], ['Used', p.out], ['Merchant liability', (d.liab || {}).total || 0], ['Reserved', t.reserved], ['To decide', t.pending], ['Returned to stock (decided)', p.back], ['Faulty', t.faulty], ['Sent to HO', t.ho], ['Low items', t.low]].map(k => '<div class="kpi-s"' + (k[0] === 'Low items' && k[1] ? ' style="background:#fffbeb;border-color:#fcd34d"' : '') + '><b>' + k[1] + '</b><span>' + k[0] + '</span></div>').join('');
     const mx = Math.max(1, ...d.stock.map(r => r.remaining));
     $('#stRemain').innerHTML = d.stock.length ? d.stock.map(r => '<div class="d-flex justify-content-between small"><span>' + esc(r.item) + ' <span class="text-muted">· ' + esc(r.branch) + (r.kind === 'qty' ? ' · qty' : '') + '</span>' + (r.isLow ? ' <span class="st-pill st-h">Low</span>' : '') + '</span><span><b>' + r.remaining + '</b>' + (r.kind === 'qty' && r.reserved ? ' <span class="text-muted">· reserved ' + r.reserved + '</span>' : '') + (r.faulty ? ' <span class="text-muted">· faulty ' + r.faulty + '</span>' : '') + (r.ho ? ' <span class="text-muted">· HO ' + r.ho + '</span>' : '') + (r.oldest > 30 ? ' <span class="text-muted">· oldest ' + r.oldest + 'd</span>' : '') + '</span></div><div class="stk-bar ' + (r.isLow ? 'o' : '') + ' mb-2" style="width:' + Math.max(2, Math.round(Math.max(0, r.remaining) / mx * 100)) + '%"></div>').join('') : '<div class="small text-muted">No stock yet. Add items below, then stock in.</div>';
-    const wm = Math.max(1, ...d.weeks.map(w => Math.max(w.inn, w.out)));
-    $('#stWeeks').innerHTML = d.weeks.length ? d.weeks.map(w => '<div class="small d-flex justify-content-between"><span>Week of ' + esc(fmtD(w.week)) + '</span><span>in <b>' + w.inn + '</b> · used <b>' + w.out + '</b></span></div><div class="stk-bar mb-1" style="width:' + Math.max(2, Math.round(w.inn / wm * 100)) + '%"></div><div class="stk-bar g mb-2" style="width:' + Math.max(2, Math.round(w.out / wm * 100)) + '%"></div>').join('') + '<div class="small text-muted"><span style="color:#4f46e5">■</span> stock in &nbsp;<span style="color:#1baf7a">■</span> used</div>' : '<div class="small text-muted">No movements in this period.</div>';
+    const wm = Math.max(1, ...d.weeks.map(w => Math.max(w.inn, w.ret || 0, w.out)));
+    $('#stWeeks').innerHTML = d.weeks.length ? d.weeks.map(w => '<div class="small d-flex justify-content-between"><span>Week of ' + esc(fmtD(w.week)) + '</span><span>input <b>' + w.inn + '</b> · returned <b>' + (w.ret || 0) + '</b> · used <b>' + w.out + '</b></span></div><div class="stk-bar mb-1" style="width:' + Math.max(2, Math.round(w.inn / wm * 100)) + '%"></div><div class="stk-bar mb-1" style="background:#f59e0b;width:' + Math.max(2, Math.round((w.ret || 0) / wm * 100)) + '%"></div><div class="stk-bar g mb-2" style="width:' + Math.max(2, Math.round(w.out / wm * 100)) + '%"></div>').join('') + '<div class="small text-muted"><span style="color:#4f46e5">■</span> stock in (input) &nbsp;<span style="color:#f59e0b">■</span> returned to stock (decided) &nbsp;<span style="color:#1baf7a">■</span> used</div>' : '<div class="small text-muted">No movements in this period.</div>';
+    $('#stInSplit').innerHTML = (d.inSplit || []).length ? '<div class="small">' + d.inSplit.map(x => '<div class="d-flex justify-content-between py-1 border-top"><span>' + esc(x.item) + ' <span class="text-muted">· ' + esc(x.branch) + '</span></span><span>input <b>' + x.inn + '</b> · returned <b>' + x.back + '</b></span></div>').join('') + '</div>' : '<div class="small text-muted">No stock in or returns in this period.</div>';
     const lb = d.liab || { total: 0, byMerchant: [], byItem: [] }; show($('#stLiabWrap'), lb.total > 0); $('#stLiabMer').innerHTML = stBars(lb.byMerchant, 'o'); $('#stLiabItem').innerHTML = stBars(lb.byItem);
     $('#stByBranch').innerHTML = stBars(d.byBranch); $('#stByStaff').innerHTML = stBars(d.byStaff, 'g'); $('#stByMer').innerHTML = stBars(d.byMerchant, 'o'); $('#stByItem').innerHTML = stBars(d.byItem);
-    $('#stRecent').innerHTML = d.recent.length ? d.recent.map(l => '<div class="py-1 border-top"><b>' + esc(l.action) + '</b> · ' + esc(l.item) + (l.sn ? ' ' + esc(l.sn) : ' ×' + l.qty) + ' <span class="text-muted">· ' + esc(l.branch) + ' · ' + esc(l.by) + (l.merchant ? ' · ' + esc(l.merchant) : '') + (l.reason ? ' · ' + esc(l.reason) : '') + ' · ' + esc(fmtTs(l.ts)) + '</span></div>').join('') : '<div class="text-muted">Nothing yet</div>';
+    $('#stRecent').innerHTML = d.recent.length ? d.recent.map(l => '<div class="py-1 border-top"><b>' + esc(l.action === 'Stock in' ? 'Stock in (input)' : l.action === 'Return - in stock' ? 'Returned to stock (decided)' : l.action) + '</b> · ' + esc(l.item) + (l.sn ? ' ' + esc(l.sn) : ' ×' + l.qty) + ' <span class="text-muted">· ' + esc(l.branch) + ' · ' + esc(l.by) + (l.merchant ? ' · ' + esc(l.merchant) : '') + (l.reason ? ' · ' + esc(l.reason) : '') + ' · ' + esc(fmtTs(l.ts)) + '</span></div>').join('') : '<div class="text-muted">Nothing yet</div>';
     const rq = $('#rqItem').value; $('#rqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join(''); if (rq) $('#rqItem').value = rq;
     show($('#rqBranchWrap'), admin);
     $('#rqList').innerHTML = (d.resQty || []).length ? d.resQty.map(r => '<div class="d-flex justify-content-between align-items-center py-1 border-top" data-item="' + esc(r.item) + '" data-branch="' + esc(r.branch) + '" data-tid="' + esc(r.tid) + '"><div class="min-w-0"><b>' + esc(r.item) + ' × 1</b> <span class="st-pill st-i">Reserved</span><div class="text-muted text-truncate">TID ' + esc(r.tid) + (r.merchant ? ' · ' + esc(r.merchant) : '') + ' · ' + esc(r.branch) + ' · ' + esc(r.by) + ' · ' + esc(fmtD(r.ts)) + (r.note ? ' · ' + esc(r.note) : '') + '</div></div><button type="button" class="btn btn-soft btn-sm flex-none rq-rel">Release</button></div>').join('') : '<div class="text-muted">Nothing reserved.</div>';
@@ -2909,7 +2922,7 @@ function eFillActs(cur) {
 $('#eType').addEventListener('change', () => { window._eType = $('#eType').value; eFillSubs($('#eType').value, ''); eFillActs(''); refreshMidLabel($('#eMid'), window._eType); updateEditDateLabel(); });
 $('#eSub').addEventListener('change', () => { eFillActs($('#eAct').value); updateEditDateLabel(); });
 async function eAddPhotos(files, fromCamera) {
-  const room = MAX_PHOTOS - S.ePh.length;
+  const room = MAX_PHOTOS - (S.eMedia ? eMedCount() : S.ePh.length);
   if (room <= 0) { toast('Photo limit reached (' + MAX_PHOTOS + ').', 'warning'); return; }
   files = files.slice(0, room);
   const prog = $('#ePrg'), bar = $('.progress-bar', prog), doStamp = !!(fromCamera && stampOn);
@@ -2930,9 +2943,75 @@ async function eAddPhotos(files, fromCamera) {
   setTimeout(() => { prog.style.display = 'none'; }, 350);
   ePhPaint();
 }
+/* ---- pictures already in Telegram (records sent after v117): tap to view / replace / remove, "+" photos are added ---- */
+const eMed = () => S.eMedia;                                       // null = old record (no saved references): the old "replace all" way
+const eMedCount = () => (S.eMedia || []).filter(x => !x.del).length + S.ePh.length;
+async function eLoadMedia(stamp, n) {
+  S.eMedia = null; S.eMedLoading = n > 0;
+  ePhPaint();
+  if (!(n > 0)) return;
+  try {
+    const r = await api('getRecordPhotos', S.token, stamp);
+    if ($('#eStamp').value !== stamp) return;
+    S.eMedia = r.items && r.items.length ? r.items.map(x => ({ i: x.i, k: x.k, t: x.t, rep: null, del: false })) : null;
+  } catch (e) { S.eMedia = null; }
+  S.eMedLoading = false; ePhPaint();
+}
+function eMedPaint() {
+  const g = $('#eMedGrid'); g.innerHTML = '';
+  if (S.eMedLoading) { for (let i = 0; i < (S.eMedN || 1); i++) { const d = document.createElement('div'); d.className = 'ph sk'; g.appendChild(d); } return; }
+  (S.eMedia || []).forEach((x, i) => {
+    const d = document.createElement('div'); d.className = 'ph med' + (x.del ? ' gone' : '') + (x.rep ? ' chg' : '');
+    const src = x.rep || x.t, vid = x.rep ? isVideoSrc(x.rep) : x.k === 'v';
+    d.innerHTML = (src ? '<img src="' + src + '" alt="">' : '<span class="d-flex h-100 align-items-center justify-content-center text-muted"><i class="bi bi-image fs-4"></i></span>') + (vid ? '<span class="vbadge"><i class="bi bi-play-fill"></i></span>' : '') + (x.del ? '<span class="mb rm">removed</span>' : x.rep ? '<span class="mb">new</span>' : '');
+    d.onclick = () => eViewOpen(i);
+    g.appendChild(d);
+  });
+}
+let eViewI = -1;
+function eViewOpen(i) {
+  const x = S.eMedia[i]; if (!x) return; eViewI = i;
+  $('#evTitle').textContent = 'Photo ' + (i + 1) + ' of ' + S.eMedia.length;
+  const img = $('#evImg'), vid = $('#evVid'); show(img, true); show(vid, false); vid.pause && vid.pause();
+  img.src = x.rep && !isVideoSrc(x.rep) ? x.rep : (x.t || '');
+  if (x.rep && isVideoSrc(x.rep)) { show(img, false); show(vid, true); vid.src = x.rep; }
+  $('#evMsg').textContent = x.del ? 'This picture will be removed when you save.' : x.rep ? 'This is the new picture. It replaces the old one when you save.' : '';
+  show($('#evDel'), !x.del && i > 0); show($('#evUndo'), !!(x.del || x.rep));
+  $('#evMsg').textContent += (i === 0 && !x.del && !x.rep ? ' The first picture holds the message text: replace it, it cannot be removed.' : '');
+  show($('#eView'), true);
+  if (!x.rep && !x.del && x.k === 'p') {      // the sharp picture loads in the background
+    show($('#evSpin'), true);
+    api('getRecordPhoto', S.token, $('#eStamp').value, x.i).then(r => { if (eViewI === i && r.src && !x.rep) img.src = r.src; }).catch(() => {}).finally(() => show($('#evSpin'), false));
+  }
+}
+function eViewClose() { show($('#eView'), false); $('#evVid').pause && $('#evVid').pause(); eViewI = -1; eMedPaint(); ePhPaint(); }
+$('#evClose').onclick = eViewClose;
+$('#evCam').onclick = () => $('#eRepCam').click(); $('#evPick').onclick = () => $('#eRepPick').click();
+$('#evDel').onclick = () => { const x = S.eMedia[eViewI]; if (!x || eViewI === 0) return; if (S.eMedia.filter(y => !y.del).length + S.ePh.length <= 1) { toast('Keep at least one picture.', 'warning'); return; } x.del = true; x.rep = null; eViewClose(); };
+$('#evUndo').onclick = () => { const x = S.eMedia[eViewI]; if (!x) return; x.del = false; x.rep = null; eViewClose(); };
+async function eRepFile(f, cam) {
+  const x = S.eMedia && S.eMedia[eViewI]; if (!x || !f) return;
+  $('#evMsg').textContent = 'Preparing…';
+  try {
+    const pq = PQ[((effDef($('#eType').value, $('#eAct').value, $('#eSub').value || '') || {}).pq) || ''] || PQ[''];
+    let d;
+    if (isVideoFile(f)) { if (f.size > MAX_VIDEO_MB * 1048576) throw new Error('Video is too big (max ' + MAX_VIDEO_MB + ' MB).'); d = await readVideo(f); }
+    else d = await compress(f, Object.assign({ stamp: !!(cam && stampOn), data: (cam && stampOn) ? await stampData() : null }, pq));
+    x.rep = d; x.del = false; eViewClose();
+  } catch (e) { $('#evMsg').textContent = 'Could not read that file.'; }
+}
+$('#eRepCam').onchange = e => { const f = e.target.files[0]; e.target.value = ''; eRepFile(f, true); };
+$('#eRepPick').onchange = e => { const f = e.target.files[0]; e.target.value = ''; eRepFile(f, false); };
 function ePhPaint() {
-  renderPhotos({ el: $('#ePhWrap'), photos: S.ePh });
-  show($('#ePhClear'), S.ePh.length > 0);
+  const med = !!S.eMedia || !!S.eMedLoading;
+  show($('#eMedGrid'), med); if (med) eMedPaint();
+  renderPhotos({ el: $('#ePhWrap'), grid: $('#ePhGrid'), photos: S.ePh });
+  show($('#ePhClear'), S.ePh.length > 0 && !med);
+  if (med) {
+    const ch = S.eMedia ? S.eMedia.filter(x => x.rep).length : 0, rm = S.eMedia ? S.eMedia.filter(x => x.del).length : 0;
+    $('#ePhHint').innerHTML = S.eMedLoading ? 'Loading the pictures…' : 'Tap a picture to see it, replace it or remove it. <b>Take photo</b> / <b>Photos or Videos</b> add more (posted as a reply under the message). Saving changes the same Telegram message' + (ch || rm || S.ePh.length ? '<br><b>' + [ch ? ch + ' replaced' : '', rm ? rm + ' removed' : '', S.ePh.length ? S.ePh.length + ' added' : ''].filter(Boolean).join(' · ') + '</b>' : '.');
+    return;
+  }
   $('#ePhHint').innerHTML = S.ePh.length ? '<b>' + S.ePh.length + ' new</b> photo(s) will replace <b>all</b> the old ones.' : 'Keep the current photos, or choose new ones: they replace <b>all</b> the old ones and are sent to Telegram again.';
 }
 $('#ePhGrid').addEventListener('click', () => setTimeout(ePhPaint, 0));
@@ -2945,7 +3024,7 @@ function openEdit() {
   show($('#eError'), false);
   $('#eCat').textContent = r.type;
   $('#eStamp').value = r.stamp; $('#eStampTxt').textContent = r.stamp + (r.review && r.review.status === 'Returned' ? ' · fix and resubmit' : ' · edit ' + ((r.edits || 0) + 1) + ' of ' + S.rules.max);
-  S.ePh = []; renderPhotos({ el: $('#ePhWrap'), photos: S.ePh }); show($('#ePhClear'), false);
+  S.ePh = []; S.eMedia = null; S.eMedLoading = false; S.eMedN = Math.min(r.photos || 0, MAX_PHOTOS); renderPhotos({ el: $('#ePhWrap'), grid: $('#ePhGrid'), photos: S.ePh }); show($('#ePhClear'), false); show($('#eMedGrid'), false); show($('#eView'), false);
   $('#ePhNow').textContent = r.photos > 0 ? '· ' + r.photos + ' now' : '';
   $('#eType').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">' + esc(t) + '</option>').join(''); $('#eType').value = r.type;
   eFillSubs(r.type, r.sub || ''); eFillActs(r.activity);
@@ -2962,6 +3041,7 @@ function openEdit() {
   $('#ePhone').value = r.phone || ''; $('#eTag').value = r.tag || ''; $('#eSerial').value = r.serial || ''; $('#eOldSn').value = r.oldSn || ''; $('#eNewSn').value = r.newSn || '';
   updateEditDateLabel();
   editModal.show();
+  eLoadMedia(r.stamp, r.photos || 0);
 }
 $('#eAct').addEventListener('change', updateEditDateLabel);
 $('#editForm').addEventListener('submit', async e => {
@@ -2969,17 +3049,19 @@ $('#editForm').addEventListener('submit', async e => {
   const btn = $('#eSave'), err = $('#eError');
   show(err, false); busy(btn, true, 'Saving…');
   try {
-    if (S.ePh.reduce((t, p) => t + p.length, 0) > 32e6) throw new Error('The new photos and videos are too big to send together. Remove a video or some photos.');
+    const phOps = S.eMedia ? { rep: Object.fromEntries(S.eMedia.filter(x => x.rep && !x.del).map(x => [x.i, x.rep])), del: S.eMedia.filter(x => x.del).map(x => x.i), add: S.ePh } : null;
+    const hasOps = phOps && (Object.keys(phOps.rep).length || phOps.del.length || phOps.add.length);
+    if ((phOps ? [...Object.values(phOps.rep), ...phOps.add] : S.ePh).reduce((t, p) => t + p.length, 0) > 32e6) throw new Error('The new photos and videos are too big to send together. Remove a video or some photos.');
     { const mv = $('#eMid').value.trim(), pf = midPrefix(window._eType); if (mv && mv !== NOQR && pf && mv[0] !== pf) throw new Error('The MID of ' + window._eType + ' must start with ' + pf + '.'); }
     const r = await api('updateRecord', S.token, {
-      stamp: $('#eStamp').value, type: $('#eType').value, sub: $('#eSub').value, photos: S.ePh.length ? S.ePh : undefined, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
+      stamp: $('#eStamp').value, type: $('#eType').value, sub: $('#eSub').value, photos: !phOps && S.ePh.length ? S.ePh : undefined, ph: hasOps ? phOps : undefined, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
       mid: $('#eMid').value.trim(), tid: $('#eTid').value.trim(), integ: $('#eInteg').checked, sim: $('#eSim').checked, standee: $('#eStandee').checked, business: $('#eBiz').value.trim(), remarks: $('#eRem').value.trim(),
       extra: Object.fromEntries($$('#eCustom [data-fid]').map(i => [i.dataset.fid, customVal(i)])), btype: $('#eBType').value.trim(), group: $('#eGroup').value.trim(), hours: $('#eOpen').value && $('#eClose').value ? $('#eOpen').value + ' - ' + $('#eClose').value : '',
       ptype: $('#eProd').value.trim(), commune: $('#eCommune').value.trim(), zone: $('#eZone').value.trim(), serial: $('#eSerial').value.trim(), phone: $('#ePhone').value.trim(), tag: $('#eTag').value.trim(), oldSn: $('#eOldSn').value.trim(), newSn: $('#eNewSn').value.trim()
     });
     const oldStamp = $('#eStamp').value;
     S.today = (S.today || []).map(x => x.stamp === oldStamp ? r.record : x); renderLast(); editModal.hide();
-    toast('Saved' + (r.record.stamp !== oldStamp ? ' (new ID ' + r.record.stamp + ')' : '') + '. Telegram: ' + r.telegram, /^(updated|photos replaced)/.test(r.telegram) && !/NOT/.test(r.telegram) ? 'success' : 'warning');
+    toast('Saved' + (r.record.stamp !== oldStamp ? ' (new ID ' + r.record.stamp + ')' : '') + '. Telegram: ' + r.telegram, /^(updated|photos replaced)/.test(r.telegram) && !/NOT|failed/.test(r.telegram) ? 'success' : 'warning');
     loadSummary();
     if (!$('#pane-records').classList.contains('hidden')) loadRecords();
   } catch (ex) { err.textContent = ex.message; show(err, true); }

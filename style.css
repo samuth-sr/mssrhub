@@ -319,7 +319,8 @@ body.desk #filterCard{padding:16px 20px}
 #pane-records .card-x{margin-bottom:14px}
 body.desk #rpCard{grid-column:1/7;grid-row:4;align-self:start}
 body.desk #qcCard{grid-column:7/13;grid-row:4;align-self:start}
-body.desk #pane-records > .card-x.p-0{grid-row:5}
+body.desk #mapCard{grid-column:1/13;grid-row:5}
+body.desk #pane-records > .card-x.p-0{grid-row:6}
 .lbl-row .lbl-c{flex:none;padding:3px 10px;font-size:.72rem}
 /* ===== Merchant history lookup ===== */
 .lk-sum{background:#eef0ff;border-radius:12px;padding:10px 12px;margin-bottom:8px}
@@ -351,3 +352,38 @@ body.desk .send-q{left:auto;right:20px;bottom:20px;max-width:420px}
 .ce-mv{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;background:rgba(79,70,229,.1);color:var(--brand);font-size:.75rem;cursor:pointer}
 .ce-mv.off{opacity:.25;pointer-events:none}
 .ce-it em+.ce-mvs{margin-left:6px}
+
+/* Records table: 4 columns that fit the width (no sideways scroll) */
+.rec-table{table-layout:fixed;width:100%}
+.rec-table th:nth-child(1){width:22%}.rec-table th:nth-child(2){width:28%}.rec-table th:nth-child(3){width:32%}.rec-table th:nth-child(4){width:18%}
+.rec-table td,.rec-table th{overflow-wrap:anywhere;word-break:break-word}
+.rec-table .pill{white-space:normal;display:inline-block;max-width:100%}
+.rec-table td.text-nowrap{white-space:normal!important}
+#recCard .table-responsive{overflow-x:visible}
+@media (max-width:420px){.rec-table th,.rec-table td{padding:.5rem .35rem;font-size:.82rem}.rec-table .rec-sub{font-size:.68rem}}
+
+/* map in full screen */
+#mapCard.map-full{position:fixed;inset:0;z-index:2000;margin:0!important;border-radius:0;padding:12px 12px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;overflow:auto;grid-column:auto!important}
+#mapCard.map-full #mapBody{display:flex!important;flex-direction:column;flex:1;min-height:0}
+#mapCard.map-full .rec-map{flex:1;height:auto;min-height:240px}
+#mapCard.map-full #mapToggle{display:none}
+body.map-fs{overflow:hidden}
+body.map-fs .send-q{z-index:2100}
+/* edit window: pictures already in Telegram */
+.photo-grid .ph.med { cursor: pointer; }
+.photo-grid .ph.med.gone img, .photo-grid .ph.med.gone video { opacity: .25; }
+.photo-grid .ph.sk { background: linear-gradient(90deg,#eceefb,#f8f8fd,#eceefb); background-size: 200% 100%; animation: skel 1.2s linear infinite; }
+@keyframes skel { to { background-position: -200% 0; } }
+.photo-grid .mb { position: absolute; left: 4px; top: 4px; border-radius: 8px; padding: 0 6px; font-size: .7rem; color: #fff; background: #f59e0b; }
+.photo-grid .mb.rm { background: #dc2626; }
+.photo-grid .ph.med.chg { outline: 2.5px solid #f59e0b; outline-offset: -2.5px; }
+.ev { position: fixed; inset: 0; z-index: 2000; background: rgba(15,15,30,.96); display: flex; flex-direction: column; color: #fff; padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); }
+.ev.hidden { display: none; }
+.ev-top { display: flex; justify-content: space-between; align-items: center; font-weight: 700; padding: 4px 2px 10px; }
+.ev-top button { background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 50%; width: 34px; height: 34px; }
+.ev-img { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+.ev-img img, .ev-img video { max-width: 100%; max-height: 100%; border-radius: 12px; object-fit: contain; }
+.ev-spin { position: absolute; }
+.ev-msg { text-align: center; color: #c7d2fe; min-height: 22px; padding: 8px 0; }
+.ev-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.ev-btns .btn { flex: 1 1 30%; border-radius: 12px; font-weight: 600; }
