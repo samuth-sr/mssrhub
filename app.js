@@ -23,8 +23,8 @@ const DEFAULT_CATALOG = [
 ];
 /* Box levels per activity: 0 = hidden, 1 = optional, 2 = must fill (red *). Same rules as the server. */
 const YN_KEYS = ['integ', 'sim', 'standee'];      // Yes/No toggles under TID (default No): hidden or shown, never "must"
-const FIELD_KEYS = ['merchant', 'mid', 'tid', 'integ', 'sim', 'standee', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune', 'zone'];
-const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', integ: 'Integration', sim: 'SIM', standee: 'POS Standee', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'District', zone: 'Zone / Area' };
+const FIELD_KEYS = ['merchant', 'mid', 'tid', 'integ', 'sim', 'standee', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune', 'zone', 'province'];
+const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', integ: 'Integration', sim: 'SIM', standee: 'POS Standee', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'District', zone: 'Zone / Area', province: 'Province' };
 function legacyLevel(cat, a, k) {
   const rq = a.req && typeof a.req === 'object' ? a.req : {};
   const lv = (on, d) => !on ? 0 : (typeof rq[k] === 'boolean' ? (rq[k] ? 2 : 1) : d);
@@ -38,7 +38,7 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (Array.isArray(a.lk)) { const l = a.lk.filter((k, i, x) => ['merchant', 'mid', 'tid'].includes(k) && x.indexOf(k) === i); if (l.length) o.lk = l; } if (['9', '15', '9,15'].includes(String(a.midLen))) o.midLen = String(a.midLen); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); if (YN_KEYS.includes(k)) o.f[k] = o.f[k] ? 1 : 0; });
@@ -50,6 +50,11 @@ function normAct(cat, a) {
 const normCat = list => list.map(t => ({ name: t.name, code: t.code, icon: /^[a-z0-9-]{1,30}$/.test(String(t.icon || '')) ? t.icon : '', subs: (Array.isArray(t.subs) ? t.subs : (t.subs === undefined && (DEFAULT_CATALOG.find(d => d.name === t.name) || {}).subs) || []).map(s => { const r = { n: s.n, code: s.code }; if (s.f && typeof s.f === 'object') { const f = {}; FIELD_KEYS.forEach(k => { if ([0, 1, 2].includes(s.f[k])) f[k] = s.f[k]; }); if (Object.keys(f).length) r.f = f; } if (+s.minPh > 0) r.minPh = Math.min(MAX_PHOTOS, Math.floor(+s.minPh)); return r; }), acts: (t.acts || []).map(a => normAct(t, a)) }));
 /** QR only: a 9-digit number is an account number, a 15-digit one is a MID. POS MIDs start with 2, SB MIDs with 6. */
 function midLabelFor(type, v) { return /^qr$/i.test(type || '') && /^\d{9}$/.test(String(v || '').replace(/\s/g, '')) ? 'Account number' : 'MID'; }
+/** The activity's MID length rule (9, 15 or either): '' when the value is fine or there is no rule. */
+function midLenMsg(d, v) {
+  const ml = d && d.midLen; v = String(v || '').trim(); if (!ml || !v || v === NOQR) return '';
+  const dg = v.replace(/\s/g, ''); return /^\d+$/.test(dg) && ml.split(',').includes(String(dg.length)) ? '' : 'the MID must be ' + ml.replace(',', ' or ') + ' digits.';
+}
 function midPrefix(type) { const t = typeDef(type), k = String((t && t.code) || type || '').toUpperCase(), n = String(type || '').toUpperCase(); return k === 'POS' || n === 'POS' ? '2' : (k === 'SB' || n === 'SB' ? '6' : ''); }
 function refreshMidLabel(inp, type) { const w = inp.closest('[data-fk="mid"]'), t = w && $('.mid-t', w); if (t) t.textContent = midLabelFor(type, inp.value); }
 document.addEventListener('input', e => { if (e.target.matches && e.target.matches('.f-mid')) refreshMidLabel(e.target, curType); else if (e.target.id === 'eMid') refreshMidLabel(e.target, window._eType); });
@@ -244,7 +249,7 @@ function renderCustom(box, d) {
   show(box, list.length > 0);
 }
 /* ---- Order of the boxes on the form: the admin can move boxes up / down per activity (a.ord = list of keys). Not set = the built-in order. ---- */
-const CARD_ORDER = ['merchant', 'mid', 'tid', 'integ', 'sim', 'standee', 'business', 'serial', 'oldSn', 'newSn', 'btype', 'ptype', 'hours', 'group', 'zone', 'phone', 'tag', 'qc', 'custom', 'stock', 'remarks', 'photo'];
+const CARD_ORDER = ['merchant', 'mid', 'tid', 'integ', 'sim', 'standee', 'business', 'serial', 'oldSn', 'newSn', 'btype', 'ptype', 'hours', 'group', 'province', 'zone', 'phone', 'tag', 'qc', 'custom', 'stock', 'remarks', 'photo'];
 /** The boxes of an activity in the order the form shows them: [{ k: key, n: name }]. */
 function ordList(a, t) {
   const cf = (a.custom || []).filter(f => f.id), base = [];
@@ -298,6 +303,10 @@ function applyOrderEdit(d) {
 function applyLevels(root, d) {
   $$('.f-mid', root).forEach(i => refreshMidLabel(i, curType));
   FIELD_KEYS.forEach(k => $$('[data-fk="' + k + '"]', root).forEach(w => { show(w, lvl(d, k) > 0); $$('.rq', w).forEach(x => show(x, lvl(d, k) === 2)); }));
+  [['merchant', '.f-name'], ['mid', '.f-mid'], ['tid', '.f-tid']].forEach(([k, s]) => $$(s, root).forEach(i => {      // scan-only boxes: no typing or pasting, filled from the QR
+    if (i.dataset.ph === undefined) i.dataset.ph = i.placeholder;
+    const lk = !!(d && (d.lk || []).includes(k) && lvl(d, k) > 0); i.readOnly = lk; i.classList.toggle('f-locked', lk); i.placeholder = lk ? 'Scan or upload the QR to fill' : i.dataset.ph;
+  }));
   const mp = lvl(d, 'photo') ? ((d.minPh || 0) > 0 ? d.minPh : (lvl(d, 'photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;       // the admin's minimum number of photos / videos (2 when Photos is required and none is set)
   $$('[data-fk="photo"]', root).forEach(w => { if (mp) $$('.rq', w).forEach(x => show(x, true)); const pm = $('.ph-min', w); if (pm) { pm.textContent = mp > 1 ? '(at least ' + mp + ')' : ''; show(pm, mp > 1); } });
 }
@@ -402,7 +411,7 @@ function setType(t) {
 }
 
 // Paste your Apps Script Web app URL (ends with /exec) here:
-const API_URL = 'https://script.google.com/macros/s/AKfycbzZAlJjcU8Bbr-0XAzdnO5Zq_ptRwtws6KfvYRDzh_pSiEfbi8qgK9bDG9H0cy9lLvU/exec';
+const API_URL = (window.APP_CONFIG && window.APP_CONFIG.apiUrl) || 'PASTE_YOUR_WEB_APP_URL_HERE';      // the address now lives in config.js, so a new app.js never needs it pasted
 
 async function api(fn, ...args) {
   let json;
@@ -830,6 +839,7 @@ function addMerchant() {
     '<div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input type="hidden" class="f-ptype" maxlength="120"><div class="chips ptype-chips"></div></div>' +
     '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="d-flex align-items-center gap-2 hours-line"><label class="small text-muted mb-0">Open</label><input type="time" class="form-control f-open" aria-label="Open" value="08:00"><label class="small text-muted mb-0 ms-1">Close</label><input type="time" class="form-control f-close" aria-label="Close" value="20:00"></div></div>' +
     '<div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input class="form-control f-group" maxlength="100" autocomplete="off" placeholder="e.g. owner / chain / group name"></div>' +
+    '<div class="mb-3 hidden" data-fk="province"><label class="form-label">Province <span class="rq hidden">*</span></label><input class="form-control f-province" maxlength="80" autocomplete="off" placeholder="e.g. Phnom Penh"></div>' +
     '<div class="mb-3 hidden" data-fk="zone"><label class="form-label">Zone / Area <span class="rq hidden">*</span></label><input class="form-control f-zone" maxlength="80" autocomplete="off" placeholder="e.g. Zone A / Area name"></div>' +
     '<div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input class="form-control f-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="e.g. 012 345 678"></div>' +
     '<div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input class="form-control f-tag" maxlength="200" autocomplete="off" placeholder="Extra remark / tag"></div>' +
@@ -853,7 +863,7 @@ function addMerchant() {
     '<div class="photo-grid"></div></div>';
   $('#merchantList').appendChild(el);
 
-  if (keep.tag) $('.f-tag', el).value = keep.tag; if (keep.zone) $('.f-zone', el).value = keep.zone;
+  if (keep.tag) $('.f-tag', el).value = keep.tag; if (keep.zone) $('.f-zone', el).value = keep.zone; if (keep.province) $('.f-province', el).value = keep.province;
   const dt = $('.f-date', el); dt.value = ymd(new Date()); dt.max = ymd(new Date());
   const card = { id, el, photos: [], qc: qcFresh() };
   S.cards.push(card);
@@ -1332,7 +1342,8 @@ $('#submitBtn').addEventListener('click', async () => {
     if (!g('.f-date')) { bad('pick the date.', '.f-date'); return; }
     const must = [['merchant', '.f-name', 'the merchant name'], ['mid', '.f-mid', 'the MID'], ['tid', '.f-tid', 'the TID'], ['business', '.f-biz', 'the business name'],
       ['serial', '.f-serial', 'the serial number'], ['oldSn', '.f-old', 'the Old S/N'], ['newSn', '.f-new', 'the New S/N'], ['btype', '.f-btype', 'the business type'],
-      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['zone', '.f-zone', 'the Zone / Area'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
+      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['province', '.f-province', 'the Province'], ['zone', '.f-zone', 'the Zone / Area'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
+    { const m = midLenMsg(ad, g('.f-mid')); if (L('mid') && m) { bad(m, '.f-mid'); return; } }
     if (L('mid') && g('.f-mid') && g('.f-mid') !== NOQR && midPrefix(curType) && g('.f-mid')[0] !== midPrefix(curType)) { bad('the MID of ' + curType + ' must start with ' + midPrefix(curType) + '.', '.f-mid'); return; }
     for (const [k, sel, txt] of must) if (L(k) === 2 && !g(sel)) { bad('enter ' + txt + '.', sel); return; }
     if (qcOn(c)) {      // QR Installation: every QR given must be scanned, and all of them belong to this merchant's MID
@@ -1369,13 +1380,13 @@ $('#submitBtn').addEventListener('click', async () => {
     }
     const needPh = L('photo') ? ((ad && ad.minPh) > 0 ? ad.minPh : (L('photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;
     if (c.photos.length < needPh) { bad(needPh > 1 ? 'attach at least ' + needPh + ' photos or videos (you have ' + c.photos.length + ').' : 'attach at least one photo.'); return; }
-    if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone');
+    if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone'); if (L('province')) keepNew.province = g('.f-province');
     const v = (k, sel) => L(k) ? g(sel) : '';
     const qrx = qcOn(c) ? { qrSid: c.qc.sid, qrGiven: c.qc.given } : {};
     items.push({ type: curType, activity: g('.f-act'), date: g('.f-date'), extra, locLv: L('location'), ...qrx,
       merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), integ: L('integ') ? $('.f-integ', c.el).checked : false, sim: L('sim') ? $('.f-sim', c.el).checked : false, standee: L('standee') ? $('.f-standee', c.el).checked : false, business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
-      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
+      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), province: v('province', '.f-province'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
     docSets.push(docs);
   }
   const photoSets = items.map(it => it.photos);      // the photos wait on the phone: the record is saved first, the photos are sent to Telegram afterwards
@@ -1892,7 +1903,7 @@ $('#rvList').addEventListener('click', async e => {
 function filtered() {
   const q = $('#fSearch').value.trim().toLowerCase();
   if (!q) return S.rows;
-  return S.rows.filter(r => [r.stamp, r.type, r.activity, r.tid, r.user, r.business, r.merchant, r.mid, r.remarks, r.phone, r.tag, r.serial, r.oldSn, r.newSn, r.btype, r.ptype, r.commune, r.zone, r.sub, r.group, r.extra].join(' ').toLowerCase().includes(q));
+  return S.rows.filter(r => [r.stamp, r.type, r.activity, r.tid, r.user, r.business, r.merchant, r.mid, r.remarks, r.phone, r.tag, r.serial, r.oldSn, r.newSn, r.btype, r.ptype, r.commune, r.zone, r.province, r.sub, r.group, r.extra].join(' ').toLowerCase().includes(q));
 }
 function locLink(t) {
   const m = /(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(String(t || ''));
@@ -1900,7 +1911,7 @@ function locLink(t) {
 }
 /** The less important details of a record, shown when its row is opened (empty ones are left out). */
 function recDetail(r) {
-  const it = [['Time', fmtTs(r.ts)], ['Stamp', r.stamp], ['Photos', r.photos || ''], ['Business', r.business], ['Business type', r.btype], ['Hours', r.hours], ['Group', r.group], ['Product type', r.ptype], ['District', r.commune], ['Zone', r.zone],
+  const it = [['Time', fmtTs(r.ts)], ['Stamp', r.stamp], ['Photos', r.photos || ''], ['Business', r.business], ['Business type', r.btype], ['Hours', r.hours], ['Group', r.group], ['Product type', r.ptype], ['Province', r.province], ['District', r.commune], ['Zone', r.zone],
     ['Phone', r.phone], ['Tag', r.tag], ['Serial No', r.serial], ['Old S/N', r.oldSn], ['New S/N', r.newSn], ['Remarks', r.remarks]]
     .concat(r.review && r.review.status ? [['Review', r.review.status + (r.review.by ? ' · ' + r.review.by : '') + (r.review.time ? ' · ' + r.review.time : '')], ['Review note', r.review.note]] : []);
   const fl = r.fields && Object.keys(r.fields).length ? Object.keys(r.fields).map(k => [k, r.fields[k]]) : (r.extra ? [['Fields', r.extra]] : []);
@@ -2080,6 +2091,7 @@ function whoText() {
   return 'Staff: ' + ($('#fUser').value || 'All staff') + ' · Branch: ' + br;
 }
 function drawChart() {
+  try { gbRender(); } catch (e) { console.error(e); }
   const m = S.chartModel = dashModel(), admin = isWide();
   show($('#chartCard'), (S.agg || []).length > 0);
   $('#chartTitleTxt').textContent = admin ? 'Dashboard' : 'My dashboard';
@@ -2096,6 +2108,39 @@ function drawChart() {
   $('#chartInner').style.minWidth = Math.max(0, m.labels.length * (m.datasets.length > 1 ? m.datasets.length * 30 : 44) + 80) + 'px';   // scrolls sideways with many items
   S.chart = buildChart($('#chart'), m, { dark: isDark() });
 }
+/* ---- Group by card: records of the chosen period grouped as a tree (branch / staff / category / sub category / activity / QR type) ---- */
+const GB_DIMS = [['branch', 'Branch'], ['user', 'Staff'], ['type', 'Category'], ['sub', 'Sub category'], ['activity', 'Activity'], ['qr', 'QR type']];
+const GB_NONE = { branch: '(no branch)', sub: '(no sub category)', qr: '(no QR type)' };
+const gbGet = () => { try { const l = JSON.parse(localStorage.getItem('it_gb') || 'null'); if (Array.isArray(l)) return l.filter(k => GB_DIMS.some(d => d[0] === k)); } catch (e) {} return ['branch', 'user', 'type']; };
+S.gb = gbGet();
+const gbPut = () => { try { localStorage.setItem('it_gb', JSON.stringify(S.gb)); } catch (e) {} };
+function gbAvail() {
+  const agg = S.agg || [];
+  return GB_DIMS.filter(d => d[0] === 'branch' ? isAdminOrMulti() : d[0] === 'qr' ? agg.some(a => a.qr) : d[0] === 'user' ? isWide() : true);
+}
+function gbRender() {
+  const card = $('#gbCard'), agg = S.agg || [], on = isWide() && agg.length > 0; show(card, on); if (!on) return;
+  const av = gbAvail().map(d => d[0]), dims = S.gb.filter(k => av.includes(k)), total = agg.reduce((s, a) => s + a.count, 0);
+  $('#gbPeriod').textContent = (S.period.from ? 'Follows the period filter · ' + fmtD(S.period.from) + ' to ' + fmtD(S.period.to) + ' · ' : '') + nfmt(total) + ' record' + (total === 1 ? '' : 's');
+  $('#gbDims').innerHTML = gbAvail().map(d => { const i = dims.indexOf(d[0]); return '<button type="button" class="chip' + (i >= 0 ? ' active' : '') + '" data-k="' + d[0] + '">' + (i >= 0 ? '<b class="gb-n">' + (i + 1) + '</b> ' : '') + d[1] + '</button>'; }).join('');
+  const label = (a, k) => String(a[k] || '') || GB_NONE[k] || '(none)';
+  const build = (items, lvl) => {
+    if (lvl >= dims.length) return '';
+    const k = dims[lvl], m = new Map();
+    items.forEach(a => { const l = label(a, k); const g = m.get(l) || { l, n: 0, items: [] }; g.n += a.count; g.items.push(a); m.set(l, g); });
+    return Array.from(m.values()).sort((a, b) => b.n - a.n || (a.l < b.l ? -1 : 1)).map(g => {
+      const kids = build(g.items, lvl + 1), pct = total ? Math.round(g.n / total * 100) : 0;
+      const row = '<span class="gb-l">' + esc(g.l) + '</span><span class="gb-bar"><i style="width:' + Math.max(g.n ? 2 : 0, pct) + '%"></i></span><b class="gb-c">' + nfmt(g.n) + '</b><span class="gb-p">' + pct + '%</span>';
+      return kids ? '<details class="gb-node gb-l' + lvl + '"' + (lvl === 0 ? ' open' : '') + '><summary class="gb-row">' + row + '</summary><div class="gb-kids">' + kids + '</div></details>' : '<div class="gb-node gb-leaf gb-l' + lvl + '"><div class="gb-row">' + row + '</div></div>';
+    }).join('');
+  };
+  $('#gbTree').innerHTML = '<div class="gb-row gb-total"><span class="gb-l">All records</span><span class="gb-bar"></span><b class="gb-c">' + nfmt(total) + '</b><span class="gb-p">100%</span></div>' + build(agg, 0);
+}
+$('#gbDims').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return; const k = b.dataset.k;
+  S.gb = S.gb.includes(k) ? S.gb.filter(x => x !== k) : S.gb.concat(k); gbPut(); gbRender();
+});
+$('#gbReset').onclick = () => { S.gb = ['branch', 'user', 'type']; gbPut(); gbRender(); };
 function chartTitle() {
   const m = S.chartModel, admin = isWide();
   const what = { act: 'activity', sub: 'sub category', cat: 'category', cs: 'category and sub category' }[m.g];
@@ -2145,7 +2190,7 @@ $('#fSearch').addEventListener('input', () => { clearTimeout(recTimer); recTimer
 const EXPORT_COLS = [      // the same order as the sheet's columns
   ['Stamp', r => r.stamp], ['Timestamp', r => fmtTs(r.ts)], ['Staff', r => r.user], ['Category', r => r.type], ['Sub Category', r => r.sub], ['Activity', r => r.activity],
   ['Installed/Action Date', r => fmtD(r.date || r.ts)], ['Merchant Name', r => r.merchant], ['Business Name', r => r.business], ['Business Type', r => r.btype], ['Product Type', r => r.ptype],
-  ['MID', r => r.mid], ['TID', r => r.tid], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Location', r => r.loc], ['District', r => r.commune], ['Zone/Area', r => r.zone],
+  ['MID', r => r.mid], ['TID', r => r.tid], ['Phone', r => r.phone], ['Tag', r => r.tag], ['Location', r => r.loc], ['Province', r => r.province], ['District', r => r.commune], ['Zone/Area', r => r.zone],
   ['Business Hours', r => r.hours], ['Group Name', r => r.group], ['Serial No', r => r.serial], ['Old S/N', r => r.oldSn], ['New S/N', r => r.newSn],
   ['Photos', r => r.photos], ['Remarks', r => r.remarks], ['Integration', r => r.integ], ['SIM', r => r.sim], ['POS Standee', r => r.standee]
 ];
@@ -2417,6 +2462,8 @@ function ceActPanel(t, ti, a, ai) {
     '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button></div>' +
     ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
     '<div class="ce-lab">BOXES TO FILL</div><div class="a-fields ce-boxes">' + ceFieldRows(a) + '</div>' +
+    '<div class="ce-lab">SCAN ONLY <span class="fw-normal text-muted">(cannot be typed; filled by scanning or uploading the QR)</span></div><div class="chips mb-2">' + [['merchant', 'Merchant name'], ['mid', 'MID'], ['tid', 'TID']].map(p => '<button type="button" class="chip a-lk' + ((a.lk || []).includes(p[0]) ? ' active' : '') + '" data-k="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>' +
+    '<div class="ce-lab">MID LENGTH</div><select class="form-select mb-2 a-midlen" style="max-width:260px">' + [['', 'Any length'], ['9', '9 digits'], ['15', '15 digits'], ['9,15', '9 or 15 digits']].map(o => '<option value="' + o[0] + '"' + ((a.midLen || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
     '<div class="ce-trio"><div><div class="ce-lab">STOCK</div><select class="form-select a-stock"><option value="">Not used</option><option value="out"' + (a.stock && a.stock.mode === 'out' ? ' selected' : '') + '>Take out of stock (deploy / install)</option><option value="both"' + (a.stock && a.stock.mode === 'both' ? ' selected' : '') + '>Replace: new one out + old one back</option><option value="return"' + (a.stock && a.stock.mode === 'return' ? ' selected' : '') + '>Take back (return / terminate / removal)</option></select></div>' +
       '<div><div class="ce-lab">PHOTO QUALITY</div><select class="form-select a-pq"><option value="">Standard</option><option value="high"' + (a.pq === 'high' ? ' selected' : '') + '>High</option><option value="max"' + (a.pq === 'max' ? ' selected' : '') + '>Max</option></select></div>' +
       '<div><div class="ce-lab">MINIMUM PHOTOS / VIDEOS</div><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control a-minph" value="' + (a.minPh || 0) + '" title="0 = 2 when Photos is Must"></div></div>' +
@@ -2490,6 +2537,7 @@ $('#catList').addEventListener('input', e => {
 });
 $('#catList').addEventListener('change', e => {
   if (e.target.classList.contains('a-stock')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.stock = { mode: e.target.value, kind: (a.stock && a.stock.kind) || '', items: (a.stock && a.stock.items) || [] }; else delete a.stock; renderCatEditor(); return; }
+  if (e.target.classList.contains('a-midlen')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.midLen = e.target.value; else delete a.midLen; return; }
   if (e.target.classList.contains('a-pq')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.pq = e.target.value; else delete a.pq; return; }
   if (e.target.classList.contains('a-minph')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); a.minPh = v; if (v && !a.f.photo) a.f.photo = 1; renderCatEditor(); return; }
   if (e.target.classList.contains('s-minph')) { const sr = e.target.closest('[data-sr]'), s = catDraft[+e.target.closest('[data-ti]').dataset.ti].subs[+sr.dataset.sr]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); if (v) s.minPh = v; else delete s.minPh; e.target.value = v; const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0); $('.s-count', sr).textContent = '(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')'; return; }
@@ -2527,6 +2575,7 @@ $('#catList').addEventListener('click', e => {
   else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); catSel.view = 'act'; renderCatEditor(); }
   else if (e.target.closest('.a-stk-kind')) { const a = t.acts[ai]; a.stock.kind = e.target.closest('.a-stk-kind').dataset.k; const keep = (S.stockItems || []).filter(it => !a.stock.kind || a.stock.kind === it.kind).map(it => it.name.toLowerCase()); a.stock.items = (a.stock.items || []).filter(n => keep.includes(n.toLowerCase())); renderCatEditor(); }
   else if (e.target.closest('.a-stk-item')) { const b = e.target.closest('.a-stk-item'), a = t.acts[ai], n = b.dataset.n, l = a.stock.items || []; a.stock.items = l.some(x => x.toLowerCase() === n.toLowerCase()) ? l.filter(x => x.toLowerCase() !== n.toLowerCase()) : l.concat(n); b.classList.toggle('active'); }
+  else if (e.target.closest('.a-lk')) { const b = e.target.closest('.a-lk'), a = t.acts[ai], l = a.lk || []; a.lk = l.includes(b.dataset.k) ? l.filter(x => x !== b.dataset.k) : l.concat(b.dataset.k); if (!a.lk.length) delete a.lk; renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; if (f === 'qrchk') t.acts[ai].qrchk = !qcEff(t.name, t.acts[ai], ''); else t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
     const row = e.target.closest('.fl-row'), a = t.acts[ai]; a.f[row.dataset.k] = +e.target.closest('.a-lv').dataset.v; if (row.dataset.k === 'photo' && !a.f.photo) { a.minPh = 0; const mi = $('.a-minph', ab); if (mi) mi.value = 0; }
@@ -3044,7 +3093,7 @@ function openEdit() {
   $('#eBiz').value = r.business; $('#eRem').value = r.remarks;
   $('#bizTypeList').innerHTML = BIZ_TYPES.map(t => '<option value="' + esc(t) + '">').join('');
   const hm = /(\d{2}:\d{2}) ?- ?(\d{2}:\d{2})/.exec(r.hours || ''); $('#eOpen').value = hm ? hm[1] : ''; $('#eClose').value = hm ? hm[2] : '';
-  $('#prodTypeList').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">').join(''); $('#eProd').value = r.ptype || ''; $('#eCommune').value = r.commune || ''; $('#eZone').value = r.zone || '';
+  $('#prodTypeList').innerHTML = TYPES.map(t => '<option value="' + esc(t) + '">').join(''); $('#eProd').value = r.ptype || ''; $('#eCommune').value = r.commune || ''; $('#eZone').value = r.zone || ''; $('#eProvince').value = r.province || '';
   $('#eBType').value = r.btype || ''; $('#eGroup').value = r.group || '';
   { const d0 = effDef(r.type, r.activity, r.sub || ''); renderCustom($('#eCustom'), d0); applyOrderEdit(d0); const mp = {}; String(r.extra || '').split(' | ').forEach(x => { const i = x.indexOf(': '); if (i > 0) mp[x.slice(0, i)] = x.slice(i + 2); }); ((d0 && d0.custom) || []).forEach(f => { const el = $('[data-fid="' + f.id + '"]', $('#eCustom')); if (el && mp[f.label] != null) setCustomVal(el, mp[f.label]); }); }
   $('#ePhone').value = r.phone || ''; $('#eTag').value = r.tag || ''; $('#eSerial').value = r.serial || ''; $('#eOldSn').value = r.oldSn || ''; $('#eNewSn').value = r.newSn || '';
@@ -3058,12 +3107,13 @@ $('#editForm').addEventListener('submit', async e => {
   show(err, false); busy(btn, true, 'Saving…');
   try {
     if (S.ePh.reduce((t, p) => t + p.length, 0) > 32e6) throw new Error('The new photos and videos are too big to send together. Remove a video or some photos.');
+    { const m = midLenMsg(effDef($('#eType').value, $('#eAct').value, $('#eSub').value), $('#eMid').value.trim()); if (m) throw new Error(m[0].toUpperCase() + m.slice(1)); }
     { const mv = $('#eMid').value.trim(), pf = midPrefix(window._eType); if (mv && mv !== NOQR && pf && mv[0] !== pf) throw new Error('The MID of ' + window._eType + ' must start with ' + pf + '.'); }
     const r = await api('updateRecord', S.token, {
       stamp: $('#eStamp').value, type: $('#eType').value, sub: $('#eSub').value, photos: S.ePh.length ? S.ePh : undefined, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
       mid: $('#eMid').value.trim(), tid: $('#eTid').value.trim(), integ: $('#eInteg').checked, sim: $('#eSim').checked, standee: $('#eStandee').checked, business: $('#eBiz').value.trim(), remarks: $('#eRem').value.trim(),
       extra: Object.fromEntries($$('#eCustom [data-fid]').map(i => [i.dataset.fid, customVal(i)])), btype: $('#eBType').value.trim(), group: $('#eGroup').value.trim(), hours: $('#eOpen').value && $('#eClose').value ? $('#eOpen').value + ' - ' + $('#eClose').value : '',
-      ptype: $('#eProd').value.trim(), commune: $('#eCommune').value.trim(), zone: $('#eZone').value.trim(), serial: $('#eSerial').value.trim(), phone: $('#ePhone').value.trim(), tag: $('#eTag').value.trim(), oldSn: $('#eOldSn').value.trim(), newSn: $('#eNewSn').value.trim()
+      ptype: $('#eProd').value.trim(), commune: $('#eCommune').value.trim(), zone: $('#eZone').value.trim(), province: $('#eProvince').value.trim(), serial: $('#eSerial').value.trim(), phone: $('#ePhone').value.trim(), tag: $('#eTag').value.trim(), oldSn: $('#eOldSn').value.trim(), newSn: $('#eNewSn').value.trim()
     });
     const oldStamp = $('#eStamp').value;
     S.today = (S.today || []).map(x => x.stamp === oldStamp ? r.record : x); renderLast(); editModal.hide();
@@ -3338,6 +3388,7 @@ function deskGo(k) {
 /** Marks the sidebar item, the page title and (in Setup) which card is shown. */
 function deskPaint(name) {
   document.body.dataset.pane = name;
+  try { clEnsure(); if ($('#clLock')) clLockPaint(); } catch (e) {}
   if (name === 'new') S.deskKey = 'new'; else if (name === 'map') S.deskKey = 'map'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules', 'cols', 'arch'].includes(S.deskKey)) S.deskKey = 'staff';
   $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules', 'cols', 'arch'].includes(S.deskKey) ? S.deskKey : 'staff';
   document.body.dataset.key = S.deskKey;
@@ -3424,100 +3475,155 @@ $('#colsSave').onclick = async () => {
   busy(b, false); colsPaint();
 };
 
-/* ============================ Admin desktop: move the cards (unlock to drag; sizes follow the content) ============================ */
+/* ============================ Admin desktop: move the cards (tidy columns; unlock to drag) ============================ */
 const CL_PANES = [['records', '#pane-records'], ['stock', '#pane-stock'], ['users', '#pane-users']];
-const CL_W = { filterCard: 12, chartCard: 8, teamCard: 4, trendCard: 8, rpCard: 6, qcCard: 6, recCard: 12 };      // standard width in 12 columns; every other card: 4 (Stock), 12 when it is a wide list
-const CL_STEPS = [[4, '⅓'], [6, '½'], [8, '⅔'], [12, 'Full']];
-const clKey = () => 'it_cardlay2_' + (S.user ? S.user.username : '');
+const CL_TOP = ['filterCard'], CL_BOT = ['recCard'];      // standard: the filters across the top, the records list across the bottom, the other cards in columns
+const clKey = () => 'it_cardlay3_' + (S.user ? S.user.username : '');
 const clGet = () => { try { return JSON.parse(localStorage.getItem(clKey()) || '{}') || {}; } catch (e) { return {}; } };
 const clPut = o => { try { localStorage.setItem(clKey(), JSON.stringify(o)); } catch (e) {} };
-const clCards = sel => $$(sel + ' > .card-x');
 const clLocked = () => { try { return localStorage.getItem('it_cardlock') !== '0'; } catch (e) { return true; } };
-const clStdW = (c, k) => CL_W[c.id] || (k === 'stock' ? (c.classList.contains('span-all') ? 12 : 4) : 6);
+const clIsMas = k => k !== 'users';
+const clCap = () => Math.max(380, Math.round(window.innerHeight * .7));      // a card taller than this scrolls inside
+const clIsCard = c => !!(c && c.classList && c.classList.contains('card-x'));
+const clWrapRe = /(^| )cl-(top|col|bot)( |$)/;
+const clCards = sel => { const pane = $(sel); return pane ? $$('.card-x', pane).filter(c => c.parentNode === pane || clWrapRe.test(c.parentNode.className || '')) : []; };
+const clNat = c => c.classList.contains('cl-tall') ? c.scrollHeight : c.getBoundingClientRect().height;      // the height the content needs
+const clZones = pane => ({ top: $(':scope > .cl-top', pane), cols: $$(':scope > .cl-cols > .cl-col', pane), bot: $(':scope > .cl-bot', pane) });
+const clKids = z => Array.from(z.children).filter(clIsCard);
 let clRO = null;
-function clFit(c) {      // a card is as tall as its content: it takes as many 8 px rows as it needs (16 px gap included)
-  const h = c.getBoundingClientRect().height; if (!h) return;
-  const rs = Math.max(1, Math.ceil((h + 16) / 8));
-  if (c.dataset.rs !== String(rs)) { c.dataset.rs = rs; c.style.setProperty('--rs', rs); }
+function clFit(c) {      // a tall card stops at the cap and scrolls inside; a short one is as tall as its content
+  const h = clNat(c); if (!h) return;
+  const t = h > clCap() + 2; if (t !== c.classList.contains('cl-tall')) c.classList.toggle('cl-tall', t);
 }
-function clWidth(c, w) { c.dataset.w = w; c.style.setProperty('--w', w); const b = $('.cl-size', c); if (b) b.textContent = (CL_STEPS.find(s => s[0] === w) || ['', w])[1]; }
+function clN(k) { const s = clGet()[k]; return s && s.n >= 1 && s.n <= 4 ? s.n : (window.innerWidth >= 1500 ? 3 : 2); }
+/** Gives every card its grip, puts the pane in columns, and puts the cards in their places (saved, or the standard ones). */
+function clBuild(k, sel) {
+  const pane = $(sel); if (!pane) return;
+  const cards = clCards(sel).sort((a, b) => (+a.dataset.i0 || 0) - (+b.dataset.i0 || 0)), saved = clGet()[k], n = clN(k);
+  if (!$(':scope > .cl-cols', pane)) { const mk = c => { const d = document.createElement('div'); d.className = c; return d; }; pane.append(mk('cl-top'), mk('cl-cols'), mk('cl-bot')); }
+  const z0 = clZones(pane), colsEl = $(':scope > .cl-cols', pane);
+  colsEl.style.setProperty('--n', n);
+  cards.forEach(c => pane.appendChild(c));      // loose for a moment
+  while (z0.cols.length < n) { const d = document.createElement('div'); d.className = 'cl-col'; colsEl.appendChild(d); z0.cols.push(d); }
+  while (z0.cols.length > n) z0.cols.pop().remove();
+  const z = z0, byId = {}, used = {};
+  cards.forEach(c => { byId[c.dataset.cid] = c; });
+  const put = (el, ids) => (ids || []).forEach(id => { const c = byId[id]; if (c && !used[id]) { el.appendChild(c); used[id] = 1; } });
+  if (saved) { put(z.top, saved.top); put(z.bot, saved.bot); (saved.cols || []).forEach((ids, i) => put(z.cols[i % n], ids)); }
+  else { put(z.top, CL_TOP); put(z.bot, CL_BOT.concat(k === 'stock' ? cards.filter(c => c.classList.contains('span-all')).map(c => c.dataset.cid) : [])); }
+  const sums = () => z.cols.map(e => clKids(e).reduce((s, c) => s + (clNat(c) || 240), 0));
+  cards.forEach(c => { if (used[c.dataset.cid]) return; const s = sums(); z.cols[s.indexOf(Math.min.apply(null, s))].appendChild(c); used[c.dataset.cid] = 1; });
+  cards.forEach(c => { if (clRO) clRO.observe(c); clFit(c); });
+}
+function clEnsure() { CL_PANES.forEach(([k, sel]) => { const p = $(sel); if (p && clIsMas(k) && p.classList.contains('mas') && !p.dataset.cl && !p.classList.contains('hidden')) { p.dataset.cl = '1'; clBuild(k, sel); } }); }
 function clInit() {
   if (!(S.user && isWide())) return;
-  const lay = clGet();
+  document.body.style.setProperty('--cl-cap', clCap() + 'px');
   if (!clRO && window.ResizeObserver) clRO = new ResizeObserver(es => es.forEach(e => clFit(e.target)));
   CL_PANES.forEach(([k, sel]) => {
     const pane = $(sel); if (!pane) return;
-    if (k !== 'users') pane.classList.add('mas');
+    if (clIsMas(k)) pane.classList.add('mas');
     clCards(sel).forEach((c, i) => {
       if (!c.dataset.cid) { c.dataset.cid = c.id || (k + i); c.dataset.i0 = i; }
-      if (!$('.cl-grip', c)) {
-        const g = document.createElement('span'); g.className = 'cl-grip'; g.draggable = true; g.title = 'Drag to move this card'; g.innerHTML = '<i class="bi bi-grip-vertical"></i>'; c.prepend(g);
-        if (k !== 'users') { const s = document.createElement('button'); s.type = 'button'; s.className = 'cl-size'; s.title = 'Card width'; c.prepend(s); }
-      }
-      if (k !== 'users') { clWidth(c, (lay[k] && lay[k].w && lay[k].w[c.dataset.cid]) || clStdW(c, k)); if (clRO) clRO.observe(c); clFit(c); }
+      $$('.cl-size', c).forEach(x => x.remove());
+      if (!$('.cl-grip', c)) { const g = document.createElement('span'); g.className = 'cl-grip'; g.draggable = true; g.title = 'Drag to move this card'; g.innerHTML = '<i class="bi bi-grip-vertical"></i>'; c.prepend(g); }
     });
   });
   if (!$('#clBar')) {
     const b = document.createElement('div'); b.id = 'clBar';
-    b.innerHTML = '<button type="button" class="btn btn-soft btn-sm" id="clLock"></button><button type="button" class="btn btn-soft btn-sm" id="clReset" title="Put the cards back in the standard places and sizes"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset layout</button>';
+    b.innerHTML = '<button type="button" class="btn btn-soft btn-sm" id="clLock"></button><button type="button" class="btn btn-soft btn-sm cl-mas" id="clCols" title="How many columns the cards use"></button><button type="button" class="btn btn-soft btn-sm cl-mas" id="clAuto" title="Spread the cards so the columns end at about the same height"><i class="bi bi-distribute-vertical me-1"></i>Auto-arrange</button><button type="button" class="btn btn-soft btn-sm" id="clReset" title="Put the cards back in the standard places"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset layout</button>';
     $('#deskTitle').after(b); $('#clReset').onclick = clReset; $('#clLock').onclick = () => { try { localStorage.setItem('it_cardlock', clLocked() ? '0' : '1'); } catch (e) {} clLockPaint(); };
+    $('#clAuto').onclick = clAuto; $('#clCols').onclick = clColsNext;
   }
-  clApply(); clLockPaint();
+  clEnsure(); clApply(); clLockPaint();
 }
+function clTeardown() {      // below the desktop width the cards go back into the plain page
+  CL_PANES.forEach(([k, sel]) => {
+    const pane = $(sel); if (!pane || !pane.dataset.cl) return;
+    clCards(sel).sort((a, b) => (+a.dataset.i0 || 0) - (+b.dataset.i0 || 0)).forEach(c => { pane.appendChild(c); c.classList.remove('cl-tall'); if (clRO) clRO.unobserve(c); });
+    $$(':scope > .cl-top, :scope > .cl-cols, :scope > .cl-bot', pane).forEach(x => x.remove());
+    delete pane.dataset.cl; pane.classList.remove('mas');
+  });
+}
+function clCur() { const k = document.body.dataset.pane; const p = CL_PANES.find(x => x[0] === k && clIsMas(x[0])); return p || null; }
 function clLockPaint() {
   const lk = clLocked(); document.body.classList.toggle('cl-unlocked', !lk);
   $('#clLock').innerHTML = lk ? '<i class="bi bi-lock-fill me-1"></i>Layout locked · Unlock' : '<i class="bi bi-unlock-fill me-1"></i>Unlocked · Lock';
   $('#clLock').classList.toggle('btn-brand', !lk);
+  const p = clCur(); $('#clCols').innerHTML = '<i class="bi bi-layout-three-columns me-1"></i>' + (p ? clN(p[0]) : 3) + (p && clN(p[0]) === 1 ? ' column (full width)' : ' columns');
 }
-/** Puts the saved order back (the widths were put on the cards in clInit). */
+/** Users page: the old way, a card swaps places with the card it is dropped on (same section only). */
 function clApply() {
-  const lay = clGet();
-  CL_PANES.forEach(([k, sel]) => {
-    const pane = $(sel), L = lay[k]; if (!pane || !L) return;
-    (L.order || []).forEach(id => { const c = $('[data-cid="' + id + '"]', pane); if (c && c.parentNode === pane) pane.appendChild(c); });
-  });
+  const lay = clGet(), L = lay.users, pane = $('#pane-users'); if (!pane || !L || !L.order) return;
+  L.order.forEach(id => { const c = $('[data-cid="' + id + '"]', pane); if (c && c.parentNode === pane) pane.appendChild(c); });
 }
 function clSave(k, sel) {
-  const lay = clGet(), L = lay[k] = { order: clCards(sel).map(c => c.dataset.cid), w: {} };
-  clCards(sel).forEach(c => { if (c.dataset.w) L.w[c.dataset.cid] = +c.dataset.w; });
+  const lay = clGet(), pane = $(sel);
+  if (clIsMas(k)) { const z = clZones(pane), ids = e => clKids(e).map(c => c.dataset.cid); lay[k] = { n: z.cols.length, top: ids(z.top), cols: z.cols.map(ids), bot: ids(z.bot) }; }
+  else lay[k] = { order: clCards(sel).map(c => c.dataset.cid) };
   clPut(lay);
 }
 function clReset() {
-  try { localStorage.removeItem(clKey()); } catch (e) {}
-  CL_PANES.forEach(([k, sel]) => { const p = $(sel); clCards(sel).sort((a, b) => (+a.dataset.i0 || 0) - (+b.dataset.i0 || 0)).forEach(c => { p.appendChild(c); if (k !== 'users') clWidth(c, clStdW(c, k)); }); });
-  toast('The cards are back in the standard places.', 'success');
+  const lay = clGet(); delete lay.records; delete lay.stock; delete lay.users; clPut(lay);
+  CL_PANES.forEach(([k, sel]) => {
+    const p = $(sel); if (!p) return;
+    if (clIsMas(k)) { if (p.dataset.cl) { clBuild(k, sel); } }
+    else clCards(sel).sort((a, b) => (+a.dataset.i0 || 0) - (+b.dataset.i0 || 0)).forEach(c => p.appendChild(c));
+  });
+  clLockPaint(); toast('The cards are back in the standard places.', 'success');
 }
-function clSwap(a, b, k, sel) {
-  if (a === b || a.parentNode !== b.parentNode) return;
-  if (k === 'users' && a.dataset.sec !== b.dataset.sec) { toast('Drop it on a card of the same page.', 'warning'); return; }
-  const ph = document.createElement('span'); a.before(ph); b.before(a); ph.replaceWith(b);
-  clSave(k, sel);
+function clAuto() {      // the tallest cards first, each into the shortest column, so the columns end at about the same line
+  const p = clCur(); if (!p) return; const pane = $(p[1]), z = clZones(pane);
+  const cards = [].concat.apply([], z.cols.map(clKids)).sort((a, b) => (clNat(b) || 120) - (clNat(a) || 120)), sums = z.cols.map(() => 0);
+  cards.forEach(c => { const i = sums.indexOf(Math.min.apply(null, sums)); z.cols[i].appendChild(c); sums[i] += clNat(c) || 120; });
+  clSave(p[0], p[1]); toast('Cards spread by height.', 'success');
 }
-document.addEventListener('click', e => {      // the width button of a card: ⅓ → ½ → ⅔ → Full
-  const s = e.target.closest && e.target.closest('.cl-size'); if (!s) return;
-  const c = s.closest('.card-x'), k = (CL_PANES.find(p => c.parentNode === $(p[1])) || [])[0]; if (!k) return;
-  const cur = +c.dataset.w || 6, i = CL_STEPS.findIndex(x => x[0] === cur);
-  clWidth(c, CL_STEPS[(i + 1) % CL_STEPS.length][0]); clSave(k, CL_PANES.find(p => p[0] === k)[1]);
-});
-let clDrag = null;
+function clColsNext() {
+  const p = clCur(); if (!p) return; const lay = clGet(), n = clN(p[0]) >= 4 ? 1 : clN(p[0]) + 1;
+  clSave(p[0], p[1]); const l2 = clGet(); l2[p[0]].n = n; clPut(l2);
+  clBuild(p[0], p[1]); clSave(p[0], p[1]); clLockPaint();
+}
+let clDrag = null, clPh = null;
+const clKind = c => (CL_PANES.find(p => c.closest(p[1])) || [])[0];
+function clZoneAt(pane, x, y) {
+  const z = clZones(pane), inR = el => { const r = el.getBoundingClientRect(); return r.height > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
+  if (inR(z.top)) return z.top; if (inR(z.bot)) return z.bot;
+  const cr = $(':scope > .cl-cols', pane).getBoundingClientRect();
+  if (y >= cr.top - 8 && y <= cr.bottom + 8 && x >= cr.left && x <= cr.right) {
+    let best = null, bd = 1e9; z.cols.forEach(e => { const r = e.getBoundingClientRect(), d = Math.abs(x - (r.left + r.right) / 2); if (d < bd) { bd = d; best = e; } }); return best;
+  }
+  return null;
+}
 document.addEventListener('dragstart', e => {
   const g = e.target.closest && e.target.closest('.cl-grip'); if (!g) return;
   clDrag = g.closest('.card-x'); clDrag.classList.add('cl-drag');
+  if (clIsMas(clKind(clDrag))) { clPh = document.createElement('div'); clPh.className = 'cl-ph'; clPh.style.height = Math.min(clDrag.offsetHeight, 120) + 'px'; }
   try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', clDrag.dataset.cid || ''); e.dataTransfer.setDragImage(clDrag, 20, 20); } catch (x) {}
 });
 document.addEventListener('dragover', e => {
-  if (!clDrag) return; const t = e.target.closest && e.target.closest('.card-x'); if (!t || t === clDrag || t.parentNode !== clDrag.parentNode) return;
-  e.preventDefault(); $$('.cl-over').forEach(x => x !== t && x.classList.remove('cl-over')); t.classList.add('cl-over');
+  if (!clDrag) return; const k = clKind(clDrag); if (!k) return;
+  if (!clIsMas(k)) {
+    const t = e.target.closest && e.target.closest('.card-x'); if (!t || t === clDrag || t.parentNode !== clDrag.parentNode) return;
+    e.preventDefault(); $$('.cl-over').forEach(x => x !== t && x.classList.remove('cl-over')); t.classList.add('cl-over'); return;
+  }
+  const pane = $(CL_PANES.find(p => p[0] === k)[1]), zone = clZoneAt(pane, e.clientX, e.clientY); if (!zone) return;
+  e.preventDefault();
+  const before = clKids(zone).find(c => c !== clDrag && c.offsetHeight && (r => e.clientY < r.top + r.height / 2)(c.getBoundingClientRect()));      // the slot goes above the first card whose middle is below the pointer
+  if (before) { if (before.previousSibling !== clPh) zone.insertBefore(clPh, before); } else if (zone.lastChild !== clPh) zone.appendChild(clPh);
 });
 document.addEventListener('drop', e => {
-  if (!clDrag) return; const t = e.target.closest && e.target.closest('.card-x'); if (!t) return; e.preventDefault();
-  const k = (CL_PANES.find(p => clDrag.parentNode === $(p[1])) || [])[0]; if (k) clSwap(clDrag, t, k, CL_PANES.find(p => p[0] === k)[1]);
+  if (!clDrag) return; const k = clKind(clDrag), sel = (CL_PANES.find(p => p[0] === k) || [])[1]; if (!sel) return;
+  if (clIsMas(k)) { if (clPh && clPh.parentNode) { e.preventDefault(); clPh.parentNode.insertBefore(clDrag, clPh); clSave(k, sel); [clDrag].forEach(clFit); } return; }
+  const t = e.target.closest && e.target.closest('.card-x'); if (!t || t === clDrag || t.parentNode !== clDrag.parentNode) return; e.preventDefault();
+  if (t.dataset.sec !== clDrag.dataset.sec) { toast('Drop it on a card of the same page.', 'warning'); return; }
+  const ph = document.createElement('span'); clDrag.before(ph); t.before(clDrag); ph.replaceWith(t); clSave(k, sel);
 });
-document.addEventListener('dragend', () => { $$('.cl-over,.cl-drag').forEach(x => x.classList.remove('cl-over', 'cl-drag')); clDrag = null; });
+document.addEventListener('dragend', () => { $$('.cl-over,.cl-drag').forEach(x => x.classList.remove('cl-over', 'cl-drag')); if (clPh) clPh.remove(); clPh = null; clDrag = null; });
 
 function deskSync() {
   const on = !!(S.user && isWide() && window.innerWidth >= DESK_MIN);
   if (on) { deskBuild(); }
+  if (!on) clTeardown();
   { const mc = $('#mapCard'), pm = $('#pane-map'), pr = $('#pane-records'); if (mc && on && mc.parentNode !== pm) pm.appendChild(mc); else if (mc && !on && mc.parentNode === pm) pr.insertBefore(mc, $('#recCard')); }
   document.body.classList.toggle('desk', on);
   if (on) clInit();

@@ -1,5 +1,5 @@
 // Installation Tracker service worker: lets the app install and open fast. API calls are never cached.
-const CACHE = 'it-tracker-v123';
+const CACHE = 'it-tracker-v128';
 const SHELL = ['./', 'index.html', 'style.css?v=123', 'app.js?v=123', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -17,7 +17,7 @@ self.addEventListener('fetch', e => {
   if (!same && !cdn) return;
 
   // Pages: network first, so a new index.html is picked up as soon as you are online.
-  if (req.mode === 'navigate' || (same && url.pathname.endsWith('.html'))) {
+  if (req.mode === 'navigate' || (same && (url.pathname.endsWith('.html') || url.pathname.endsWith('/config.js')))) {
     e.respondWith(
       fetch(req).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return r; })
         .catch(() => caches.match(req).then(r => r || caches.match('index.html')))

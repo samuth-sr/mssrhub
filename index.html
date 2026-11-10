@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=123" rel="stylesheet">
+  <link href="style.css?v=128" rel="stylesheet">
 </head>
 <body>
 
@@ -152,6 +152,16 @@
         <div class="mb-3 hidden" id="statusWrap"><div class="form-label">Review status</div><div class="chips" id="slStatus"></div><input type="hidden" id="fStatus" value=""></div>
         <div class="mb-3 hidden" id="qrTypeWrap"><div class="form-label">QR type</div><div class="chips" id="slQrType"></div><input type="hidden" id="fQrType" value=""></div>
         <input id="fSearch" class="form-control" placeholder="Search merchant, MID, TID, phone, remarks…">
+      </div>
+
+      <div class="card-x hidden" id="gbCard">
+        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+          <div><div class="fw-bold"><i class="bi bi-diagram-3 me-1"></i>Group by</div><div class="small text-muted" id="gbPeriod"></div></div>
+          <button type="button" class="btn btn-soft btn-sm flex-none" id="gbReset">Reset</button>
+        </div>
+        <div class="small text-muted mb-1">Tap the levels in the order you want (1 = outer level). Tap again to remove.</div>
+        <div class="chips mb-2" id="gbDims"></div>
+        <div id="gbTree"></div>
       </div>
 
       <div class="card-x hidden" id="chartCard">
@@ -670,6 +680,7 @@
         <div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="d-flex align-items-center gap-2 hours-line"><label class="small text-muted mb-0">Open</label><input type="time" id="eOpen" class="form-control" aria-label="Open"><label class="small text-muted mb-0 ms-1">Close</label><input type="time" id="eClose" class="form-control" aria-label="Close"></div></div>
         <div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input id="eGroup" class="form-control" maxlength="100"></div>
         <div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input id="ePhone" class="form-control" type="tel" inputmode="tel"></div>
+        <div class="mb-3 hidden" data-fk="province"><label class="form-label">Province <span class="rq hidden">*</span></label><input id="eProvince" class="form-control" maxlength="80"></div>
         <div class="mb-3 hidden" data-fk="zone"><label class="form-label">Zone / Area <span class="rq hidden">*</span></label><input id="eZone" class="form-control" maxlength="80"></div>
         <div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input id="eTag" class="form-control" maxlength="200"></div>
         <div id="eCustom" class="hidden"></div>
@@ -850,6 +861,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
-<script src="app.js?v=123" defer></script>
+<script src="config.js" defer></script>
+<script src="app.js?v=128" defer></script>
 </body>
 </html>
