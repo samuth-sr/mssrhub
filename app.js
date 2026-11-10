@@ -1838,7 +1838,7 @@ async function loadRecords() {
     renderRows();
   } catch (e) { toast(e.message, 'danger'); }
 }
-const STATUS_OPTS = [{ v: '', l: 'All' }, { v: 'Pending', l: 'Pending' }, { v: 'Returned', l: 'Returned' }, { v: 'Approved', l: 'Approved' }, { v: 'None', l: 'No review' }];
+const STATUS_OPTS = [{ v: '', l: 'All' }, { v: 'Pending', l: 'Pending' }, { v: 'Returned', l: 'Returned' }, { v: 'Approved', l: 'Approved' }, { v: 'Rejected', l: 'Rejected' }, { v: 'Closed', l: 'Closed' }, { v: 'None', l: 'No review' }];
 function paintStatus(data) {
   const any = (CATALOG || []).some(t => t.acts.some(a => a.review)) || (data && data.rows.some(r => r.review && r.review.status)) || $('#fStatus').value;
   show($('#statusWrap'), !!any);
@@ -1858,7 +1858,7 @@ function paintPending() {
   const n = S.pending || 0, b = $('#rvBadge'); b.textContent = n; show(b, n > 0);
   const db = $('#dnBadge'); if (db) { db.textContent = n; show(db, n > 0); }
 }
-const stPill = st => st ? '<span class="st-pill ' + (st === 'Pending' ? 'st-p' : st === 'Approved' ? 'st-a' : 'st-r') + '">' + esc(st) + '</span>' : '';
+const stPill = st => st ? '<span class="st-pill ' + (st === 'Pending' ? 'st-p' : st === 'Approved' ? 'st-a' : st === 'Closed' ? 'st-c' : 'st-r') + '">' + esc(st) + '</span>' : '';
 /* ---- Review queue (admin) ---- */
 const reviewModal = new bootstrap.Modal($('#reviewModal'));
 S.rvStatus = 'Pending'; S.rvRows = [];
@@ -1867,7 +1867,7 @@ async function loadReview() {
   try {
     const d = await api('getReviewQueue', S.token, S.rvStatus);
     S.rvRows = d.rows; S.pending = d.counts.Pending; paintPending();
-    $('#rvChips').innerHTML = ['Pending', 'Returned', 'Approved', 'All'].map(x => '<button type="button" class="chip' + (x === S.rvStatus ? ' active' : '') + '" data-v="' + x + '">' + x + (x !== 'All' ? ' <b>' + d.counts[x] + '</b>' : '') + '</button>').join('');
+    $('#rvChips').innerHTML = ['Pending', 'Returned', 'Approved', 'Rejected', 'Closed', 'All'].map(x => '<button type="button" class="chip' + (x === S.rvStatus ? ' active' : '') + '" data-v="' + x + '">' + x + (x !== 'All' ? ' <b>' + d.counts[x] + '</b>' : '') + '</button>').join('');
     $('#rvList').innerHTML = d.rows.length ? d.rows.map(r => rvItem(r)).join('') : '<div class="empty"><i class="bi bi-inbox"></i>Nothing here</div>';
   } catch (e) { $('#rvList').innerHTML = ''; toast(e.message, 'danger'); }
 }
@@ -1878,24 +1878,27 @@ function rvItem(r) {
     '<div class="rd-grid mt-2">' + bits.map(x => '<div class="rd-i"><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>').join('') + '</div>' +
     (r.tgLink ? '<div class="mt-2"><a class="btn btn-soft btn-sm" href="' + esc(r.tgLink) + '" target="_blank" rel="noopener"><i class="bi bi-images me-1"></i>Photos</a></div>' : '') +
     (rv.status !== 'Pending' && (rv.by || rv.note) ? '<div class="small text-muted mt-2">' + esc(rv.status + ' by ' + rv.by + (rv.time ? ' · ' + rv.time : '')) + '</div>' : '') +
-    (rv.status === 'Returned' && rv.note ? '<div class="rv-note">' + esc(rv.note) + '</div>' : '') +
-    (rv.status === 'Pending' ? '<div class="mt-2 rv-act"><div class="d-flex gap-2"><button type="button" class="btn btn-success btn-sm rv-ok"><i class="bi bi-check-lg me-1"></i>Approve</button><button type="button" class="btn btn-outline-danger btn-sm rv-ret"><i class="bi bi-arrow-return-left me-1"></i>Return…</button></div>' +
-      '<div class="hidden rv-note-box mt-2"><textarea class="form-control form-control-sm rv-note-in" rows="2" maxlength="300" placeholder="What should ' + esc(r.user) + ' fix?"></textarea><button type="button" class="btn btn-danger btn-sm mt-2 rv-send">Send back</button></div></div>' : '') + '</div>';
+    ((rv.status === 'Returned' || rv.status === 'Rejected' || rv.status === 'Closed') && rv.note ? '<div class="rv-note">' + (rv.status === 'Rejected' ? '<b>Reason:</b> ' : '') + esc(rv.note) + '</div>' : '') +
+    (rv.status === 'Pending' ? '<div class="mt-2 rv-act"><div class="d-flex flex-wrap gap-2"><button type="button" class="btn btn-success btn-sm rv-ok"><i class="bi bi-check-lg me-1"></i>Approve</button><button type="button" class="btn btn-outline-warning btn-sm rv-ret"><i class="bi bi-arrow-return-left me-1"></i>Return…</button><button type="button" class="btn btn-outline-danger btn-sm rv-rej"><i class="bi bi-x-octagon me-1"></i>Reject…</button></div>' +
+      '<div class="hidden rv-note-box mt-2"><textarea class="form-control form-control-sm rv-note-in" rows="2" maxlength="300"></textarea><button type="button" class="btn btn-danger btn-sm mt-2 rv-send">Send back</button></div></div>' : '') + '</div>';
 }
 $('#reviewBtn').addEventListener('click', () => { S.rvStatus = 'Pending'; reviewModal.show(); loadReview(); });
 $('#rvChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.rvStatus = b.dataset.v; loadReview(); });
 $('#rvList').addEventListener('click', async e => {
   const item = e.target.closest('.rv-item'); if (!item) return;
   const stamp = item.dataset.stamp;
-  if (e.target.closest('.rv-ret')) { show($('.rv-note-box', item), true); $('.rv-note-in', item).focus(); return; }
-  const ok = e.target.closest('.rv-ok'), send = e.target.closest('.rv-send');
+  const user = (S.rvRows.find(x => x.stamp === stamp) || {}).user || 'the staff member';
+  const mode = m => { item.dataset.mode = m; const t = $('.rv-note-in', item); t.placeholder = m === 'reject' ? 'Reason for rejecting this record (the staff member will see it). A rejected record cannot be resubmitted.' : 'What should ' + user + ' fix?'; $('.rv-send', item).textContent = m === 'reject' ? 'Reject record' : 'Send back'; show($('.rv-note-box', item), true); t.focus(); };
+  if (e.target.closest('.rv-ret')) { mode('return'); return; }
+  if (e.target.closest('.rv-rej')) { mode('reject'); return; }
+  const ok = e.target.closest('.rv-ok'), send = e.target.closest('.rv-send'), rej = send && item.dataset.mode === 'reject';
   if (!ok && !send) return;
   const btn = ok || send, note = send ? $('.rv-note-in', item).value.trim() : '';
-  if (send && !note) { toast('Write what the staff member should fix.', 'warning'); return; }
+  if (send && !note) { toast(rej ? 'Write the reason for rejecting.' : 'Write what the staff member should fix.', 'warning'); return; }
   busy(btn, true, 'Saving…');
   try {
-    const r = await api('reviewRecord', S.token, stamp, ok ? 'approve' : 'return', note);
-    toast((ok ? 'Approved' : 'Returned') + '. Telegram: ' + r.telegram, r.telegram === 'updated' ? 'success' : 'warning');
+    const r = await api('reviewRecord', S.token, stamp, ok ? 'approve' : rej ? 'reject' : 'return', note);
+    toast((ok ? 'Approved' : rej ? 'Rejected' : 'Returned') + '. Telegram: ' + r.telegram, r.telegram === 'updated' ? 'success' : 'warning');
     loadReview(); loadSummary();
     if (!$('#pane-records').classList.contains('hidden')) loadRecords();
   } catch (ex) { toast(ex.message, 'danger'); busy(btn, false); }
@@ -2674,7 +2677,7 @@ async function mhRun(q) {
   try {
     const d = await api('lookupMid', S.token, q);
     if (!d.count) { out.innerHTML = '<div class="small"><b>No record found</b> for “' + esc(d.q) + '”.</div>'; return; }
-    const st = { Pending: 'pill-warn', Approved: 'pill-ok', Returned: 'pill-bad' };
+    const st = { Pending: 'pill-warn', Approved: 'pill-ok', Returned: 'pill-bad', Rejected: 'pill-bad' };
     out.innerHTML = '<div class="lk-sum"><b>' + esc(d.merchants.join(' · ') || d.q) + '</b><div class="small text-muted">' + esc(d.mids.join(' · ')) + '</div><div class="small mt-1"><b>' + d.count + '</b> record' + (d.count > 1 ? 's' : '') + ' · ' + esc(fmtD(d.first)) + ' → ' + esc(fmtD(d.last)) + (d.count > 100 ? ' · showing the latest 100' : '') + (d.by === 'name' ? ' · found by name' : '') + '</div></div>' +
       d.rows.map(r => '<div class="lk-row"><div class="d-flex justify-content-between gap-2"><b>' + esc(shortName(r.type)) + (r.sub ? ' · ' + esc(r.sub) : '') + ' · ' + esc(r.activity) + '</b><span class="small text-muted text-nowrap">' + esc(fmtD(r.date)) + '</span></div>' +
         '<div class="small text-muted">' + esc(r.user) + (r.branch ? ' · ' + esc(r.branch) : '') + (d.by === 'name' ? ' · ' + esc(r.merchant) + ' ' + esc(r.midLabel) + ' ' + esc(r.mid) : '') + ' · <span class="font-monospace">' + esc(r.stamp) + '</span></div>' +
@@ -3009,16 +3012,24 @@ function renderLast() {
   show($('#lastCard'), list.length > 0);
   $('#todayTitle').innerHTML = (S.rules.days === 1 ? "Today's records" : 'Recent records') + ' <span class="text-muted">· ' + ruleText() + '</span>';
   $('#todayList').innerHTML = list.map(r => {
-    const rvs = r.review && r.review.status, canEdit = rvs === 'Returned' || (rvs !== 'Pending' && S.rules.enabled && r.editsLeft > 0);
+    const rvs = r.review && r.review.status, canEdit = rvs === 'Returned' || (rvs !== 'Pending' && rvs !== 'Rejected' && rvs !== 'Closed' && S.rules.enabled && r.editsLeft > 0);
     return '<div class="d-flex align-items-center gap-2 py-1 border-top" data-stamp="' + esc(r.stamp) + '"><div class="flex-grow-1 min-w-0">' +
     '<div class="fw-semibold small text-truncate">' + esc(r.type + (r.activity && r.activity !== r.type ? ' · ' + r.activity : '') + ' — ' + (r.merchant || r.mid || r.stamp)) + '</div>' +
-    '<div class="small text-muted text-truncate">' + esc(r.stamp) + ' · ' + (rvs ? (rvs === 'Pending' ? 'waiting for the admin' : rvs === 'Returned' ? 'returned: fix and resubmit' : 'approved') : '') + (!rvs || rvs === 'Approved' ? (rvs ? ' · ' : '') + (r.editsLeft > 0 && S.rules.enabled ? r.editsLeft + ' of ' + S.rules.max + ' edits left' : (S.rules.enabled ? 'edit limit reached' : 'editing closed')) : '') + '</div>' +
-    (rvs === 'Returned' && r.review.note ? '<div class="rv-note"><b>Admin note:</b> ' + esc(r.review.note) + '</div>' : '') + '</div>' +
+    '<div class="small text-muted text-truncate">' + esc(r.stamp) + ' · ' + (rvs ? (rvs === 'Pending' ? 'waiting for the admin' : rvs === 'Returned' ? 'returned: fix and resubmit, or close it' : rvs === 'Rejected' ? 'rejected' : rvs === 'Closed' ? 'closed' : 'approved') : '') + (!rvs || rvs === 'Approved' ? (rvs ? ' · ' : '') + (r.editsLeft > 0 && S.rules.enabled ? r.editsLeft + ' of ' + S.rules.max + ' edits left' : (S.rules.enabled ? 'edit limit reached' : 'editing closed')) : '') + '</div>' +
+    (rvs === 'Returned' && r.review.note ? '<div class="rv-note"><b>Admin note:</b> ' + esc(r.review.note) + '</div>' : '') + (rvs === 'Rejected' ? '<div class="rv-note"><b>Rejected' + (r.review.by ? ' by ' + esc(r.review.by) : '') + (r.review.note ? ':</b> ' + esc(r.review.note) : '</b>') + '</div>' : '') + '</div>' +
     (rvs ? '<span class="flex-none">' + stPill(rvs) + '</span>' : '') +
-    '<button class="btn ' + (rvs === 'Returned' ? 'btn-primary' : 'btn-soft') + ' btn-sm flex-none t-edit" type="button"' + (canEdit ? '' : ' disabled') + '><i class="bi bi-pencil me-1"></i>' + (rvs === 'Returned' ? 'Fix' : 'Edit') + '</button></div>';
+    '<button class="btn ' + (rvs === 'Returned' ? 'btn-primary' : 'btn-soft') + ' btn-sm flex-none t-edit" type="button"' + (canEdit ? '' : ' disabled') + '><i class="bi bi-pencil me-1"></i>' + (rvs === 'Returned' ? 'Fix' : 'Edit') + '</button>' + (rvs === 'Returned' ? '<button class="btn btn-outline-secondary btn-sm flex-none t-close" type="button" title="Close this record without fixing it"><i class="bi bi-lock me-1"></i>Close</button>' : '') + '</div>';
   }).join('');
 }
-$('#todayList').addEventListener('click', e => {
+$('#todayList').addEventListener('click', async e => {
+  const cb = e.target.closest('.t-close');
+  if (cb) {
+    const stamp = cb.closest('[data-stamp]').dataset.stamp, why = window.prompt('Close this record without fixing it?\nOptional: write why (the admin will see it). Tap Cancel to keep it open.', '');
+    if (why === null) return;
+    busy(cb, true, 'Closing…');
+    try { const r = await api('closeMyRecord', S.token, stamp, why.trim()); toast('Record closed. Telegram: ' + r.telegram, r.telegram === 'updated' ? 'success' : 'warning'); loadLast(); } catch (ex) { toast(ex.message, 'danger'); busy(cb, false); }
+    return;
+  }
   const b = e.target.closest('.t-edit'); if (!b) return;
   const r = (S.today || []).find(x => x.stamp === b.closest('[data-stamp]').dataset.stamp);
   if (r) { S.last = r; openEdit(); }
@@ -3492,6 +3503,7 @@ const clZones = pane => ({ top: $(':scope > .cl-top', pane), cols: $$(':scope > 
 const clKids = z => Array.from(z.children).filter(clIsCard);
 let clRO = null;
 function clFit(c) {      // a tall card stops at the cap and scrolls inside; a short one is as tall as its content
+  if (c.id === 'filterCard') { c.classList.remove('cl-tall'); return; }      // the filters are never cut off: every chip and the search box stay in view
   const h = clNat(c); if (!h) return;
   const t = h > clCap() + 2; if (t !== c.classList.contains('cl-tall')) c.classList.toggle('cl-tall', t);
 }
