@@ -38,7 +38,7 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (Array.isArray(a.lk)) { const l = a.lk.filter((k, i, x) => ['merchant', 'mid', 'tid'].includes(k) && x.indexOf(k) === i); if (l.length) o.lk = l; } if (['9', '15', '9,15'].includes(String(a.midLen))) o.midLen = String(a.midLen); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => ['merchant', 'mid'].includes(k) && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); if (YN_KEYS.includes(k)) o.f[k] = o.f[k] ? 1 : 0; });
@@ -52,7 +52,7 @@ const normCat = list => list.map(t => ({ name: t.name, code: t.code, icon: /^[a-
 function midLabelFor(type, v) { return /^qr$/i.test(type || '') && /^\d{9}$/.test(String(v || '').replace(/\s/g, '')) ? 'Account number' : 'MID'; }
 /** The activity's MID length rule (9, 15 or either): '' when the value is fine or there is no rule. */
 function midLenMsg(d, v) {
-  const ml = d && d.midLen; v = String(v || '').trim(); if (!ml || !v || v === NOQR) return '';
+  const ml = '9,15'; v = String(v || '').trim(); if (!d || !v || v === NOQR) return '';      // a MID has 9 digits (account number) or 15 digits
   const dg = v.replace(/\s/g, ''); return /^\d+$/.test(dg) && ml.split(',').includes(String(dg.length)) ? '' : 'the MID must be ' + ml.replace(',', ' or ') + ' digits.';
 }
 function midPrefix(type) { const t = typeDef(type), k = String((t && t.code) || type || '').toUpperCase(), n = String(type || '').toUpperCase(); return k === 'POS' || n === 'POS' ? '2' : (k === 'SB' || n === 'SB' ? '6' : ''); }
@@ -174,9 +174,11 @@ function syncPtype(el) {
 }
 /** District from the current location (the address lookup), unless the staff typed their own. One box under the location, used for every merchant. */
 function fillCommuneAll(force, clear) {
-  const c = (geo.place && geo.place.district) || ''; if (!c && !clear) return;
-  const i = $('#fDistrict'); if (force || !i.dataset.touched) i.value = c;      // clear = the place changed: drop the old, now wrong, value
+  const c = (geo.place && geo.place.district) || '', pv = (geo.place && geo.place.province) || '';
+  if (c || clear) { const i = $('#fDistrict'); if (force || !i.dataset.touched) i.value = c; }      // clear = the place changed: drop the old, now wrong, value
+  if (pv || clear) $$('.f-province').forEach(i => { if (force || !i.dataset.touched) i.value = pv; });      // Province: same, from the current location (typing in a box keeps your value)
 }
+$('#merchantList').addEventListener('input', e => { if (e.target.classList && e.target.classList.contains('f-province')) e.target.dataset.touched = '1'; });
 $('#fDistrict').addEventListener('input', e => { e.target.dataset.touched = '1'; });
 $('#distFill').addEventListener('click', async () => {
   if (!geo.pos) await refreshGeo(8000);
@@ -300,12 +302,14 @@ function applyOrderEdit(d) {
   (d.custom || []).forEach((f, i) => { if (cust[i]) cust[i].style.order = at('x:' + f.id, 1000 + i); });
 }
 /** Shows only the boxes the activity needs (data-fk="key") and puts the red * on the must-fill ones. */
+/** The boxes staff cannot type (scan only). Default: Merchant name and MID; the TID is filled from the MID. An explicit list (even empty) is the admin's choice. */
+const lkOf = d => Array.isArray(d && d.lk) ? d.lk.filter(k => k === 'merchant' || k === 'mid') : ['merchant', 'mid'];
 function applyLevels(root, d) {
   $$('.f-mid', root).forEach(i => refreshMidLabel(i, curType));
   FIELD_KEYS.forEach(k => $$('[data-fk="' + k + '"]', root).forEach(w => { show(w, lvl(d, k) > 0); $$('.rq', w).forEach(x => show(x, lvl(d, k) === 2)); }));
   [['merchant', '.f-name'], ['mid', '.f-mid'], ['tid', '.f-tid']].forEach(([k, s]) => $$(s, root).forEach(i => {      // scan-only boxes: no typing or pasting, filled from the QR
     if (i.dataset.ph === undefined) i.dataset.ph = i.placeholder;
-    const lk = !!(d && (d.lk || []).includes(k) && lvl(d, k) > 0); i.readOnly = lk; i.classList.toggle('f-locked', lk); i.placeholder = lk ? 'Scan or upload the QR to fill' : i.dataset.ph;
+    const lk = !!(d && lkOf(d).includes(k) && lvl(d, k) > 0); i.readOnly = lk; i.classList.toggle('f-locked', lk); i.placeholder = lk ? 'Scan or upload the QR to fill' : i.dataset.ph;
   }));
   const mp = lvl(d, 'photo') ? ((d.minPh || 0) > 0 ? d.minPh : (lvl(d, 'photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;       // the admin's minimum number of photos / videos (2 when Photos is required and none is set)
   $$('[data-fk="photo"]', root).forEach(w => { if (mp) $$('.rq', w).forEach(x => show(x, true)); const pm = $('.ph-min', w); if (pm) { pm.textContent = mp > 1 ? '(at least ' + mp + ')' : ''; show(pm, mp > 1); } });
@@ -384,11 +388,18 @@ function setAct(card, a) {
   if (changed) resetToggles(card.el);      // every toggle starts at No
   updateDateLabel(card); updateLocCard(); fillCommuneAll(); qcSync(card);
 }
+/** The Current location block sits inside the first merchant card (one location for the whole submission); with no card it waits in #locHome. */
+function placeLoc() {
+  const loc = $('#locCard'), first = S.cards[0], slot = first && $('.loc-slot', first.el);
+  if (slot && loc.parentNode !== slot) { slot.appendChild(loc); loc.classList.add('loc-in'); }
+  else if (!slot && loc.parentNode !== $('#locHome').parentNode) { $('#locHome').after(loc); loc.classList.remove('loc-in'); }
+}
 /** The location card is shown while some merchant card still needs a location (admin: Location box = optional or must). */
 function updateLocCard() {
   const ds = S.cards.map(c => { const a = $('.f-act', c.el).value; return a ? effDef(curType, a, S.sub || '') : null; });
-  const needLoc = ds.some(d => !d || lvl(d, 'location') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0);
+  const needLoc = ds.some(d => !d || lvl(d, 'location') > 0 || lvl(d, 'province') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0);
   show($('#locCard'), needLoc || needDist); show($('#locRow'), needLoc); show($('#distWrap'), needDist);
+  placeLoc();
   show($('#locStar'), ds.some(d => d && lvl(d, 'location') === 2));
   show($('#distStar'), ds.some(d => d && lvl(d, 'commune') === 2));
 }
@@ -546,7 +557,7 @@ function switchTab(name) {
   if (name === 'map') mapTabOpen();
   if (name === 'stock') loadStock();
   if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); loadCols(); loadArch(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
-  deskPaint(name);
+  deskPaint(name); geoWatch(name === 'new' && !document.hidden);
 }
 $$('.bottom-nav button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
@@ -820,6 +831,7 @@ function addMerchant() {
   el.innerHTML =
     '<div class="merchant-head"><span class="badge-num">Merchant <span class="n"></span></span><span class="flex-grow-1 ms-2"><span class="pill ty"></span></span>' +
     '<button class="btn btn-sm btn-outline-danger border-0 btn-remove" type="button"><i class="bi bi-trash3"></i></button></div>' +
+    '<div class="loc-slot"></div>' +
     '<div class="mb-3 act-wrap"><label class="form-label">Activity <span class="rq">*</span></label><div class="chips act-chips"></div></div><input type="hidden" class="f-act">' +
     '<div class="small text-muted mb-3 act-hint hidden">Choose an activity to see the boxes it needs.</div>' +
     '<div class="mb-3"><label class="form-label"><span class="date-lbl">Installed / action date</span> <span class="rq">*</span></label><input type="date" class="form-control f-date"></div>' +
@@ -867,6 +879,8 @@ function addMerchant() {
   const dt = $('.f-date', el); dt.value = ymd(new Date()); dt.max = ymd(new Date());
   const card = { id, el, photos: [], qc: qcFresh() };
   S.cards.push(card);
+  if (!geo.manual && (!geo.pos || Date.now() - geo.pos.t > 60000)) refreshGeo(8000).catch(() => {});      // warm the location while the form is filled, so the submit does not wait for it
+  placeLoc();
   applyType(card);
   $('.btype-chips', el).addEventListener('click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
@@ -901,7 +915,8 @@ function addMerchant() {
   if (sw) sw.addEventListener('change', () => { stampOn = sw.checked; store.set('it_stamp', stampOn ? '1' : '0'); $$('.stamp-sw').forEach(x => { x.checked = stampOn; }); });
   $('.btn-remove', el).onclick = () => {
     if (S.cards.length === 1) { toast('At least one merchant is required.', 'warning'); return; }
-    S.cards = S.cards.filter(c => c !== card); el.remove(); renumber();
+    $('#locHome').after($('#locCard')); $('#locCard').classList.remove('loc-in');      // the location block leaves the card before it is removed
+    S.cards = S.cards.filter(c => c !== card); el.remove(); renumber(); updateLocCard();
   };
   renumber();
   return card;
@@ -970,12 +985,12 @@ function plusCode(lat, lon) {
 
 /* ---- GPS + address + map tile, cached while you stay in the same spot ---- */
 const geo = { manual: false, pos: null, place: null, key: '', lookup: null, map: null, mapKey: '', mapLookup: null };
-function readPosition(timeout) {
+function readPosition(timeout, fresh) {
   return new Promise(res => {
     if (!navigator.geolocation) return res(null);
     navigator.geolocation.getCurrentPosition(
       p => res({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy || 0, t: Date.now() }),
-      () => res(null), { enableHighAccuracy: true, timeout: timeout || 10000, maximumAge: 30000 });
+      () => res(null), { enableHighAccuracy: true, timeout: timeout || 10000, maximumAge: fresh ? 0 : 30000 });
   });
 }
 /** The district (Khan / Srok / Krong): prefer a name that says so, else the address' city district, district or county. */
@@ -1001,7 +1016,8 @@ function lookupPlace(p) {
       const first = (...v) => v.find(ok) || '';
       const street = first(a.road, a.pedestrian, a.path, a.footway, a.suburb, a.neighbourhood, a.village);
       const city = first(a.city, a.town, a.municipality, a.county, String(a.state || '').replace(/ Province$/i, ''));
-      geo.place = { street, city, country: a.country || '', district: districtOf(a), commune: a.suburb || a.quarter || a.neighbourhood || a.village || a.hamlet || '' };
+      const province = String(a.state || a.province || a.region || a.city || '').replace(/\s+(Province|Municipality|Capital)$/i, '').replace(/^Khet\s+/i, '').trim();      // the Province comes from the current location
+      geo.place = { street, city, province, country: a.country || '', district: districtOf(a), commune: a.suburb || a.quarter || a.neighbourhood || a.village || a.hamlet || '' };
       fillCommuneAll(false, true);
     }).catch(() => { geo.place = null; geo.key = ''; }).then(() => { if (timer) clearTimeout(timer); });
   return geo.lookup;
@@ -1045,19 +1061,38 @@ async function refreshGeo(timeout, force) {
 }
 const addrText = p => [plusCode(p.lat, p.lon), geo.place && geo.place.street, geo.place && geo.place.city, geo.place && geo.place.country].filter(Boolean).join(', ');
 /** { lat, lon, addr } for the Telegram message, or null when the phone gives no position. */
+/** The precise position at submit: a fix from the last 15 s that is accurate (50 m or better) is used at once (the live watch below keeps it that fresh); otherwise a new high-accuracy fix is awaited, at most 2 s. */
 async function currentLocation() {
-  let p = geo.pos && Date.now() - geo.pos.t < 120000 ? geo.pos : await refreshGeo(8000);
-  p = p || geo.pos;
+  let p = geo.pos;
+  const ok = x => x && (geo.manual || (Date.now() - x.t < 15000 && (!x.acc || x.acc <= 50)));
+  if (!ok(p)) {
+    const f = await readPosition(2000, true);      // a brand-new reading, never a remembered one
+    if (f) { geo.pos = f; lookupPlace(f); loadMap(f); p = f; }
+    p = p || geo.pos;
+  }
   if (!p) return null;
-  try { await Promise.race([geo.lookup, new Promise(r => setTimeout(r, 1500))]); } catch (e) {}      // the street name may take a moment: wait at most 1.5 s, the coordinates are what matter
-  return { lat: p.lat, lon: p.lon, addr: addrText(p) };
+  try { await Promise.race([geo.lookup, new Promise(r => setTimeout(r, 800))]); } catch (e) {}      // the street name may take a moment; the coordinates are what matter
+  return { lat: p.lat, lon: p.lon, addr: addrText(p), acc: p.acc || 0 };
+}
+/** While the New tab is open the GPS is watched (high accuracy), so a precise, fresh position is ready the moment staff tap Submit. Stops on other tabs and when the app is hidden (battery). */
+function geoWatch(on) {
+  if (!navigator.geolocation) return;
+  if (!on) { if (geo.wid != null) { navigator.geolocation.clearWatch(geo.wid); geo.wid = null; } return; }
+  if (geo.wid != null) return;
+  geo.wid = navigator.geolocation.watchPosition(pos => {
+    if (geo.manual) return;      // a place picked on the map stays
+    const p = { lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy || 0, t: Date.now() };
+    geo.pos = p; lookupPlace(p);
+    const m = geo.mapAt; if (!m || Math.abs(m.lat - p.lat) * 111000 > 25 || Math.abs(m.lon - p.lon) * 111000 > 25) { geo.mapAt = p; loadMap(p); }      // the little map only moves when you moved ~25 m
+    paintLoc();
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
 }
 /* ---- "Current location" card on the form ---- */
 function paintLoc() {
   const p = geo.pos;
   if (!p) return;
   $('#locAddr').textContent = addrText(p);
-  $('#locCoords').textContent = coordText(p);
+  $('#locCoords').textContent = coordText(p) + (p.acc ? ' · ±' + Math.round(p.acc) + ' m' : '');
   show($('#locTag'), !!geo.manual);
   const o = $('#locOpen'); o.href = 'https://maps.google.com/?q=' + p.lat + ',' + p.lon; show(o, true);
   if (geo.map) { try { $('#locMap').src = geo.map.toDataURL('image/png'); show($('#locMap'), true); } catch (e) {} }
@@ -1413,6 +1448,7 @@ $('#submitBtn').addEventListener('click', async () => {
     if (r.stock) toast(r.stock, 'warning');
     Object.assign(keep, keepNew);
     if (items[0] && items[0].activity) rememberAct(items[0].activity);
+    $('#locHome').after($('#locCard')); $('#locCard').classList.remove('loc-in');
     $('#merchantList').innerHTML = ''; S.cards = []; addMerchant();
     if (!loc && needLoc) toast('Location was not available, so it was not added to Telegram.', 'warning');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1762,7 +1798,7 @@ document.addEventListener('click', async e => {
   qKick(0);
 });
 window.addEventListener('online', () => qKick(500));
-document.addEventListener('visibilitychange', () => { if (!document.hidden) qKick(500); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) qKick(500); geoWatch(!document.hidden && !$('#pane-new').classList.contains('hidden')); });
 setInterval(() => { if (S.token) qKick(0); }, 30000);
 window.addEventListener('beforeunload', e => { if (Q.mem && Q.mem.length) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -2437,7 +2473,7 @@ function renderCatSummary() {
 }
 /* ---- Categories & activities editor: three columns (categories | activities | the selected activity), like the desktop design ---- */
 let catSel = { ti: 0, ai: 0, view: 'act' };
-const ceFieldRows = a => FIELD_KEYS.map(k => '<div class="fl-row" data-k="' + k + '"><span>' + FIELD_NAMES[k] + '</span><span class="fl-seg">' +
+const ceFieldRows = a => FIELD_KEYS.filter(k => lvl(a, k) > 0).map(k => '<div class="fl-row" data-k="' + k + '"><span>' + FIELD_NAMES[k] + '</span><span class="fl-seg">' +
   (YN_KEYS.includes(k) ? [[0, 'Off'], [1, 'Show toggle']] : [[0, 'Off'], [1, 'Optional'], [2, 'Must']]).map(p => '<button type="button" class="a-lv' + (lvl(a, k) === p[0] ? ' active' : '') + (lvl(a, k) === p[0] && p[0] === 2 ? ' must' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>').join('');
 const ceOrder = (t, a) => {
   const list = ordList(a, t);
@@ -2465,8 +2501,8 @@ function ceActPanel(t, ti, a, ai) {
     '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button></div>' +
     ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
     '<div class="ce-lab">BOXES TO FILL</div><div class="a-fields ce-boxes">' + ceFieldRows(a) + '</div>' +
-    '<div class="ce-lab">SCAN ONLY <span class="fw-normal text-muted">(cannot be typed; filled by scanning or uploading the QR)</span></div><div class="chips mb-2">' + [['merchant', 'Merchant name'], ['mid', 'MID'], ['tid', 'TID']].map(p => '<button type="button" class="chip a-lk' + ((a.lk || []).includes(p[0]) ? ' active' : '') + '" data-k="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>' +
-    '<div class="ce-lab">MID LENGTH</div><select class="form-select mb-2 a-midlen" style="max-width:260px">' + [['', 'Any length'], ['9', '9 digits'], ['15', '15 digits'], ['9,15', '9 or 15 digits']].map(o => '<option value="' + o[0] + '"' + ((a.midLen || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
+    (FIELD_KEYS.some(k => lvl(a, k) === 0) ? '<div class="chips mt-2 ce-add"><span class="small text-muted align-self-center">Add a box:</span>' + FIELD_KEYS.filter(k => lvl(a, k) === 0).map(k => '<button type="button" class="chip a-addf" data-k="' + k + '">+ ' + FIELD_NAMES[k] + '</button>').join('') + '</div>' : '') +
+    '<div class="ce-lab">SCAN ONLY <span class="fw-normal text-muted">(on by default; the TID fills itself from the MID)</span></div><div class="chips mb-2">' + [['merchant', 'Merchant name'], ['mid', 'MID']].map(p => '<button type="button" class="chip a-lk' + (lkOf(a).includes(p[0]) ? ' active' : '') + '" data-k="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>' +
     '<div class="ce-trio"><div><div class="ce-lab">STOCK</div><select class="form-select a-stock"><option value="">Not used</option><option value="out"' + (a.stock && a.stock.mode === 'out' ? ' selected' : '') + '>Take out of stock (deploy / install)</option><option value="both"' + (a.stock && a.stock.mode === 'both' ? ' selected' : '') + '>Replace: new one out + old one back</option><option value="return"' + (a.stock && a.stock.mode === 'return' ? ' selected' : '') + '>Take back (return / terminate / removal)</option></select></div>' +
       '<div><div class="ce-lab">PHOTO QUALITY</div><select class="form-select a-pq"><option value="">Standard</option><option value="high"' + (a.pq === 'high' ? ' selected' : '') + '>High</option><option value="max"' + (a.pq === 'max' ? ' selected' : '') + '>Max</option></select></div>' +
       '<div><div class="ce-lab">MINIMUM PHOTOS / VIDEOS</div><input type="number" min="0" max="' + MAX_PHOTOS + '" class="form-control a-minph" value="' + (a.minPh || 0) + '" title="0 = 2 when Photos is Must"></div></div>' +
@@ -2540,7 +2576,6 @@ $('#catList').addEventListener('input', e => {
 });
 $('#catList').addEventListener('change', e => {
   if (e.target.classList.contains('a-stock')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.stock = { mode: e.target.value, kind: (a.stock && a.stock.kind) || '', items: (a.stock && a.stock.items) || [] }; else delete a.stock; renderCatEditor(); return; }
-  if (e.target.classList.contains('a-midlen')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.midLen = e.target.value; else delete a.midLen; return; }
   if (e.target.classList.contains('a-pq')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; if (e.target.value) a.pq = e.target.value; else delete a.pq; return; }
   if (e.target.classList.contains('a-minph')) { const a = catDraft[+e.target.closest('[data-ti]').dataset.ti].acts[+e.target.closest('[data-ai]').dataset.ai]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); a.minPh = v; if (v && !a.f.photo) a.f.photo = 1; renderCatEditor(); return; }
   if (e.target.classList.contains('s-minph')) { const sr = e.target.closest('[data-sr]'), s = catDraft[+e.target.closest('[data-ti]').dataset.ti].subs[+sr.dataset.sr]; const v = Math.max(0, Math.min(MAX_PHOTOS, Math.floor(+e.target.value) || 0)); if (v) s.minPh = v; else delete s.minPh; e.target.value = v; const n = Object.keys(s.f || {}).length + (s.minPh ? 1 : 0); $('.s-count', sr).textContent = '(' + (n ? n + ' rule' + (n > 1 ? 's' : '') : 'follow each activity') + ')'; return; }
@@ -2578,7 +2613,8 @@ $('#catList').addEventListener('click', e => {
   else if (e.target.closest('.a-del')) { t.acts.splice(ai, 1); catSel.view = 'act'; renderCatEditor(); }
   else if (e.target.closest('.a-stk-kind')) { const a = t.acts[ai]; a.stock.kind = e.target.closest('.a-stk-kind').dataset.k; const keep = (S.stockItems || []).filter(it => !a.stock.kind || a.stock.kind === it.kind).map(it => it.name.toLowerCase()); a.stock.items = (a.stock.items || []).filter(n => keep.includes(n.toLowerCase())); renderCatEditor(); }
   else if (e.target.closest('.a-stk-item')) { const b = e.target.closest('.a-stk-item'), a = t.acts[ai], n = b.dataset.n, l = a.stock.items || []; a.stock.items = l.some(x => x.toLowerCase() === n.toLowerCase()) ? l.filter(x => x.toLowerCase() !== n.toLowerCase()) : l.concat(n); b.classList.toggle('active'); }
-  else if (e.target.closest('.a-lk')) { const b = e.target.closest('.a-lk'), a = t.acts[ai], l = a.lk || []; a.lk = l.includes(b.dataset.k) ? l.filter(x => x !== b.dataset.k) : l.concat(b.dataset.k); if (!a.lk.length) delete a.lk; renderCatEditor(); }
+  else if (e.target.closest('.a-lk')) { const b = e.target.closest('.a-lk'), a = t.acts[ai], l = lkOf(a); a.lk = l.includes(b.dataset.k) ? l.filter(x => x !== b.dataset.k) : l.concat(b.dataset.k); renderCatEditor(); }
+  else if (e.target.closest('.a-addf')) { const a = t.acts[ai]; a.f[e.target.closest('.a-addf').dataset.k] = 1; renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; if (f === 'qrchk') t.acts[ai].qrchk = !qcEff(t.name, t.acts[ai], ''); else t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
     const row = e.target.closest('.fl-row'), a = t.acts[ai]; a.f[row.dataset.k] = +e.target.closest('.a-lv').dataset.v; if (row.dataset.k === 'photo' && !a.f.photo) { a.minPh = 0; const mi = $('.a-minph', ab); if (mi) mi.value = 0; }
@@ -2896,7 +2932,7 @@ const siFind = () => (S.stockItems || []).find(i => i.name.toLowerCase() === $('
 function siKind() {
   const it = siFind(), nm = $('#siItem').value.trim(), isNew = !!nm && !it && S.user.role === 'Admin';
   show($('#siKindWrap'), isNew); $$('#siKindWrap .chip').forEach(b => b.classList.toggle('active', b.dataset.k === S.siNew));
-  const q = it ? it.kind === 'qty' : (isNew && S.siNew === 'qty'); show($('#siSnWrap'), !q); show($('#siQtyWrap'), !!q); show($('#siSimWrap'), !!(it && it.sim && !q));
+  const q = it ? it.kind === 'qty' : (isNew && S.siNew === 'qty'); show($('#siSnWrap'), !q); show($('#siQtyWrap'), !!q); show($('#siSimWrap'), !!(it && it.sim && !q)); show($('#siScan'), !(it && it.sim));      // a SIM item has its own scan button beside the SIM S/N box: only one Scan S/N shows
 }
 $('#siItem').addEventListener('input', siKind); $('#siItem').addEventListener('change', siKind);
 $('#siKindWrap').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.siNew = b.dataset.k; siKind(); });
@@ -3118,7 +3154,7 @@ $('#editForm').addEventListener('submit', async e => {
   show(err, false); busy(btn, true, 'Saving…');
   try {
     if (S.ePh.reduce((t, p) => t + p.length, 0) > 32e6) throw new Error('The new photos and videos are too big to send together. Remove a video or some photos.');
-    { const m = midLenMsg(effDef($('#eType').value, $('#eAct').value, $('#eSub').value), $('#eMid').value.trim()); if (m) throw new Error(m[0].toUpperCase() + m.slice(1)); }
+    { const ed = effDef($('#eType').value, $('#eAct').value, $('#eSub').value), m = lvl(ed, 'mid') > 0 ? midLenMsg(ed, $('#eMid').value.trim()) : ''; if (m) throw new Error(m[0].toUpperCase() + m.slice(1)); }
     { const mv = $('#eMid').value.trim(), pf = midPrefix(window._eType); if (mv && mv !== NOQR && pf && mv[0] !== pf) throw new Error('The MID of ' + window._eType + ' must start with ' + pf + '.'); }
     const r = await api('updateRecord', S.token, {
       stamp: $('#eStamp').value, type: $('#eType').value, sub: $('#eSub').value, photos: S.ePh.length ? S.ePh : undefined, activity: $('#eAct').value, date: $('#eDate').value, merchant: $('#eName').value.trim(),
