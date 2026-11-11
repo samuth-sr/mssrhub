@@ -251,12 +251,13 @@ function renderCustom(box, d) {
   show(box, list.length > 0);
 }
 /* ---- Order of the boxes on the form: the admin can move boxes up / down per activity (a.ord = list of keys). Not set = the built-in order. ---- */
-const CARD_ORDER = ['merchant', 'mid', 'tid', 'integ', 'sim', 'standee', 'business', 'serial', 'oldSn', 'newSn', 'btype', 'ptype', 'hours', 'group', 'province', 'zone', 'phone', 'tag', 'qc', 'custom', 'stock', 'remarks', 'photo'];
+const CARD_ORDER = ['loc', 'merchant', 'mid', 'tid', 'integ', 'sim', 'standee', 'business', 'serial', 'oldSn', 'newSn', 'btype', 'ptype', 'hours', 'group', 'province', 'zone', 'phone', 'tag', 'qc', 'custom', 'stock', 'remarks', 'photo'];
 /** The boxes of an activity in the order the form shows them: [{ k: key, n: name }]. */
 function ordList(a, t) {
   const cf = (a.custom || []).filter(f => f.id), base = [];
   CARD_ORDER.forEach(k => {
     if (k === 'custom') cf.forEach(f => base.push({ k: 'x:' + f.id, n: (f.label || (f.kind === 'info' ? 'Info text' : 'New field')) + ' (field)' }));
+    else if (k === 'loc') { if (lvl(a, 'location') > 0 || lvl(a, 'commune') > 0 || lvl(a, 'province') > 0) base.push({ k, n: 'Current location' }); }
     else if (k === 'qc') { if (t && qcEff(t.name, a)) base.push({ k, n: 'QR materials & scan' }); }
     else if (k === 'stock') { if (a.stock) base.push({ k, n: 'Stock items' }); }
     else if (lvl(a, k) > 0) base.push({ k, n: FIELD_NAMES[k] });
@@ -831,7 +832,7 @@ function addMerchant() {
   el.innerHTML =
     '<div class="merchant-head"><span class="badge-num">Merchant <span class="n"></span></span><span class="flex-grow-1 ms-2"><span class="pill ty"></span></span>' +
     '<button class="btn btn-sm btn-outline-danger border-0 btn-remove" type="button"><i class="bi bi-trash3"></i></button></div>' +
-    '<div class="loc-slot"></div>' +
+    '<div class="loc-slot" data-fk="loc"></div>' +
     '<div class="mb-3 act-wrap"><label class="form-label">Activity <span class="rq">*</span></label><div class="chips act-chips"></div></div><input type="hidden" class="f-act">' +
     '<div class="small text-muted mb-3 act-hint hidden">Choose an activity to see the boxes it needs.</div>' +
     '<div class="mb-3"><label class="form-label"><span class="date-lbl">Installed / action date</span> <span class="rq">*</span></label><input type="date" class="form-control f-date"></div>' +
@@ -1061,17 +1062,11 @@ async function refreshGeo(timeout, force) {
 }
 const addrText = p => [plusCode(p.lat, p.lon), geo.place && geo.place.street, geo.place && geo.place.city, geo.place && geo.place.country].filter(Boolean).join(', ');
 /** { lat, lon, addr } for the Telegram message, or null when the phone gives no position. */
-/** The precise position at submit: a fix from the last 15 s that is accurate (50 m or better) is used at once (the live watch below keeps it that fresh); otherwise a new high-accuracy fix is awaited, at most 2 s. */
+/** The position at submit: whatever the live watch below has synced in the background, at once. Submitting never waits for the GPS (only when there is no position at all yet: one short try). */
 async function currentLocation() {
   let p = geo.pos;
-  const ok = x => x && (geo.manual || (Date.now() - x.t < 15000 && (!x.acc || x.acc <= 50)));
-  if (!ok(p)) {
-    const f = await readPosition(2000, true);      // a brand-new reading, never a remembered one
-    if (f) { geo.pos = f; lookupPlace(f); loadMap(f); p = f; }
-    p = p || geo.pos;
-  }
+  if (!p) p = await readPosition(2000, true);
   if (!p) return null;
-  try { await Promise.race([geo.lookup, new Promise(r => setTimeout(r, 800))]); } catch (e) {}      // the street name may take a moment; the coordinates are what matter
   return { lat: p.lat, lon: p.lon, addr: addrText(p), acc: p.acc || 0 };
 }
 /** While the New tab is open the GPS is watched (high accuracy), so a precise, fresh position is ready the moment staff tap Submit. Stops on other tabs and when the app is hidden (battery). */
