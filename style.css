@@ -428,17 +428,19 @@ details[open] > summary.gb-row .gb-l::before{content:"▾"}
 .gb-kids{margin-left:14px;border-left:2px solid var(--line);padding-left:6px}
 .gb-total{font-weight:700;border-bottom:1px solid var(--line);border-radius:0;margin-bottom:4px}
 .gb-l0 > summary .gb-l,.gb-l0 > .gb-row .gb-l{font-weight:700}
-/* Activity editor: smaller rows (only the boxes in use are listed; the others are "+ Add a box" chips) */
-.ce-boxes .fl-row{padding:2px 0;font-size:.76rem}
-.ce-boxes .fl-seg button{padding:2px 8px;font-size:.66rem}
-.ce-add .chip{font-size:.7rem;padding:3px 9px}
-.ce-pane .ce-lab{margin:10px 0 4px}
-/* Current location block inside the first merchant card */
-#locCard.loc-in{box-shadow:none;border:1px solid var(--line);background:var(--bg);margin:0 0 14px;padding:10px;border-radius:12px}
-/* Desktop cards: a card (or a wide table / chart inside it) that is wider than its column scrolls sideways; the scroll bars show while the mouse is over the card */
-body.desk .card-x,body.desk .card-x .table-responsive,body.desk .card-x [style*="overflow-x:auto"]{overflow-x:auto;scrollbar-width:thin;scrollbar-color:transparent transparent}
-body.desk .card-x:hover,body.desk .card-x:hover .table-responsive,body.desk .card-x:hover [style*="overflow-x:auto"]{scrollbar-color:rgba(100,116,139,.65) transparent}
-body.desk .card-x::-webkit-scrollbar,body.desk .card-x .table-responsive::-webkit-scrollbar,body.desk .card-x [style*="overflow-x:auto"]::-webkit-scrollbar{height:10px;width:10px}
-body.desk .card-x::-webkit-scrollbar-thumb,body.desk .card-x .table-responsive::-webkit-scrollbar-thumb,body.desk .card-x [style*="overflow-x:auto"]::-webkit-scrollbar-thumb{background:transparent;border-radius:9px}
-body.desk .card-x:hover::-webkit-scrollbar-thumb,body.desk .card-x:hover .table-responsive::-webkit-scrollbar-thumb,body.desk .card-x:hover [style*="overflow-x:auto"]::-webkit-scrollbar-thumb{background:rgba(100,116,139,.65)}
-body.desk #recCard .table-responsive{overflow-x:auto}
+
+/* Desktop console: KPI strip and Needs attention */
+.kx-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.kx{padding:2px 4px;min-width:0}.kx-l{font-size:.78rem;color:var(--bs-secondary-color,#6b6b8a)}.kx-v{font-size:1.7rem;font-weight:700;line-height:1.15;margin:2px 0}.kx-s{font-size:.78rem}.kx-w .kx-v{color:#b45309}
+.at-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-top:1px solid rgba(128,128,128,.18);cursor:pointer}.at-row:first-child{border-top:0}.at-row .nm{flex:1;min-width:0}.at-row b{min-width:28px;text-align:right}.at-row.ok{opacity:.6}.at-row:hover{background:rgba(99,102,241,.07)}
+.at-d{width:9px;height:9px;border-radius:50%;flex:none}
+@media (max-width:1100px){.kx-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.kx-s .up{color:#0a8a5a}.kx-s .dn{color:#c0392b}.kx-s .wa{color:#b45309}
+
+/* v131: console polish: KPI sparklines, team bars, trend columns */
+.kx{position:relative}.kx .spark{position:absolute;right:4px;top:26px;opacity:.9}
+.tm-bar{margin-top:4px;height:6px}.tm-bar.z{background:transparent}
+.tc{margin-top:4px}.tc-cols{display:flex;align-items:flex-end;gap:8px;height:150px;border-bottom:1px solid rgba(128,128,128,.25)}.tc-cols.dense{gap:3px}
+.tc-c{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;font-size:.72rem;font-weight:700}
+.tc-b{position:relative;width:100%;height:calc(100% - 16px);display:flex;align-items:flex-end}.tc-b u{position:absolute;left:0;right:0;bottom:0;border-radius:6px 6px 0 0;background:#c7cbff;text-decoration:none}.tc-b u.p{z-index:1;background:transparent;border:1.5px dashed #b6b9d4;border-bottom:0;left:2px;right:2px}
+.tc-c.now .tc-b u:not(.p){background:#4f46e5}.tc-c:not(.now) .tc-b u:not(.p){background:#9aa3f5}.tc-l{display:flex;gap:8px;font-size:.7rem;color:var(--bs-secondary-color,#7a7a99);margin-top:4px}.tc-cols.dense+.tc-l{gap:3px}.tc-l div{flex:1;text-align:center;min-width:0;white-space:nowrap}

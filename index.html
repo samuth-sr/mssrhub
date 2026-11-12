@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=134" rel="stylesheet">
+  <link href="style.css?v=131" rel="stylesheet">
 </head>
 <body>
 
@@ -84,7 +84,6 @@
       <div id="subWrap" class="hidden"><div class="seg seg-sub" aria-label="Sub category" id="subChips" role="tablist"></div></div>
       <div id="merchantList"></div>
 
-      <div id="locHome"></div>
       <div class="card-x" id="locCard">
         <div class="d-flex gap-3 align-items-center" id="locRow">
           <img id="locMap" class="hidden" alt="Map" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex:none">
@@ -113,6 +112,12 @@
     <!-- RECORDS -->
     <section id="pane-records" class="hidden">
       <button type="button" class="btn btn-primary w-100 mb-3 hidden" id="reviewBtn"><i class="bi bi-patch-check me-1"></i>Review queue <span class="rv-badge hidden" id="rvBadge">0</span></button>
+      <div class="card-x hidden" id="kpiCard"><div class="kx-grid" id="kxGrid"></div></div>
+      <div class="card-x hidden" id="attnCard">
+        <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>Needs attention</div><span class="small text-muted" id="attnN"></span></div>
+        <div id="attnList"></div>
+        <div class="small text-muted mt-2">Tap a line to open it.</div>
+      </div>
       <div class="card-x hidden" id="teamCard">
         <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold"><i class="bi bi-people me-1"></i>Team today</div><span class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="qcLiveBtn"><i class="bi bi-qr-code-scan me-1"></i>Live QR check</button><button type="button" class="btn btn-soft btn-sm" id="rpBtn"><i class="bi bi-files me-1"></i>Repeats</button><span class="small text-muted" id="teamDate"></span></span></div>
         <div class="chips mb-2 hidden" id="teamBranch"></div>
@@ -137,7 +142,7 @@
         <div class="small text-muted mb-2" id="trendSum"></div>
         <div id="trendBars"></div>
         <div class="form-label mt-3" id="trStaffTitle">Staff</div><div id="trStaff"></div>
-        <div class="small text-muted mt-1"><span class="tr-key tr-now"></span> this week <span class="tr-key tr-prev ms-2"></span> same day last week</div>
+        <div class="small text-muted mt-1"><span class="tr-key tr-now"></span> this period <span class="tr-key tr-prev ms-2"></span> dashed: the same day in the period before</div>
       </div>
       <div class="card-x" id="filterCard">
         <div class="mb-3 hidden" id="branchWrap"><div class="form-label">Branch <span class="text-muted fw-normal small">(tap to leave one out, tap again to bring it back)</span></div><div class="chips" id="slBranch"></div></div>
@@ -280,7 +285,7 @@
         <div class="mb-2 hidden" id="siBranchWrap"><label class="form-label">Branch</label><input id="siBranch" class="form-control" maxlength="10" placeholder="Branch code, e.g. PP" style="text-transform:uppercase"></div>
         <div class="mb-2"><label class="form-label">Company / brand <span class="text-muted fw-normal small">(who makes the product, e.g. PAX, Newland, Telcocom)</span></label><input id="siCompany" class="form-control" maxlength="40" autocomplete="off" placeholder="Company name"></div>
         <div class="mb-2"><label class="form-label">Supplier / PO / batch <span class="text-muted fw-normal small">(optional)</span></label><input id="siBatch" class="form-control" maxlength="40"></div>
-        <div class="mb-2" id="siSnWrap"><div class="d-flex justify-content-between align-items-end mb-1"><label class="form-label mb-0">Serial numbers <span class="text-muted fw-normal small">(one per line, or paste from Excel: S/N, Company)</span></label><button type="button" class="btn btn-soft btn-sm flex-none" id="siScan"><i class="bi bi-upc-scan me-1"></i>Scan S/N</button></div><div class="hidden mb-2" id="siSimWrap"><div class="input-group mb-2"><input id="siSimSn" class="form-control" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="SIM S/N (scan or type)" style="text-transform:uppercase"><button type="button" class="btn btn-soft" id="siSimScan" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div><div class="input-group"><input id="siSimNo" class="form-control" maxlength="20" inputmode="tel" autocomplete="off" placeholder="SIM number, e.g. 012345678"><button type="button" class="btn btn-soft" id="siSimAdd">Add to list</button></div><div class="small text-muted mt-1">Each line below is <b>S/N, SIM number, Company</b> (the company is optional and replaces the Company box for that line). You can paste three columns straight from Excel. Every S/N and every SIM number must be new.</div></div><textarea id="siSns" class="form-control" rows="4" style="text-transform:uppercase"></textarea></div>
+        <div class="mb-2" id="siSnWrap"><div class="d-flex justify-content-between align-items-end mb-1"><label class="form-label mb-0">Serial numbers <span class="text-muted fw-normal small" id="siSnHint">(one per line, or paste from Excel: S/N, Company)</span></label><button type="button" class="btn btn-soft btn-sm flex-none" id="siScan"><i class="bi bi-upc-scan me-1"></i>Scan S/N</button></div><div class="hidden mb-2" id="siSimWrap"><div class="input-group mb-2"><input id="siSimSn" class="form-control" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="SIM S/N (scan or type)" style="text-transform:uppercase"><button type="button" class="btn btn-soft" id="siSimScan" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div><div class="input-group"><input id="siSimNo" class="form-control" maxlength="20" inputmode="tel" autocomplete="off" placeholder="SIM number, e.g. 012345678"><button type="button" class="btn btn-soft" id="siSimAdd">Add to list</button></div><div class="small text-muted mt-1">Each line below is <b>S/N, SIM number, Company</b> (company is optional and replaces the Company box for that line). You can paste lines from Excel with 3 columns. Every S/N and every SIM number must be new.</div></div><textarea id="siSns" class="form-control" rows="4" style="text-transform:uppercase"></textarea></div>
         <div class="mb-2 hidden" id="siQtyWrap"><label class="form-label">Quantity</label><input id="siQty" type="number" min="1" class="form-control"></div>
         <button class="btn btn-primary" id="siSave" type="button">Save stock in</button>
         <div class="small mt-2" id="siMsg"></div>
@@ -337,8 +342,8 @@
           <div class="fw-bold"><i class="bi bi-cloud-arrow-up me-1"></i>Backup</div>
           <span class="pill" id="bkStatus">…</span>
         </div>
-        <div class="small text-muted mb-2">A copy of the whole spreadsheet (every sheet) and a settings file go to the Drive folder <b>SR HUB Backups</b>, <b>every 5th of the month</b> at about 02:00. The newest 12 are kept. A line is sent to the admin Telegram chat each time. The bot token is never put in the backup.</div>
-        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="bkOn"><label class="form-check-label small" for="bkOn">Back up automatically on the 5th of every month</label></div>
+        <div class="small text-muted mb-2">A copy of the whole spreadsheet (every sheet) and a settings file go to the Drive folder <b>SR HUB Backups</b>, <b>every day</b> at about 2:00 AM (script time zone). The newest 30 are kept. A line is sent to the admin Telegram chat each time. The bot token is never put in the backup.</div>
+        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="bkOn"><label class="form-check-label small" for="bkOn">Back up automatically every day at 2:00 AM</label></div>
         <div class="small mb-2" id="bkLast"></div>
         <div class="d-flex flex-wrap gap-2 mb-2"><button type="button" class="btn btn-brand btn-sm" id="bkRun"><i class="bi bi-cloud-arrow-up me-1"></i>Back up now</button><a class="btn btn-soft btn-sm hidden" id="bkFolder" target="_blank" rel="noopener"><i class="bi bi-folder2-open me-1"></i>Open the folder</a></div>
         <div class="small text-danger mb-2 hidden" id="bkErr"></div>
@@ -863,6 +868,6 @@
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 <script src="config.js" defer></script>
-<script src="app.js?v=134" defer></script>
+<script src="app.js?v=131" defer></script>
 </body>
 </html>
