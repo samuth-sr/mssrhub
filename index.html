@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=131" rel="stylesheet">
+  <link href="style.css?v=135" rel="stylesheet">
 </head>
 <body>
 
@@ -145,6 +145,7 @@
         <div class="small text-muted mt-1"><span class="tr-key tr-now"></span> this period <span class="tr-key tr-prev ms-2"></span> dashed: the same day in the period before</div>
       </div>
       <div class="card-x" id="filterCard">
+        <div class="fc-h"><b><i class="bi bi-funnel me-1"></i>Filters</b><span class="fc-s" id="fcSum"></span><button type="button" class="btn btn-soft btn-sm" id="fcTog"></button></div>
         <div class="mb-3 hidden" id="branchWrap"><div class="form-label">Branch <span class="text-muted fw-normal small">(tap to leave one out, tap again to bring it back)</span></div><div class="chips" id="slBranch"></div></div>
         <div class="mb-3" id="userFilterWrap"><div class="form-label">Staff</div><div class="chips" id="slUser"></div><input type="hidden" id="fUser" value=""></div>
         <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="slPeriod"></div><input type="hidden" id="fPeriod" value="today"></div>
@@ -184,6 +185,7 @@
             <div><div class="form-label mb-1">Columns</div><div class="chips" id="slZero"></div></div>
           </div>
         </div>
+        <div class="rk hidden" id="chartRank"></div>
         <div style="overflow-x:auto"><div id="chartInner" style="height:320px"><canvas id="chart" role="img" aria-label="Records grouped by activity, sub category or category"></canvas></div></div>
         <div class="small mt-2 fw-semibold" id="chartWho"></div>
         <div class="small text-muted mt-1 hidden" id="chartNote"></div>
@@ -241,12 +243,12 @@
         <div class="small text-muted mb-2">Staff brought these back. Choose one: <b>In stock</b>, <b>Faulty</b> (with a reason) or <b>Send to HO</b>.</div>
         <div id="stPend"></div>
       </div>
-      <div class="card-x">
+      <div id="stFilterCard" class="card-x">
         <div class="mb-3"><div class="form-label">Period</div><div class="chips" id="stPeriod"></div></div>
         <div class="mb-3 hidden" id="stBranchWrap"><div class="form-label">Branch</div><div class="chips" id="stBranch"></div><div class="small text-muted mt-2 hidden" id="stViewNote"></div></div>
         <div class="mb-0"><div class="form-label">Item</div><div class="chips" id="stItem"></div></div>
       </div>
-      <div class="card-x">
+      <div id="stDashCard" class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-speedometer2 me-1"></i>Stock dashboard</div>
         <div class="d-flex flex-wrap gap-2 mb-3" id="stKpi"></div>
         <div class="form-label">Remaining now</div><div id="stRemain" class="mb-3"></div>
@@ -264,8 +266,8 @@
         <input id="snFind" class="form-control mb-2" placeholder="Search S/N, SIM number, merchant, MID, TID…">
         <div id="snRows"></div>
       </div>
-      <div class="card-x"><div class="fw-bold mb-2"><i class="bi bi-clock-history me-1"></i>Recent movements</div><div id="stRecent" class="small"></div></div>
-      <div class="card-x">
+      <div id="stRecentCard" class="card-x"><div class="fw-bold mb-2"><i class="bi bi-clock-history me-1"></i>Recent movements</div><div id="stRecent" class="small"></div></div>
+      <div id="stResvCard" class="card-x">
         <div class="fw-bold mb-1"><i class="bi bi-bookmark-check me-1"></i>Reserve items without S/N</div>
         <div class="small text-muted mb-2">Hold <b>one</b> unit (charger, standee ...) for a TID. When an install or deployment is submitted with that TID, the unit is cut from stock by itself. One unit per item per TID, no expiry: Release it when it is not needed.</div>
         <div class="row g-2">
@@ -278,7 +280,7 @@
         <button class="btn btn-primary mt-2" id="rqSave" type="button">Reserve 1 unit</button><div class="small mt-2" id="rqMsg"></div>
         <div class="form-label mt-3">Reserved now</div><div id="rqList" class="small"></div>
       </div>
-      <div class="card-x">
+      <div id="stInCard" class="card-x">
         <div class="fw-bold mb-2"><i class="bi bi-box-arrow-in-down me-1"></i>Stock in</div>
         <div class="mb-2"><label class="form-label">Item <span class="text-muted fw-normal small">(type a name, or pick from the list)</span></label><input id="siItem" class="form-control" maxlength="40" list="siItemList" autocomplete="off" placeholder="e.g. Pax A920, SIM, Battery"><datalist id="siItemList"></datalist>
           <div class="chips mt-2 hidden" id="siKindWrap"><span class="small text-muted me-1">New item. It has:</span><button type="button" class="chip" data-k="serial">Serial numbers</button><button type="button" class="chip" data-k="qty">Quantity</button></div></div>
@@ -302,6 +304,19 @@
       </div>
     </section>
 
+    <section id="pane-tasks" class="hidden">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <div><div class="fw-bold" style="font-size:1.15rem" id="tkTitle">My tasks</div><div class="small text-muted" id="tkSub"></div></div>
+        <div class="d-flex gap-2 hidden" id="tkBtns"><button type="button" class="btn btn-soft btn-sm" id="tkPasteBtn"><i class="bi bi-clipboard-data me-1"></i>Paste from Excel</button><button type="button" class="btn btn-brand btn-sm" id="tkNewBtn"><i class="bi bi-plus-lg me-1"></i>New task</button></div>
+      </div>
+      <div class="tk-prog mb-2" id="tkProg"><u></u></div>
+      <div class="tk-kpi hidden" id="tkKpi"></div>
+      <div class="card-x" id="tkFilters">
+        <div class="chips" id="tkStatus"></div>
+        <div class="tk-wide hidden" id="tkWide"><select id="tkStaffF" class="form-select form-select-sm"></select><select id="tkPurF" class="form-select form-select-sm"></select><input id="tkQ" class="form-control form-control-sm" placeholder="Search merchant, MID, TID, contact…"></div>
+      </div>
+      <div class="card-x p-0" id="tkCard"><div id="tkList"></div></div>
+    </section>
     <section id="pane-users" class="hidden">
       <div class="card-x" id="catCard">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -322,6 +337,13 @@
         <div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-soft btn-sm" id="ruleSave">Save rules</button><span class="small" id="ruleMsg"></span></div>
       </div>
 
+      <div class="card-x" id="auditCard">
+        <div class="d-flex justify-content-between align-items-center mb-2"><div class="fw-bold"><i class="bi bi-journal-text me-1"></i>Audit log</div><span class="d-flex align-items-center gap-2"><span class="small text-muted" id="auN"></span><button type="button" class="btn btn-soft btn-sm" id="auReload"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button></span></div>
+        <div class="small text-muted mb-2">Every edit and every review decision on a record: who, when, what changed. The same lines are in the <b>Audit Log</b> tab of the Google Sheet.</div>
+        <div class="chips mb-2" id="auEv"></div>
+        <input id="auQ" class="form-control form-control-sm mb-2" placeholder="Search record ID, staff, merchant, MID, change…" autocomplete="off">
+        <div class="au-wrap"><table class="au-t"><thead><tr><th>Time</th><th>Record</th><th>Event</th><th>By</th><th>Merchant / MID</th><th>What changed / note</th></tr></thead><tbody id="auBody"></tbody></table></div>
+      </div>
       <div class="card-x" id="archCard">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="fw-bold"><i class="bi bi-archive me-1"></i>Archive</div>
@@ -468,9 +490,45 @@
     <div id="deskNav" class="hidden"></div>
     <button data-tab="new" class="active"><i class="bi bi-plus-circle-fill"></i>New</button>
     <button data-tab="records"><i class="bi bi-table"></i>Records</button>
+    <button data-tab="tasks" id="navTasks"><i class="bi bi-check2-square"></i>Tasks<em class="tk-nb hidden" id="tkNavBadge">0</em></button>
     <button data-tab="stock" id="navStock" class="hidden"><i class="bi bi-box-seam-fill"></i>Stock</button>
     <button data-tab="users" id="navUsers" class="hidden"><i class="bi bi-people-fill"></i>Staff</button>
   </nav>
+</div>
+
+
+<!-- Tasks: new / paste -->
+<div class="modal fade" id="tkModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content" style="border-radius:20px">
+    <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">Assign tasks</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="chips mb-3" id="tkMode"><button type="button" class="chip active" data-m="one">One task</button><button type="button" class="chip" data-m="paste">Paste from Excel</button></div>
+      <div class="row g-2 mb-2">
+        <div class="col-7"><label class="form-label">Staff <span class="text-muted fw-normal small" id="tkStaffHint"></span></label><select id="tkStaff" class="form-select"></select></div>
+        <div class="col-5"><label class="form-label">Deadline <span class="text-muted fw-normal small">(5 pm)</span></label><input type="date" id="tkDue" class="form-control"></div>
+      </div>
+      <div id="tkOne">
+        <div class="mb-2"><label class="form-label">Merchant name</label><input id="tkMerchant" class="form-control" maxlength="80" autocomplete="off"></div>
+        <div class="row g-2 mb-2"><div class="col-7"><label class="form-label">MID</label><input id="tkMid" class="form-control" maxlength="20" inputmode="numeric" autocomplete="off"></div><div class="col-5"><label class="form-label">TID</label><input id="tkTid" class="form-control" maxlength="12" inputmode="numeric" autocomplete="off"></div></div>
+        <div class="mb-2"><label class="form-label">Project purpose</label><input id="tkPurpose" class="form-control" maxlength="80" autocomplete="off" placeholder="e.g. Replace terminal"></div>
+        <div class="mb-2"><label class="form-label">Merchant contact number</label><input id="tkContact" class="form-control" maxlength="20" inputmode="tel" autocomplete="off" placeholder="e.g. 012 345 678"></div>
+      </div>
+      <div id="tkMany" class="hidden">
+        <div class="small text-muted mb-1">One task per line, copied from Excel. Columns in this order:<br><b>Merchant, MID, TID, Purpose, Contact number, Deadline, Staff</b><br>Deadline and Staff can be empty (the boxes above are used). Deadline can be a date like 20/11/2026 or a number of days from today.</div>
+        <textarea id="tkPaste" class="form-control" rows="7" style="font-size:.85rem;white-space:pre" placeholder="Sok Mini Mart&#9;123456789012345&#9;12345678&#9;Replace terminal&#9;012345678&#9;20/11/2026&#9;SOK Dara"></textarea>
+        <div class="small text-muted mt-1" id="tkPasteN"></div>
+      </div>
+      <div class="small mt-2" id="tkMsg"></div>
+      <button type="button" class="btn btn-brand w-100 mt-2" id="tkSave">Create</button>
+    </div>
+  </div></div>
+</div>
+<!-- Tasks: mark done -->
+<div class="modal fade" id="tkDoneModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:20px">
+    <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">Mark ✅ done</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="small mb-2" id="tkDoneWho"></div><label class="form-label">Remark <span class="text-muted fw-normal small">(what you did, who you met, the result)</span></label><textarea id="tkRemark" class="form-control" rows="3" maxlength="300"></textarea><div class="small text-danger mt-1" id="tkDoneMsg"></div><button type="button" class="btn btn-brand w-100 mt-2" id="tkDoneSave">Mark ✅ done</button></div>
+  </div></div>
 </div>
 
 <!-- Scan modal -->
@@ -868,6 +926,6 @@
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 <script src="config.js" defer></script>
-<script src="app.js?v=131" defer></script>
+<script src="app.js?v=135" defer></script>
 </body>
 </html>

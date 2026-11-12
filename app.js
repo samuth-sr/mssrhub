@@ -497,7 +497,7 @@ async function showApp() {
   $('#whoName').textContent = S.user.username;
   $('#whoRole').textContent = ' · ' + S.user.role;
   show($('#navUsers'), admin); show($('#navStock'), admin || S.user.role === 'Supervisor');
-  show($('#userFilterWrap'), isWide()); show($('#branchWrap'), admin); show($('#reviewBtn'), admin);
+  paintStaffVis(); show($('#branchWrap'), admin); setTimeout(tkBadge, 600); show($('#reviewBtn'), admin);
   deskSync();
   show($('#chartCard'), false);
   show($('#catCard'), admin); show($('#rulesCard'), admin);
@@ -551,12 +551,13 @@ $('#pinForm').addEventListener('submit', async e => {
 
 /* ============================ Tabs ============================ */
 function switchTab(name) {
-  ['new', 'records', 'map', 'stock', 'users'].forEach(t => show($('#pane-' + t), t === name));
+  ['new', 'records', 'map', 'stock', 'tasks', 'users'].forEach(t => show($('#pane-' + t), t === name));
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (name === 'records') { loadRecords(); loadTeam(); }
   if (name === 'map') mapTabOpen();
   if (name === 'stock') loadStock();
+  if (name === 'tasks') loadTasks();
   if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); loadCols(); loadArch(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
   deskPaint(name);
 }
@@ -1820,8 +1821,12 @@ function fillActivityFilter() {
   slicer('slActivity', 'fActivity', [{ v: '', l: 'All' }].concat(Array.from(set).map(a => ({ v: a, l: a }))));
 }
 S.branches = []; S.branchOff = new Set();
+/** The Staff filter shows only when ONE branch is selected (admin). A supervisor already sees one branch. */
+function staffVis() { if (!isWide()) return false; if (!(S.user && S.user.role === 'Admin')) return true; return S.branches.filter(b => !S.branchOff.has(b)).length === 1; }
+function paintStaffVis() { show($('#userFilterWrap'), staffVis()); }
 function paintBranches() {
   if (!(S.user && S.user.role === 'Admin')) return;
+  paintStaffVis();
   $('#slBranch').innerHTML = S.branches.map(b => '<button type="button" class="chip' + (S.branchOff.has(b) ? '' : ' active') + '" data-b="' + esc(b) + '" aria-pressed="' + (!S.branchOff.has(b)) + '">' + esc(b) + '</button>').join('');
 }
 $('#slBranch').addEventListener('click', e => {
@@ -1830,7 +1835,7 @@ $('#slBranch').addEventListener('click', e => {
   if (S.branchOff.has(c)) S.branchOff.delete(c);
   else if (S.branches.filter(x => !S.branchOff.has(x)).length > 1) S.branchOff.add(c);     // keep at least one branch included
   else { toast('Keep at least one branch included.', 'warning'); return; }
-  paintBranches(); loadRecords();
+  paintBranches(); if (!staffVis() && $('#fUser').value) { $('#fUser').value = ''; slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }]); } loadRecords();
 });
 async function loadRecords() {
   const r = range(), admin = S.user.role === 'Admin', wide = isWide();
@@ -2119,6 +2124,17 @@ function buildChart(canvas, m, o) {
       c.font = '600 14px -apple-system, "Segoe UI", Roboto, sans-serif'; c.fillText(o.footer, 8, chart.height - 6); c.restore(); } }]
   });
 }
+/** Desktop dashboard: ranked horizontal bars (name, bar, number, share). By staff: one stacked bar per person. */
+function rankHtml(m) {
+  const dark = isDark(), pct = (v, t) => t ? Math.round(v / t * 100) + '%' : '–';
+  if (!(m.labels || []).length) return '<div class="small text-muted py-3">No records in this period.</div>';
+  if (m.view === 'staff' && m.datasets.length) {
+    const rows = m.labels.map((s, i) => ({ s, segs: m.datasets.map(d => ({ l: d.label, c: d.color, v: d.data[i] })).filter(x => x.v) })).map(r => Object.assign(r, { t: r.segs.reduce((n, x) => n + x.v, 0) })).sort((x, y) => y.t - x.t), mx = Math.max(1, rows[0].t);
+    return '<div class="rk-lg">' + m.datasets.map(d => '<span><i style="background:' + d.color + '"></i>' + esc(d.label) + '</span>').join('') + '</div><div class="rk-list">' + rows.map(r => '<div class="rk-r"><span class="rk-n" title="' + esc(r.s) + '">' + esc(r.s) + '</span><span class="rk-bar" style="width:' + Math.max(3, r.t / mx * 100) + '%">' + r.segs.map(x => '<u title="' + esc(x.l) + ': ' + x.v + '" style="flex:' + x.v + ';background:' + x.c + '"></u>').join('') + '</span><em>' + r.t + '</em></div>').join('') + '</div>';
+  }
+  const d = m.datasets[0], rows = m.labels.map((l, i) => ({ l, v: d.data[i], c: catColor(d.colors[i], dark) })).sort((x, y) => y.v - x.v), mx = Math.max(1, rows[0].v), tot = rows.reduce((n, r) => n + r.v, 0);
+  return '<div class="rk-list">' + rows.map((r, i) => '<div class="rk-r"><span class="rk-n" title="' + esc(r.l) + '">' + esc(r.l) + '</span><span class="rk-bar" style="width:' + Math.max(r.v ? 2 : 0, r.v / mx * 100) + '%"><u style="flex:1;background:' + r.c + (i ? ';opacity:.78' : '') + '"></u></span><em>' + r.v + ' <small>' + pct(r.v, tot) + '</small></em></div>').join('') + '</div>';
+}
 function paintDashControls() {
   const admin = isWide();
   show($('#dashCtl'), true); show($('#viewWrap'), !!admin);
@@ -2151,6 +2167,9 @@ function drawChart() {
   const note = $('#chartNote'); show(note, m.skipped > 0);
   if (m.skipped) note.textContent = m.skipped + ' record' + (m.skipped > 1 ? 's' : '') + ' without a sub category are not in this chart.';
   if (S.chart) { S.chart.destroy(); S.chart = null; }
+  const rk = $('#chartRank'), wrap = $('#chartInner').parentNode;
+  show(wrap, !admin); show(rk, !!admin);      // desktop: ranked horizontal bars; phone: the column chart
+  if (admin) { rk.innerHTML = rankHtml(m); return; }
   if (!(S.agg || []).length) return;
   $('#chartInner').style.minWidth = Math.max(0, m.labels.length * (m.datasets.length > 1 ? m.datasets.length * 30 : 44) + 80) + 'px';   // scrolls sideways with many items
   S.chart = buildChart($('#chart'), m, { dark: isDark() });
@@ -3403,22 +3422,22 @@ $('#lblReset').addEventListener('click', async () => {
 /* ============================ Desktop mode (admin + supervisor, wide screens) ============================ */
 const DESK_MIN = 1100;
 S.deskKey = 'records';
-const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', map: 'Merchant map', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', cols: 'Sheet columns', arch: 'Archive & backup', rules: 'Edit rules & record ID' };
+const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', tasks: 'Tasks', map: 'Merchant map', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', cols: 'Sheet columns', arch: 'Archive & backup', audit: 'Audit log', rules: 'Edit rules & record ID' };
 const deskItems = () => {
   const admin = S.user && S.user.role === 'Admin';
-  return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], ['map', 'bi-map', 'Merchant map'], admin && ['review', 'bi-patch-check', 'Review queue'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
+  return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], ['map', 'bi-map', 'Merchant map'], admin && ['review', 'bi-patch-check', 'Review queue'], ['tasks', 'bi-check2-square', 'Tasks'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
     ['TOOLS'], ['lookup', 'bi-search', 'Merchant history'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
-    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['cols', 'bi-layout-three-columns', 'Sheet columns'], admin && ['arch', 'bi-archive', 'Archive & backup'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
+    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['cols', 'bi-layout-three-columns', 'Sheet columns'], admin && ['arch', 'bi-archive', 'Archive & backup'], admin && ['audit', 'bi-journal-text', 'Audit log'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
 };
 let deskBuilt = false;
 function deskBuild() {
   if (!S.user || deskBuilt) return; deskBuilt = true;
-  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', qkCard: 'rules', colsCard: 'cols', archCard: 'arch', bkCard: 'arch', tplCard: 'tg', lblCard: 'tg', ccCard: 'tg', tgCard: 'tg' };
+  const sec = { catCard: 'cats', rulesCard: 'rules', idCard: 'rules', qkCard: 'rules', colsCard: 'cols', archCard: 'arch', bkCard: 'arch', auditCard: 'audit', tplCard: 'tg', lblCard: 'tg', ccCard: 'tg', tgCard: 'tg' };
   Object.keys(sec).forEach(id => { const el = $('#' + id); if (el) el.dataset.sec = sec[id]; });
   $$('#pane-users > .card-x').forEach(el => { if (!el.dataset.sec) el.dataset.sec = 'staff'; });
   $$('#pane-stock > .card-x').forEach(el => { if (/^\s*(Serial numbers|Returns waiting|Recent movements|Stock items)/i.test(el.textContent)) el.classList.add('span-all'); });
   $('#deskNav').innerHTML = '<div class="dn-brand"><b>MS SR HUB WEB APP</b><span>' + (S.user.role === 'Admin' ? 'Admin console' : 'Supervisor console') + ' · desktop</span></div>' +
-    deskItems().map(it => it.length === 1 ? '<div class="dn-grp">' + it[0] + '</div>' : '<button type="button" class="dn-it" data-k="' + it[0] + '"><i class="bi ' + it[1] + '"></i><span>' + it[2] + '</span>' + (it[0] === 'review' ? '<em class="dn-badge hidden" id="dnBadge">0</em>' : '') + '</button>').join('') +
+    deskItems().map(it => it.length === 1 ? '<div class="dn-grp">' + it[0] + '</div>' : '<button type="button" class="dn-it" data-k="' + it[0] + '"><i class="bi ' + it[1] + '"></i><span>' + it[2] + '</span>' + (it[0] === 'review' ? '<em class="dn-badge hidden" id="dnBadge">0</em>' : '') + (it[0] === 'tasks' ? '<em class="dn-badge hidden" id="dnTkBadge">0</em>' : '') + '</button>').join('') +
     '<div class="dn-foot"><div class="small">Signed in as <b>' + esc(S.user.username) + '</b> · ' + esc(S.user.role) + '</div><div class="d-flex gap-2 mt-2"><button type="button" class="dn-mini" data-k="pin" title="Change my PIN"><i class="bi bi-key"></i></button><button type="button" class="dn-mini" data-k="theme" title="Light / dark mode"><i class="bi bi-moon-stars"></i></button><button type="button" class="dn-mini" data-k="out" title="Sign out"><i class="bi bi-box-arrow-right"></i></button></div></div>';
   $('#deskNav').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) deskGo(b.dataset.k); });
   paintPending();
@@ -3437,15 +3456,17 @@ function deskGo(k) {
   else if (k === 'map') switchTab('map');
   else if (k === 'review') { switchTab('records'); S.rvStatus = 'Pending'; reviewModal.show(); loadReview(); }
   else if (k === 'stock') switchTab('stock');
+  else if (k === 'tasks') switchTab('tasks');
   else { switchTab('users'); if (k === 'cats') setTimeout(() => $('#catEditBtn').click(), 80); }
 }
 /** Marks the sidebar item, the page title and (in Setup) which card is shown. */
 function deskPaint(name) {
   document.body.dataset.pane = name;
   try { clEnsure(); if ($('#clLock')) clLockPaint(); } catch (e) {}
-  if (name === 'new') S.deskKey = 'new'; else if (name === 'map') S.deskKey = 'map'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules', 'cols', 'arch'].includes(S.deskKey)) S.deskKey = 'staff';
-  $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules', 'cols', 'arch'].includes(S.deskKey) ? S.deskKey : 'staff';
+  if (name === 'new') S.deskKey = 'new'; else if (name === 'map') S.deskKey = 'map'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'tasks') S.deskKey = 'tasks'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules', 'cols', 'arch', 'audit'].includes(S.deskKey)) S.deskKey = 'staff';
+  $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules', 'cols', 'arch', 'audit'].includes(S.deskKey) ? S.deskKey : 'staff';
   document.body.dataset.key = S.deskKey;
+  if (S.deskKey === 'audit') loadAudit();
   $('#deskTitle').textContent = DESK_TITLES[S.deskKey] || '';
   $$('#deskNav .dn-it').forEach(b => b.classList.toggle('active', b.dataset.k === S.deskKey));
 }
@@ -3530,7 +3551,7 @@ $('#colsSave').onclick = async () => {
 };
 
 /* ============================ Admin desktop: move the cards (tidy columns; unlock to drag) ============================ */
-const CL_PANES = [['records', '#pane-records'], ['stock', '#pane-stock'], ['users', '#pane-users']];
+const CL_PANES = [];      // No tab has drag-and-drop card moving any more: Records and Stock use a fixed CSS grid, the Setup pages a fixed list
 const CL_TOP = ['filterCard', 'kpiCard'], CL_BOT = ['recCard'];      // standard: the filters across the top, the records list across the bottom, the other cards in columns
 const clKey = () => 'it_cardlay3_' + (S.user ? S.user.username : '');
 const clGet = () => { try { return JSON.parse(localStorage.getItem(clKey()) || '{}') || {}; } catch (e) { return {}; } };
@@ -3608,6 +3629,7 @@ function clLockPaint() {
 }
 /** Users page: the old way, a card swaps places with the card it is dropped on (same section only). */
 function clApply() {
+  return;      // saved card orders are no longer used
   const lay = clGet(), L = lay.users, pane = $('#pane-users'); if (!pane || !L || !L.order) return;
   L.order.forEach(id => { const c = $('[data-cid="' + id + '"]', pane); if (c && c.parentNode === pane) pane.appendChild(c); });
 }
@@ -3682,6 +3704,133 @@ function deskSync() {
   document.body.classList.toggle('desk', on);
   if (on) clInit();
   show($('#deskNav'), on);
-  if (on) { const pane = ['new', 'records', 'map', 'stock', 'users'].find(t => !$('#pane-' + t).classList.contains('hidden')) || 'records'; deskPaint(pane); }
+  if (on) { const pane = ['new', 'records', 'map', 'stock', 'tasks', 'users'].find(t => !$('#pane-' + t).classList.contains('hidden')) || 'records'; deskPaint(pane); }
 }
 window.addEventListener('resize', deskSync);
+
+/* ============================ Audit log (admin desktop) ============================ */
+S.auEv = '';
+const AU_EV = [['', 'All'], ['Edited', 'Edited'], ['Resubmitted', 'Resubmitted'], ['Approved', 'Approved'], ['Returned', 'Returned'], ['Rejected', 'Rejected'], ['Closed', 'Closed']];
+const AU_CLS = { Edited: 'p', Resubmitted: 'p', Approved: 'a', Returned: 'w', Rejected: 'r', Closed: 'n' };
+async function loadAudit() {
+  if (!(S.user && S.user.role === 'Admin') || !$('#auditCard')) return;
+  $('#auEv').innerHTML = AU_EV.map(e => '<button type="button" class="chip' + (S.auEv === e[0] ? ' active' : '') + '" data-v="' + e[0] + '">' + e[1] + '</button>').join('');
+  try {
+    const d = await api('getAuditLog', S.token, { event: S.auEv, q: $('#auQ').value.trim() });
+    $('#auN').textContent = d.total ? (d.rows.length < d.total ? 'newest ' + d.rows.length + ' of ' + d.total : d.total + ' lines') : '';
+    $('#auBody').innerHTML = d.rows.length ? d.rows.map(r => '<tr><td class="nw">' + esc(r.time.slice(0, 16)) + '</td><td class="nw"><b>' + esc(r.id) + '</b>' + (r.edit && r.edit !== '0' ? '<div class="small text-muted">edit ' + esc(r.edit) + '</div>' : '') + '</td><td><span class="au-b ' + (AU_CLS[(r.event.match(/^\w+/) || [''])[0]] || 'n') + '">' + esc(r.event) + '</span></td><td class="nw">' + esc(r.by) + '<div class="small text-muted">' + esc(r.role) + '</div></td><td>' + esc(r.merchant || '—') + (r.mid ? '<div class="small text-muted">' + esc(r.mid) + '</div>' : '') + '<div class="small text-muted">' + esc([r.staff, r.branch].filter(Boolean).join(' · ')) + '</div></td><td class="au-ch">' + (r.changes ? esc(r.changes) : '') + (r.note ? '<div class="small text-muted">' + esc(r.note) + '</div>' : '') + '</td></tr>').join('') : '<tr><td colspan="6" class="text-muted small py-3">No lines yet. They appear after the first edit or review decision.</td></tr>';
+  } catch (e) { $('#auBody').innerHTML = '<tr><td colspan="6" class="text-danger small py-3">' + esc(e.message) + '</td></tr>'; }
+}
+$('#auEv').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.auEv = b.dataset.v; loadAudit(); });
+$('#auReload').addEventListener('click', loadAudit);
+let auT = 0; $('#auQ').addEventListener('input', () => { clearTimeout(auT); auT = setTimeout(loadAudit, 350); });
+
+/* ---- Filters card (desktop): compact, and it can be minimized to one line ---- */
+const FC_KEY = 'it_filtermin';
+function fcSummary() {
+  const per = (PERIODS.find(p => p.v === $('#fPeriod').value) || {}).l || '', parts = [per];
+  if (S.user && S.user.role === 'Admin' && S.branchOff.size) parts.push('Branch ' + S.branches.filter(b => !S.branchOff.has(b)).join(', '));
+  [['fUser', ''], ['fType', ''], ['fSub', ''], ['fActivity', ''], ['fStatus', ''], ['fQrType', '']].forEach(x => { const v = $('#' + x[0]).value; if (v && !(x[0] === 'fUser' && !staffVis())) parts.push(v); });
+  if ($('#fSearch').value.trim()) parts.push('“' + $('#fSearch').value.trim() + '”');
+  $('#fcSum').textContent = parts.filter(Boolean).join(' · ');
+}
+function fcPaint() {
+  let m = false; try { m = localStorage.getItem(FC_KEY) === '1'; } catch (e) {}
+  $('#filterCard').classList.toggle('fc-min', m); $('#fcTog').innerHTML = m ? '<i class="bi bi-chevron-down me-1"></i>Show filters' : '<i class="bi bi-chevron-up me-1"></i>Minimize'; fcSummary();
+}
+$('#fcTog').addEventListener('click', () => { let m = false; try { m = localStorage.getItem(FC_KEY) === '1'; localStorage.setItem(FC_KEY, m ? '0' : '1'); } catch (e) {} fcPaint(); });
+$('#filterCard').addEventListener('click', () => setTimeout(fcSummary, 60)); $('#fSearch').addEventListener('input', fcSummary);
+fcPaint();
+
+/* ============================ Tasks (assigned by admin / supervisor, completed by staff) ============================ */
+S.tk = { status: 'Open', off: 0, d: null, id: '', staff: null, mode: 'one' };
+/** Time left to the deadline (5 pm of its day): "2d 03:15", or only "03:15" when it is less than one day. Past the deadline: "Overdue …". */
+function tkRem(due) {
+  const diff = due - (Date.now() + S.tk.off), over = diff < 0, a = Math.abs(diff), days = Math.floor(a / 864e5), hh = Math.floor(a % 864e5 / 36e5), mm = Math.floor(a % 36e5 / 6e4);
+  return { cls: over ? 'bad' : days === 0 ? 'warn' : '', text: (over ? 'Overdue ' : '') + (days ? days + 'd ' : '') + p2(hh) + ':' + p2(mm) };
+}
+const tkRemHtml = t => t.status === 'Open' && t.dueMs ? '<span class="tk-rem ' + tkRem(t.dueMs).cls + '" data-due="' + t.dueMs + '"><i class="bi bi-clock me-1"></i>' + tkRem(t.dueMs).text + '</span>' : '';
+const tkBox = t => '<button type="button" class="tk-ck' + (t.status === 'Done' ? ' on' : '') + '" data-id="' + esc(t.id) + '" aria-label="' + (t.status === 'Done' ? 'Done' : 'Mark done') + '">' + (t.status === 'Done' ? '✓' : '') + '</button>';
+const tkDoneTxt = t => t.status === 'Done' ? '✅ ' + esc(t.doneBy === (S.user && S.user.username) ? 'You' : t.doneBy) + ' · ' + esc(fmtD(t.doneAt) + ' ' + (t.doneAt.slice(11, 16) || '')) : '';
+const tkTel = c => c ? '<a href="tel:' + esc(c.replace(/[^0-9+]/g, '')) + '">' + esc(c) + '</a>' : '<span class="text-muted">–</span>';
+async function tkBadge() {
+  if (!S.user) return;
+  try { const d = await api('getTasks', S.token, { countOnly: 1 }); const n = d.counts.open; S.tk.off = d.nowMs - Date.now(); [$('#tkNavBadge'), $('#dnTkBadge')].forEach(b => { if (b) { b.textContent = n; show(b, n > 0); } }); } catch (e) {}
+}
+async function tkStaffLoad() {
+  if (S.tk.staff || !isWide()) return;
+  try { S.tk.staff = await api('getTaskStaff', S.token); } catch (e) { S.tk.staff = []; }
+  const opts = S.tk.staff.map(u => '<option value="' + esc(u.name) + '">' + esc(u.name) + (u.branch ? ' · ' + esc(u.branch) : '') + '</option>').join('');
+  $('#tkStaffF').innerHTML = '<option value="">All staff</option>' + opts; $('#tkStaff').innerHTML = '<option value="">— choose —</option>' + opts;
+}
+async function loadTasks() {
+  if (!S.user) return; const wide = isWide();
+  show($('#tkBtns'), wide); show($('#tkWide'), wide); $('#tkTitle').textContent = wide ? 'Tasks' : 'My tasks';
+  if (wide) await tkStaffLoad();
+  try {
+    const d = await api('getTasks', S.token, { status: S.tk.status === 'All' ? '' : S.tk.status, staff: wide ? $('#tkStaffF').value : '', q: wide ? $('#tkQ').value.trim() : '' });
+    S.tk.d = d; S.tk.off = d.nowMs - Date.now(); tkPaint();
+  } catch (e) { toast(e.message, 'danger'); }
+}
+function tkPaint() {
+  const d = S.tk.d; if (!d) return; const wide = isWide(), c = d.counts, tot = c.open + c.done;
+  $('#tkStatus').innerHTML = [['Open', 'Open ' + c.open], ['Done', 'Done ' + c.done], ['All', 'All ' + tot]].map(x => '<button type="button" class="chip' + (S.tk.status === x[0] ? ' active' : '') + '" data-v="' + x[0] + '">' + x[1] + '</button>').join('');
+  show($('#tkProg'), !wide); show($('#tkKpi'), wide);
+  $('#tkSub').textContent = wide ? '' : c.done + ' of ' + tot + ' done' + (c.overdue ? ' · ' + c.overdue + ' overdue' : '');
+  $('#tkProg u').style.width = (tot ? Math.round(c.done / tot * 100) : 0) + '%';
+  if (wide) { $('#tkKpi').className = 'card-x'; $('#tkKpi').innerHTML = '<div class="kx-grid">' + [['Open', c.open, c.overdue ? '<span class="dn">' + c.overdue + ' overdue</span>' : '<span class="up">none overdue</span>'], ['Done today', c.doneToday, ''], ['Done in total', c.done, ''], ['Staff with open tasks', c.staffOpen, ''], ['All tasks', tot, '']].map(x => '<div class="kx"><div class="kx-l">' + x[0] + '</div><div class="kx-v">' + x[1] + '</div><div class="kx-s">' + x[2] + '</div></div>').join('') + '</div>'; }
+  const pf = $('#tkPurF'), cur = pf.value; pf.innerHTML = '<option value="">All purposes</option>' + (d.purposes || []).map(p => '<option>' + esc(p) + '</option>').join(''); pf.value = (d.purposes || []).includes(cur) ? cur : '';
+  const rows = d.rows.filter(t => !pf.value || t.purpose === pf.value);
+  if (!rows.length) { $('#tkList').innerHTML = '<div class="small text-muted p-3">' + (S.tk.status === 'Open' && !tot ? (wide ? 'No tasks yet. Use New task or Paste from Excel.' : 'No tasks assigned to you.') : S.tk.status === 'Open' ? 'No open tasks. Well done!' : 'Nothing here.') + '</div>'; return; }
+  if (wide) {
+    $('#tkList').innerHTML = '<div class="tk-scroll"><table class="tk-t"><thead><tr><th></th><th>Merchant</th><th>MID</th><th>TID</th><th>Purpose</th><th>Contact</th><th>Deadline</th><th>Staff</th><th>Remark (by staff)</th><th></th></tr></thead><tbody>' + rows.map(t => '<tr class="' + (t.status === 'Done' ? 'done' : '') + '"><td>' + tkBox(t) + '</td><td><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + esc(t.id) + '</div></td><td>' + esc(t.mid || '–') + '</td><td>' + esc(t.tid || '–') + '</td><td><span class="tk-pp">' + esc(t.purpose) + '</span></td><td>' + tkTel(t.contact) + '</td><td class="nw">' + esc(fmtD(t.deadline)) + ' 17:00<div>' + (t.status === 'Open' ? tkRemHtml(t) : '<span class="small text-muted">' + tkDoneTxt(t) + '</span>') + '</div></td><td>' + esc(t.staff) + (t.branch ? '<div class="small text-muted">' + esc(t.branch) + '</div>' : '') + '</td><td class="tk-rm">' + (t.remark ? esc(t.remark) : '<span class="text-muted">–</span>') + '</td><td><button type="button" class="tk-del" data-id="' + esc(t.id) + '" title="Delete this task"><i class="bi bi-trash3"></i></button></td></tr>').join('') + '</tbody></table></div>';
+  } else {
+    $('#tkList').innerHTML = rows.map(t => '<div class="tk-it' + (t.status === 'Done' ? ' done' : '') + '">' + tkBox(t) + '<div class="tk-b"><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + (t.mid ? 'MID ' + esc(t.mid) : '') + (t.mid && t.tid ? ' · ' : '') + (t.tid ? 'TID ' + esc(t.tid) : '') + '</div><div class="tk-pr"><span class="tk-pp">' + esc(t.purpose) + '</span> ' + tkRemHtml(t) + '</div>' + (t.contact ? '<div class="small mt-1"><i class="bi bi-telephone me-1"></i>' + tkTel(t.contact) + '</div>' : '') + (t.status === 'Done' ? '<div class="small text-muted mt-1">' + tkDoneTxt(t) + (t.remark ? ' · “' + esc(t.remark) + '”' : '') + '</div>' : '<div class="small text-muted mt-1">Deadline ' + esc(fmtD(t.deadline)) + ' 17:00</div>') + '</div></div>').join('');
+  }
+}
+setInterval(() => { $$('.tk-rem').forEach(el => { const r = tkRem(+el.dataset.due); el.className = 'tk-rem ' + r.cls; el.innerHTML = '<i class="bi bi-clock me-1"></i>' + r.text; }); }, 30000);
+$('#tkStatus').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.tk.status = b.dataset.v; loadTasks(); });
+$('#tkStaffF').addEventListener('change', loadTasks); $('#tkPurF').addEventListener('change', tkPaint);
+let tkT = 0; $('#tkQ').addEventListener('input', () => { clearTimeout(tkT); tkT = setTimeout(loadTasks, 350); });
+const tkDoneModal = new bootstrap.Modal($('#tkDoneModal')), tkModal = new bootstrap.Modal($('#tkModal'));
+$('#tkList').addEventListener('click', async e => {
+  const del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck');
+  if (del) { if (!confirm('Delete this task?')) return; try { await api('deleteTask', S.token, del.dataset.id); toast('Task deleted.', 'success'); loadTasks(); tkBadge(); } catch (x) { toast(x.message, 'danger'); } return; }
+  if (!ck) return; const t = (S.tk.d.rows || []).find(r => r.id === ck.dataset.id); if (!t) return;
+  if (t.status === 'Done') { if (!isWide() || !confirm('Put this task back to Open?')) return; try { await api('reopenTask', S.token, t.id); loadTasks(); tkBadge(); } catch (x) { toast(x.message, 'danger'); } return; }
+  S.tk.id = t.id; $('#tkDoneWho').innerHTML = '<b>' + esc(t.merchant) + '</b> · ' + esc(t.purpose); $('#tkRemark').value = ''; $('#tkDoneMsg').textContent = ''; tkDoneModal.show(); setTimeout(() => $('#tkRemark').focus(), 300);
+});
+$('#tkDoneSave').addEventListener('click', async () => {
+  const r = $('#tkRemark').value.trim(); if (r.length < 2) { $('#tkDoneMsg').textContent = 'Write the remark: what you did and the result.'; return; }
+  const b = $('#tkDoneSave'); busy(b, true, 'Saving…');
+  try { await api('completeTask', S.token, S.tk.id, r); tkDoneModal.hide(); toast('Task marked done ✅', 'success'); loadTasks(); tkBadge(); } catch (e) { $('#tkDoneMsg').textContent = e.message; }
+  busy(b, false);
+});
+/* new / paste */
+function tkMode(m) { S.tk.mode = m; $$('#tkMode .chip').forEach(b => b.classList.toggle('active', b.dataset.m === m)); show($('#tkOne'), m === 'one'); show($('#tkMany'), m === 'paste'); $('#tkSave').textContent = m === 'one' ? 'Create task' : 'Create tasks'; tkParseN(); }
+function tkParse(txt) {
+  return String(txt || '').split(/\r?\n/).filter(l => l.trim()).map(l => { const c = (l.indexOf('\t') >= 0 ? l.split('\t') : l.split(/[;,]/)).map(x => x.trim()); return { merchant: c[0] || '', mid: c[1] || '', tid: c[2] || '', purpose: c[3] || '', contact: c[4] || '', deadline: c[5] || '', staff: c[6] || '' }; }).filter((r, i) => !(i === 0 && /^merchant/i.test(r.merchant)));
+}
+function tkParseN() { const n = tkParse($('#tkPaste').value).length; $('#tkPasteN').textContent = S.tk.mode === 'paste' ? (n ? n + ' task' + (n > 1 ? 's' : '') + ' found' : '') : ''; }
+$('#tkPaste').addEventListener('input', tkParseN);
+$('#tkMode').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) tkMode(b.dataset.m); });
+async function tkOpen(mode) {
+  await tkStaffLoad(); const f = $('#tkStaffF').value; if (f) $('#tkStaff').value = f;
+  const t = new Date(Date.now() + S.tk.off); const today = t.getFullYear() ? new Date(Date.now() + S.tk.off + 7 * 36e5).toISOString().slice(0, 10) : '';      // Phnom Penh date
+  $('#tkDue').min = today; if (!$('#tkDue').value || $('#tkDue').value < today) $('#tkDue').value = today;
+  $('#tkMsg').textContent = ''; tkMode(mode); tkModal.show();
+}
+$('#tkNewBtn').addEventListener('click', () => tkOpen('one')); $('#tkPasteBtn').addEventListener('click', () => tkOpen('paste'));
+$('#tkSave').addEventListener('click', async () => {
+  const msg = $('#tkMsg'), btn = $('#tkSave'); msg.className = 'small mt-2 text-danger'; msg.textContent = '';
+  const rows = S.tk.mode === 'one' ? [{ merchant: $('#tkMerchant').value, mid: $('#tkMid').value, tid: $('#tkTid').value, purpose: $('#tkPurpose').value, contact: $('#tkContact').value, deadline: '', staff: '' }] : tkParse($('#tkPaste').value);
+  if (!rows.length) { msg.textContent = 'Paste at least one line.'; return; }
+  busy(btn, true, 'Saving…');
+  try {
+    const r = await api('createTasks', S.token, { rows, staff: $('#tkStaff').value, deadline: $('#tkDue').value });
+    if (r.errors && r.errors.length) { msg.innerHTML = '<b>Nothing was saved. Please fix:</b><br>' + r.errors.map(esc).join('<br>'); }
+    else { tkModal.hide(); toast(r.added + ' task' + (r.added > 1 ? 's' : '') + ' created.', 'success'); ['#tkMerchant', '#tkMid', '#tkTid', '#tkPurpose', '#tkContact', '#tkPaste'].forEach(i => { $(i).value = ''; }); S.tk.status = 'Open'; loadTasks(); tkBadge(); }
+  } catch (e) { msg.textContent = e.message; }
+  busy(btn, false);
+});
+setInterval(() => { if (S.user && document.visibilityState === 'visible') tkBadge(); }, 300000);
