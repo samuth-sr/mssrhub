@@ -186,16 +186,18 @@ function fillCommuneAll(force, clear) {
   const c = (geo.place && geo.place.district) || ''; if (!c && !clear) return;
   const i = $('#fDistrict'); if (force || !i.dataset.touched) i.value = c;      // clear = the place changed: drop the old, now wrong, value
   const pv = (geo.place && geo.place.province) || '';      // Province: from the same location lookup, on every merchant card, unless the staff typed their own
-  if (pv || clear) $$('.f-province').forEach(x => { if (force || !x.dataset.touched) x.value = pv; });
+  { const pi = $('#fProvince'); if (pv || clear) { if (force || !pi.dataset.touched) pi.value = pv; } }
 }
-document.addEventListener('input', e => { if (e.target.classList && e.target.classList.contains('f-province')) e.target.dataset.touched = '1'; });
+$('#fProvince').addEventListener('input', e => { e.target.dataset.touched = '1'; });
 $('#fDistrict').addEventListener('input', e => { e.target.dataset.touched = '1'; });
-$('#distFill').addEventListener('click', async () => {
+async function fillFromPlace() {      // the small buttons: take the District and the Province from the location again
   if (!geo.pos) await refreshGeo(8000);
   try { await geo.lookup; } catch (e) {}
-  const c = geo.place && geo.place.district, i = $('#fDistrict');
-  if (c) { i.value = c; delete i.dataset.touched; } else toast('No district found for this location. Type it.', 'warning');
-});
+  const c = geo.place && geo.place.district, p = geo.place && geo.place.province, i = $('#fDistrict'), pi = $('#fProvince');
+  if (c) { i.value = c; delete i.dataset.touched; } if (p) { pi.value = p; delete pi.dataset.touched; }
+  if (!c && !p) toast('No district or province found for this location. Type them.', 'warning');
+}
+$('#distFill').addEventListener('click', fillFromPlace); $('#provFill').addEventListener('click', fillFromPlace);
 function syncBtype(el) {
   const v = $('.f-btype', el).value.trim().toLowerCase();
   $$('.btype-chips .chip', el).forEach(b => b.classList.toggle('active', b.dataset.t.toLowerCase() === v));
@@ -399,8 +401,9 @@ function setAct(card, a) {
 /** The location card is shown while some merchant card still needs a location (admin: Location box = optional or must). */
 function updateLocCard() {
   const ds = S.cards.map(c => { const a = $('.f-act', c.el).value; return a ? effDef(curType, a, S.sub || '') : null; });
-  const needLoc = ds.some(d => !d || lvl(d, 'location') > 0 || lvl(d, 'province') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0);
-  show($('#locCard'), needLoc || needDist); show($('#locRow'), needLoc); show($('#distWrap'), needDist);
+  const needLoc = ds.some(d => !d || lvl(d, 'location') > 0 || lvl(d, 'province') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0), needProv = ds.some(d => d && lvl(d, 'province') > 0);
+  show($('#locCard'), needLoc || needDist || needProv); show($('#locRow'), needLoc); show($('#distRow'), needDist || needProv); show($('#distWrap'), needDist); show($('#provWrap'), needProv);
+  show($('#provStar'), ds.some(d => d && lvl(d, 'province') === 2));
   show($('#locStar'), ds.some(d => d && lvl(d, 'location') === 2));
   show($('#distStar'), ds.some(d => d && lvl(d, 'commune') === 2));
 }
@@ -497,7 +500,7 @@ async function showApp() {
   $('#whoName').textContent = S.user.username;
   $('#whoRole').textContent = ' · ' + S.user.role;
   show($('#navUsers'), admin); show($('#navStock'), admin || S.user.role === 'Supervisor');
-  paintStaffVis(); show($('#branchWrap'), admin); setTimeout(tkBadge, 600); show($('#reviewBtn'), admin);
+  paintStaffVis(); show($('#branchWrap'), admin); setTimeout(tkBadge, 4000); show($('#reviewBtn'), admin);
   deskSync();
   show($('#chartCard'), false);
   show($('#catCard'), admin); show($('#rulesCard'), admin);
@@ -852,7 +855,6 @@ function addMerchant() {
     '<div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input type="hidden" class="f-ptype" maxlength="120"><div class="chips ptype-chips"></div></div>' +
     '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="d-flex align-items-center gap-2 hours-line"><label class="small text-muted mb-0">Open</label><input type="time" class="form-control f-open" aria-label="Open" value="08:00"><label class="small text-muted mb-0 ms-1">Close</label><input type="time" class="form-control f-close" aria-label="Close" value="20:00"></div></div>' +
     '<div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input class="form-control f-group" maxlength="100" autocomplete="off" placeholder="e.g. owner / chain / group name"></div>' +
-    '<div class="mb-3 hidden" data-fk="province"><label class="form-label">Province <span class="rq hidden">*</span></label><input class="form-control f-province" maxlength="80" autocomplete="off" placeholder="e.g. Phnom Penh"></div>' +
     '<div class="mb-3 hidden" data-fk="zone"><label class="form-label">Zone / Area <span class="rq hidden">*</span></label><input class="form-control f-zone" maxlength="80" autocomplete="off" placeholder="e.g. Zone A / Area name"></div>' +
     '<div class="mb-3 hidden" data-fk="phone"><label class="form-label">Phone number <span class="rq hidden">*</span></label><input class="form-control f-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="e.g. 012 345 678"></div>' +
     '<div class="mb-3 hidden" data-fk="tag"><label class="form-label">Tag <span class="rq hidden">*</span></label><input class="form-control f-tag" maxlength="200" autocomplete="off" placeholder="Extra remark / tag"></div>' +
@@ -876,7 +878,7 @@ function addMerchant() {
     '<div class="photo-grid"></div></div>';
   $('#merchantList').appendChild(el);
 
-  if (keep.tag) $('.f-tag', el).value = keep.tag; if (keep.zone) $('.f-zone', el).value = keep.zone; if (keep.province) $('.f-province', el).value = keep.province;
+  if (keep.tag) $('.f-tag', el).value = keep.tag; if (keep.zone) $('.f-zone', el).value = keep.zone;
   const dt = $('.f-date', el); dt.value = ymd(new Date()); dt.max = ymd(new Date());
   const card = { id, el, photos: [], qc: qcFresh() };
   S.cards.push(card);
@@ -1000,7 +1002,7 @@ function districtOf(a) {
 function lookupPlace(p) {
   const key = p.lat.toFixed(3) + ',' + p.lon.toFixed(3);                 // ~100 m
   if (key === geo.key) return geo.lookup;
-  geo.key = key; geo.place = null; fillCommuneAll(false, true);
+  geo.key = key; geo.place = null; delete $('#fDistrict').dataset.touched; delete $('#fProvince').dataset.touched; fillCommuneAll(false, true);      // a new place (GPS or a pin): both boxes follow it again
   const ctl = window.AbortController ? new AbortController() : null;
   const timer = ctl ? setTimeout(() => ctl.abort(), 6000) : null;
   const rev = layer => fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=en' + (layer ? '&layer=address' : '') + '&lat=' + p.lat + '&lon=' + p.lon, ctl ? { signal: ctl.signal } : {}).then(r => r.json());
@@ -1355,7 +1357,7 @@ $('#submitBtn').addEventListener('click', async () => {
     if (!g('.f-date')) { bad('pick the date.', '.f-date'); return; }
     const must = [['merchant', '.f-name', 'the merchant name'], ['mid', '.f-mid', 'the MID'], ['tid', '.f-tid', 'the TID'], ['business', '.f-biz', 'the business name'],
       ['serial', '.f-serial', 'the serial number'], ['oldSn', '.f-old', 'the Old S/N'], ['newSn', '.f-new', 'the New S/N'], ['btype', '.f-btype', 'the business type'],
-      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['province', '.f-province', 'the Province'], ['zone', '.f-zone', 'the Zone / Area'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
+      ['group', '.f-group', 'the group name'], ['ptype', '.f-ptype', 'the product type'], ['zone', '.f-zone', 'the Zone / Area'], ['phone', '.f-phone', 'the phone number'], ['tag', '.f-tag', 'the Tag'], ['remarks', '.f-rem', 'a remark']];
     { const m = midLenMsg(ad, g('.f-mid')); if (L('mid') && m) { bad(m, '.f-mid'); return; } }
     if (L('mid') && g('.f-mid') && g('.f-mid') !== NOQR && midPrefix(curType) && g('.f-mid')[0] !== midPrefix(curType)) { bad('the MID of ' + curType + ' must start with ' + midPrefix(curType) + '.', '.f-mid'); return; }
     for (const [k, sel, txt] of must) if (L(k) === 2 && !g(sel)) { bad('enter ' + txt + '.', sel); return; }
@@ -1365,6 +1367,7 @@ $('#submitBtn').addEventListener('click', async () => {
       if (q.scans.length < q.given) { bad('scan every QR you gave (' + q.scans.length + ' of ' + q.given + ' scanned).'); $('.qc-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       if (L('mid') && g('.f-mid') && qcNorm(g('.f-mid')) !== qcNorm(q.expMid)) { bad('the MID does not match the scanned QRs (' + q.expMid + '). Fix it or tap Start over.', '.f-mid'); return; }
     }
+    if (L('province') === 2 && !$('#fProvince').value.trim()) { bad('enter the Province.'); $('#fProvince').focus(); return; }
     if (L('commune') === 2 && !$('#fDistrict').value.trim()) { bad('enter the District.'); $('#fDistrict').focus(); return; }
     if (L('hours') && ((L('hours') === 2 && !g('.f-open')) || (!!g('.f-open') !== !!g('.f-close')))) { bad('enter both opening and closing time.', g('.f-open') ? '.f-close' : '.f-open'); return; }
     if (L('phone') && g('.f-phone') && !PHONE_RE.test(g('.f-phone'))) { bad('the phone number looks wrong.', '.f-phone'); return; }
@@ -1393,20 +1396,20 @@ $('#submitBtn').addEventListener('click', async () => {
     }
     const needPh = L('photo') ? ((ad && ad.minPh) > 0 ? ad.minPh : (L('photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;
     if (c.photos.length < needPh) { bad(needPh > 1 ? 'attach at least ' + needPh + ' photos or videos (you have ' + c.photos.length + ').' : 'attach at least one photo.'); return; }
-    if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone'); if (L('province')) keepNew.province = g('.f-province');
+    if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone');
     const v = (k, sel) => L(k) ? g(sel) : '';
     const qrx = qcOn(c) ? { qrSid: c.qc.sid, qrGiven: c.qc.given } : {};
     items.push({ type: curType, activity: g('.f-act'), date: g('.f-date'), extra, locLv: L('location'), ...qrx,
       merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), integ: L('integ') ? $('.f-integ', c.el).checked : false, sim: L('sim') ? $('.f-sim', c.el).checked : false, standee: L('standee') ? $('.f-standee', c.el).checked : false, business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
-      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), province: v('province', '.f-province'), sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
+      btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), province: L('province') ? $('#fProvince').value.trim() : '', sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
     docSets.push(docs);
   }
   const photoSets = items.map(it => it.photos);      // the photos wait on the phone: the record is saved first, the photos are sent to Telegram afterwards
   const bytes = Math.max(0, ...photoSets.map(ps => ps.reduce((u, p) => u + p.length, 0)));
   if (bytes > 32e6) { toast('Photos and videos of one merchant are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
   const btn = $('#submitBtn');
-  busy(btn, true, 'Submitting…');
+  busy(btn, true, 'Submitting…'); S.submitting = true;
   try {
     const needLoc = items.some(it => it.locLv > 0);
     const loc = needLoc ? await currentLocation() : null;
@@ -1431,7 +1434,7 @@ $('#submitBtn').addEventListener('click', async () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     loadSummary(); loadLast();
   } catch (e) { if (!e.net) S.batchId = null; toast(e.message + (e.net ? ' If you retry, nothing is saved twice.' : ''), 'danger'); }
-  busy(btn, false);
+  S.submitting = false; busy(btn, false);
 });
 
 /* ============================ Document scanner (extra field "Document scanner") ============================ */
@@ -1838,12 +1841,13 @@ $('#slBranch').addEventListener('click', e => {
   paintBranches(); if (!staffVis() && $('#fUser').value) { $('#fUser').value = ''; slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }]); } loadRecords();
 });
 async function loadRecords() {
-  const r = range(), admin = S.user.role === 'Admin', wide = isWide();
+  const r = range(), admin = S.user.role === 'Admin', wide = isWide(), my = S.recSeq = (S.recSeq || 0) + 1;
   $('#recBody').innerHTML = '<tr><td colspan="4" class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
   try {
     const f = { user: $('#fUser').value, type: $('#fType').value, sub: $('#fSub').value, activity: $('#fActivity').value, status: $('#fStatus').value, qrType: $('#fQrType').value, from: r.from, to: r.to };
     if (admin && S.branchOff.size) f.branches = S.branches.filter(b => !S.branchOff.has(b));
     const data = await api('getRecords', S.token, f);
+    if (my !== S.recSeq) return;      // a newer filter was tapped meanwhile
     S.rows = data.rows;
     S.pending = data.pending || 0; paintPending(); paintStatus(data); paintQrType(data);
     if (wide) slicer('slUser', 'fUser', [{ v: '', l: 'All staff' }].concat(data.users.map(u => ({ v: u, l: u }))));
@@ -1965,7 +1969,7 @@ const RANGES = [['7', 'Last 7 days'], ['30', 'Last 30 days'], ['mtd', 'Month to 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayLbl = d => { const t = new Date(d + 'T00:00:00'); return DOW[t.getDay()] + ' ' + d.slice(8); };
 const pctTxt = (a, b) => b ? (a >= b ? '+' : '') + Math.round((a - b) / b * 100) + '%' : (a ? 'new' : '–');
-async function loadTeam() {
+async function loadTeam(light) {
   const on = isWide(); show($('#teamCard'), on); show($('#trendCard'), on); if (!on) return;
   try {
     const d = await api('getTeam', S.token, { branch: S.teamBranch, range: S.teamRange });
@@ -1987,12 +1991,12 @@ async function loadTeam() {
     const nd = d.days.length, lbl = x => nd <= 8 ? DOW[new Date(x.date + 'T00:00:00').getDay()] : (nd <= 16 || +x.date.slice(8) % 5 === 1 ? String(+x.date.slice(8)) : '');
     $('#trendBars').innerHTML = '<div class="tc"><div class="tc-cols' + (nd > 12 ? ' dense' : '') + '">' + d.days.map((x, i) => '<div class="tc-c' + (x.date === d.today ? ' now' : '') + '" title="' + esc(dayLbl(x.date)) + ': ' + x.n + ' (before: ' + x.prev + ')"><span class="tc-v">' + (nd > 16 ? '' : x.n) + '</span><div class="tc-b"><u class="p" style="height:' + Math.round(x.prev / mx * 100) + '%"></u><u style="height:' + Math.max(x.n ? 3 : 0, Math.round(x.n / mx * 100)) + '%"></u></div></div>').join('') + '</div><div class="tc-l">' + d.days.map(x => '<div>' + lbl(x) + '</div>').join('') + '</div></div>';
   } catch (e) { show($('#teamCard'), false); show($('#trendCard'), false); }
-  dashAlerts(); loadAttention();
+  if (light) renderConsole(); else { dashAlerts(); loadAttention(); }      // a chip tap only redraws the team numbers
 }
 const isAdminOrMulti = d => S.user.role === 'Admin' || /,/.test(S.user.branch || '');
-$('#teamBranch').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.teamBranch = b.dataset.v; loadTeam(); });
+$('#teamBranch').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.teamBranch = b.dataset.v; $$('.chip', $('#teamBranch')).forEach(x => x.classList.toggle('active', x === b)); loadTeam(true); });
 const teamModal = new bootstrap.Modal($('#teamModal'));
-$('#trRange').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.teamRange = b.dataset.v; loadTeam(); });
+$('#trRange').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.teamRange = b.dataset.v; $$('.chip', $('#trRange')).forEach(x => x.classList.toggle('active', x === b)); loadTeam(true); });
 async function openTeamStaff(e) {
   const row = e.target.closest('.tm-row'); if (!row) return;
   try {
@@ -2880,12 +2884,15 @@ S.st = { period: 'month', branch: '', item: '', user: '', status: 'In stock', da
 const stFrom = () => { const n = new Date(); return S.st.period === 'month' ? ymd(new Date(n.getFullYear(), n.getMonth(), 1)) : S.st.period === '30' ? ymd(new Date(n.getTime() - 29 * 864e5)) : ''; };
 const stBars = (rows, cls) => { const mx = Math.max(1, ...rows.map(r => r.n)); return rows.length ? rows.map(r => '<div class="small d-flex justify-content-between"><span class="text-truncate">' + esc(r.name) + '</span><b>' + r.n + '</b></div><div class="stk-bar ' + (cls || '') + ' mb-1" style="width:' + Math.max(2, Math.round(r.n / mx * 100)) + '%"></div>').join('') : '<div class="small text-muted">No data</div>'; };
 const stPillOf = st => '<span class="st-pill ' + (st === 'In stock' || st === 'Reserved' ? 'st-i' : st === 'Used' ? 'st-u' : st === 'Faulty' ? 'st-f' : 'st-h') + '">' + esc(st) + '</span>';
-async function loadStock() {
-  const admin = S.user.role === 'Admin';
+async function loadStock(light) {
+  const admin = S.user.role === 'Admin', my = S.st.seq = (S.st.seq || 0) + 1;
   if (!admin && !S.st.init) { S.st.init = true; S.st.branch = String(S.user.branch || '').toUpperCase().split(/[\s,;]+/).filter(Boolean)[0] || ''; }      // a supervisor starts on their own branch and may look at the others
   show($('#stBranchWrap'), true); show($('#stItemsCard'), admin);
   try {
-    const d = S.st.data = await api('getStockDash', S.token, { from: stFrom(), branch: S.st.branch, item: S.st.item });
+    $('#pane-stock').classList.add('is-loading');
+    const d = await api('getStockDash', S.token, { from: stFrom(), branch: S.st.branch, item: S.st.item });
+    if (my !== S.st.seq) return;      // a newer chip was tapped meanwhile: this answer is old
+    S.st.data = d;
     S.st.mine = String(d.branch || '').toUpperCase();
     { const other = !admin && S.st.branch !== S.st.mine; $('#stViewNote').innerHTML = other ? '<i class="bi bi-eye me-1"></i>You are looking at ' + (S.st.branch ? 'branch <b>' + esc(S.st.branch) + '</b>' : '<b>all branches</b>') + '. You can only use or change the stock of your own branch (<b>' + esc(S.st.mine) + '</b>).' : ''; show($('#stViewNote'), other); }
     S.stockItems = d.items;
@@ -2908,12 +2915,13 @@ async function loadStock() {
     const opts = d.items.map(i => '<option value="' + esc(i.name) + '">' + esc(i.name) + (i.kind === 'qty' ? ' (qty)' : '') + '</option>').join('');
     $('#siItemList').innerHTML = d.items.map(i => '<option value="' + esc(i.name) + '">' + (i.kind === 'qty' ? 'quantity' : 'serial numbers') + '</option>').join('');
     $('#aqItem').innerHTML = d.items.filter(i => i.kind === 'qty').map(i => '<option>' + esc(i.name) + '</option>').join('');
-    show($('#siBranchWrap'), admin); siKind(); paintStatusChips(); loadSnRows(); loadPending();
+    show($('#siBranchWrap'), admin); siKind(); paintStatusChips(); loadSnRows(); if (!light) loadPending();
     if (admin) paintItems();
   } catch (e) { toast(e.message, 'danger'); }
+  if (my === S.st.seq) $('#pane-stock').classList.remove('is-loading');
 }
 bindSlicer('stPeriod', 'fPeriodX', () => {});
-for (const [box, key] of [['stPeriod', 'period'], ['stBranch', 'branch'], ['stItem', 'item']]) $('#' + box).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.st[key] = b.dataset.v; loadStock(); });
+for (const [box, key] of [['stPeriod', 'period'], ['stBranch', 'branch'], ['stItem', 'item']]) $('#' + box).addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.st[key] = b.dataset.v; $$('.chip', $('#' + box)).forEach(x => x.classList.toggle('active', x === b)); loadStock(true); });
 /* ---- returns waiting for a decision (admin / supervisor) ---- */
 async function loadPending() {
   try {
@@ -3721,7 +3729,7 @@ async function loadAudit() {
     $('#auBody').innerHTML = d.rows.length ? d.rows.map(r => '<tr><td class="nw">' + esc(r.time.slice(0, 16)) + '</td><td class="nw"><b>' + esc(r.id) + '</b>' + (r.edit && r.edit !== '0' ? '<div class="small text-muted">edit ' + esc(r.edit) + '</div>' : '') + '</td><td><span class="au-b ' + (AU_CLS[(r.event.match(/^\w+/) || [''])[0]] || 'n') + '">' + esc(r.event) + '</span></td><td class="nw">' + esc(r.by) + '<div class="small text-muted">' + esc(r.role) + '</div></td><td>' + esc(r.merchant || '—') + (r.mid ? '<div class="small text-muted">' + esc(r.mid) + '</div>' : '') + '<div class="small text-muted">' + esc([r.staff, r.branch].filter(Boolean).join(' · ')) + '</div></td><td class="au-ch">' + (r.changes ? esc(r.changes) : '') + (r.note ? '<div class="small text-muted">' + esc(r.note) + '</div>' : '') + '</td></tr>').join('') : '<tr><td colspan="6" class="text-muted small py-3">No lines yet. They appear after the first edit or review decision.</td></tr>';
   } catch (e) { $('#auBody').innerHTML = '<tr><td colspan="6" class="text-danger small py-3">' + esc(e.message) + '</td></tr>'; }
 }
-$('#auEv').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.auEv = b.dataset.v; loadAudit(); });
+$('#auEv').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.auEv = b.dataset.v; $$('.chip', $('#auEv')).forEach(x => x.classList.toggle('active', x === b)); loadAudit(); });
 $('#auReload').addEventListener('click', loadAudit);
 let auT = 0; $('#auQ').addEventListener('input', () => { clearTimeout(auT); auT = setTimeout(loadAudit, 350); });
 
@@ -3754,7 +3762,7 @@ const tkBox = t => '<button type="button" class="tk-ck' + (t.status === 'Done' ?
 const tkDoneTxt = t => t.status === 'Done' ? '✅ ' + esc(t.doneBy === (S.user && S.user.username) ? 'You' : t.doneBy) + ' · ' + esc(fmtD(t.doneAt) + ' ' + (t.doneAt.slice(11, 16) || '')) : '';
 const tkTel = c => c ? '<a href="tel:' + esc(c.replace(/[^0-9+]/g, '')) + '">' + esc(c) + '</a>' : '<span class="text-muted">–</span>';
 async function tkBadge() {
-  if (!S.user) return;
+  if (!S.user || S.submitting) return;
   try { const d = await api('getTasks', S.token, { countOnly: 1 }); const n = d.counts.open; S.tk.off = d.nowMs - Date.now(); [$('#tkNavBadge'), $('#dnTkBadge')].forEach(b => { if (b) { b.textContent = n; show(b, n > 0); } }); } catch (e) {}
 }
 async function tkStaffLoad() {
@@ -3768,7 +3776,8 @@ async function loadTasks() {
   show($('#tkBtns'), wide); show($('#tkWide'), wide); $('#tkTitle').textContent = wide ? 'Tasks' : 'My tasks';
   if (wide) await tkStaffLoad();
   try {
-    const d = await api('getTasks', S.token, { status: S.tk.status === 'All' ? '' : S.tk.status, staff: wide ? $('#tkStaffF').value : '', q: wide ? $('#tkQ').value.trim() : '' });
+    if (S.tk.d) tkPaint();      // show what we have at once, then refresh
+    const d = await api('getTasks', S.token, {});      // every task of the person's scope once; the chips and filters then work on this list with no waiting
     S.tk.d = d; S.tk.off = d.nowMs - Date.now(); tkPaint();
   } catch (e) { toast(e.message, 'danger'); }
 }
@@ -3780,7 +3789,8 @@ function tkPaint() {
   $('#tkProg u').style.width = (tot ? Math.round(c.done / tot * 100) : 0) + '%';
   if (wide) { $('#tkKpi').className = 'card-x'; $('#tkKpi').innerHTML = '<div class="kx-grid">' + [['Open', c.open, c.overdue ? '<span class="dn">' + c.overdue + ' overdue</span>' : '<span class="up">none overdue</span>'], ['Done today', c.doneToday, ''], ['Done in total', c.done, ''], ['Staff with open tasks', c.staffOpen, ''], ['All tasks', tot, '']].map(x => '<div class="kx"><div class="kx-l">' + x[0] + '</div><div class="kx-v">' + x[1] + '</div><div class="kx-s">' + x[2] + '</div></div>').join('') + '</div>'; }
   const pf = $('#tkPurF'), cur = pf.value; pf.innerHTML = '<option value="">All purposes</option>' + (d.purposes || []).map(p => '<option>' + esc(p) + '</option>').join(''); pf.value = (d.purposes || []).includes(cur) ? cur : '';
-  const rows = d.rows.filter(t => !pf.value || t.purpose === pf.value);
+  const st = S.tk.status, who = wide ? $('#tkStaffF').value : '', q = wide ? $('#tkQ').value.trim().toLowerCase() : '';
+  const rows = d.rows.filter(t => (st === 'All' || t.status === st) && (!who || t.staff === who) && (!pf.value || t.purpose === pf.value) && (!q || [t.merchant, t.mid, t.tid, t.contact, t.purpose, t.remark, t.staff, t.id].join(' ').toLowerCase().indexOf(q) >= 0));
   if (!rows.length) { $('#tkList').innerHTML = '<div class="small text-muted p-3">' + (S.tk.status === 'Open' && !tot ? (wide ? 'No tasks yet. Use New task or Paste from Excel.' : 'No tasks assigned to you.') : S.tk.status === 'Open' ? 'No open tasks. Well done!' : 'Nothing here.') + '</div>'; return; }
   if (wide) {
     $('#tkList').innerHTML = '<div class="tk-scroll"><table class="tk-t"><thead><tr><th></th><th>Merchant</th><th>MID</th><th>TID</th><th>Purpose</th><th>Contact</th><th>Deadline</th><th>Staff</th><th>Remark (by staff)</th><th></th></tr></thead><tbody>' + rows.map(t => '<tr class="' + (t.status === 'Done' ? 'done' : '') + '"><td>' + tkBox(t) + '</td><td><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + esc(t.id) + '</div></td><td>' + esc(t.mid || '–') + '</td><td>' + esc(t.tid || '–') + '</td><td><span class="tk-pp">' + esc(t.purpose) + '</span></td><td>' + tkTel(t.contact) + '</td><td class="nw">' + esc(fmtD(t.deadline)) + ' 17:00<div>' + (t.status === 'Open' ? tkRemHtml(t) : '<span class="small text-muted">' + tkDoneTxt(t) + '</span>') + '</div></td><td>' + esc(t.staff) + (t.branch ? '<div class="small text-muted">' + esc(t.branch) + '</div>' : '') + '</td><td class="tk-rm">' + (t.remark ? esc(t.remark) : '<span class="text-muted">–</span>') + '</td><td><button type="button" class="tk-del" data-id="' + esc(t.id) + '" title="Delete this task"><i class="bi bi-trash3"></i></button></td></tr>').join('') + '</tbody></table></div>';
@@ -3789,9 +3799,9 @@ function tkPaint() {
   }
 }
 setInterval(() => { $$('.tk-rem').forEach(el => { const r = tkRem(+el.dataset.due); el.className = 'tk-rem ' + r.cls; el.innerHTML = '<i class="bi bi-clock me-1"></i>' + r.text; }); }, 30000);
-$('#tkStatus').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.tk.status = b.dataset.v; loadTasks(); });
-$('#tkStaffF').addEventListener('change', loadTasks); $('#tkPurF').addEventListener('change', tkPaint);
-let tkT = 0; $('#tkQ').addEventListener('input', () => { clearTimeout(tkT); tkT = setTimeout(loadTasks, 350); });
+$('#tkStatus').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.tk.status = b.dataset.v; tkPaint(); });
+$('#tkStaffF').addEventListener('change', tkPaint); $('#tkPurF').addEventListener('change', tkPaint);
+let tkT = 0; $('#tkQ').addEventListener('input', () => { clearTimeout(tkT); tkT = setTimeout(tkPaint, 120); });
 const tkDoneModal = new bootstrap.Modal($('#tkDoneModal')), tkModal = new bootstrap.Modal($('#tkModal'));
 $('#tkList').addEventListener('click', async e => {
   const del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck');

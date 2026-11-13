@@ -493,3 +493,6 @@ body.desk #filterCard.fc-min > :not(.fc-h){display:none!important}
 .tk-scroll{overflow:auto;max-height:70vh}.tk-t{width:100%;border-collapse:collapse;font-size:.86rem}.tk-t th{position:sticky;top:0;background:var(--bs-body-bg,#fff);text-align:left;color:var(--bs-secondary-color,#7a7a99);font-weight:600;padding:8px 10px;border-bottom:1px solid rgba(128,128,128,.25);z-index:1}.tk-t td{padding:9px 10px;border-bottom:1px solid rgba(128,128,128,.14);vertical-align:top}.tk-t tr.done td{opacity:.7}.tk-t tr.done td:nth-child(2) b{text-decoration:line-through}.tk-t .nw{white-space:nowrap}.tk-rm{max-width:260px;word-break:break-word}
 .tk-del{border:0;background:transparent;color:#9ca3af;padding:2px 6px;border-radius:6px}.tk-del:hover{color:#c0392b;background:#fde0e0}
 body.desk #pane-tasks > *{margin-bottom:12px}
+
+/* v136: chips answer at once; a list being refreshed dims a little */
+#pane-stock.is-loading #stDashCard,#pane-stock.is-loading #snCard{opacity:.6;transition:opacity .15s}
