@@ -496,3 +496,5 @@ body.desk #pane-tasks > *{margin-bottom:12px}
 
 /* v136: chips answer at once; a list being refreshed dims a little */
 #pane-stock.is-loading #stDashCard,#pane-stock.is-loading #snCard{opacity:.6;transition:opacity .15s}
+
+.tk-ed{border:0;background:transparent;color:#9ca3af;padding:2px 6px;border-radius:6px}.tk-ed:hover{color:#4f46e5;background:#e0e7ff}

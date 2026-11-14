@@ -1425,7 +1425,8 @@ $('#submitBtn').addEventListener('click', async () => {
     if (defer && r.deferred) await qAdd(r.stamps.map((st, i) => ({ id: S.user.username + '|' + st, stamp: st, user: S.user.username, n: i + 1, total: r.stamps.length, photos: photoSets[i], docs: docSets[i], tries: 0, next: 0, t: Date.now() })));
     r.telegram = defer && r.deferred ? 'photos are sending in the background' : r.telegram;
     r.secs = ((Date.now() - t0) / 1000).toFixed(1);
-    toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + ') in ' + r.secs + 's. Telegram: ' + r.telegram, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
+    const slow = r.ms && r.ms.total > 5000 ? ' [server ' + (r.ms.total / 1000).toFixed(1) + 's: prepare ' + (r.ms.prep / 1000).toFixed(1) + 's, waited for other requests ' + (r.ms.lock / 1000).toFixed(1) + 's, sheet write ' + (r.ms.work / 1000).toFixed(1) + 's]' : '';
+    toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + ') in ' + r.secs + 's. Telegram: ' + r.telegram + slow, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
     if (r.stock) toast(r.stock, 'warning');
     Object.assign(keep, keepNew);
     if (items[0] && items[0].activity) rememberAct(items[0].activity);
@@ -3791,9 +3792,10 @@ function tkPaint() {
   const pf = $('#tkPurF'), cur = pf.value; pf.innerHTML = '<option value="">All purposes</option>' + (d.purposes || []).map(p => '<option>' + esc(p) + '</option>').join(''); pf.value = (d.purposes || []).includes(cur) ? cur : '';
   const st = S.tk.status, who = wide ? $('#tkStaffF').value : '', q = wide ? $('#tkQ').value.trim().toLowerCase() : '';
   const rows = d.rows.filter(t => (st === 'All' || t.status === st) && (!who || t.staff === who) && (!pf.value || t.purpose === pf.value) && (!q || [t.merchant, t.mid, t.tid, t.contact, t.purpose, t.remark, t.staff, t.id].join(' ').toLowerCase().indexOf(q) >= 0));
+  S.tk.shown = rows;
   if (!rows.length) { $('#tkList').innerHTML = '<div class="small text-muted p-3">' + (S.tk.status === 'Open' && !tot ? (wide ? 'No tasks yet. Use New task or Paste from Excel.' : 'No tasks assigned to you.') : S.tk.status === 'Open' ? 'No open tasks. Well done!' : 'Nothing here.') + '</div>'; return; }
   if (wide) {
-    $('#tkList').innerHTML = '<div class="tk-scroll"><table class="tk-t"><thead><tr><th></th><th>Merchant</th><th>MID</th><th>TID</th><th>Purpose</th><th>Contact</th><th>Deadline</th><th>Staff</th><th>Remark (by staff)</th><th></th></tr></thead><tbody>' + rows.map(t => '<tr class="' + (t.status === 'Done' ? 'done' : '') + '"><td>' + tkBox(t) + '</td><td><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + esc(t.id) + '</div></td><td>' + esc(t.mid || '–') + '</td><td>' + esc(t.tid || '–') + '</td><td><span class="tk-pp">' + esc(t.purpose) + '</span></td><td>' + tkTel(t.contact) + '</td><td class="nw">' + esc(fmtD(t.deadline)) + ' 17:00<div>' + (t.status === 'Open' ? tkRemHtml(t) : '<span class="small text-muted">' + tkDoneTxt(t) + '</span>') + '</div></td><td>' + esc(t.staff) + (t.branch ? '<div class="small text-muted">' + esc(t.branch) + '</div>' : '') + '</td><td class="tk-rm">' + (t.remark ? esc(t.remark) : '<span class="text-muted">–</span>') + '</td><td><button type="button" class="tk-del" data-id="' + esc(t.id) + '" title="Delete this task"><i class="bi bi-trash3"></i></button></td></tr>').join('') + '</tbody></table></div>';
+    $('#tkList').innerHTML = '<div class="tk-scroll"><table class="tk-t"><thead><tr><th></th><th>Merchant</th><th>MID</th><th>TID</th><th>Purpose</th><th>Contact</th><th>Deadline</th><th>Staff</th><th>Remark (by staff)</th><th></th></tr></thead><tbody>' + rows.map(t => '<tr class="' + (t.status === 'Done' ? 'done' : '') + '"><td>' + tkBox(t) + '</td><td><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + esc(t.id) + '</div></td><td>' + esc(t.mid || '–') + '</td><td>' + esc(t.tid || '–') + '</td><td><span class="tk-pp">' + esc(t.purpose) + '</span></td><td>' + tkTel(t.contact) + '</td><td class="nw">' + esc(fmtD(t.deadline)) + ' 17:00<div>' + (t.status === 'Open' ? tkRemHtml(t) : '<span class="small text-muted">' + tkDoneTxt(t) + '</span>') + '</div></td><td>' + esc(t.staff) + (t.branch ? '<div class="small text-muted">' + esc(t.branch) + '</div>' : '') + '</td><td class="tk-rm">' + (t.remark ? esc(t.remark) : '<span class="text-muted">–</span>') + '</td><td class="nw"><button type="button" class="tk-ed" data-id="' + esc(t.id) + '" title="Edit this task"><i class="bi bi-pencil"></i></button><button type="button" class="tk-del" data-id="' + esc(t.id) + '" title="Delete this task"><i class="bi bi-trash3"></i></button></td></tr>').join('') + '</tbody></table></div>';
   } else {
     $('#tkList').innerHTML = rows.map(t => '<div class="tk-it' + (t.status === 'Done' ? ' done' : '') + '">' + tkBox(t) + '<div class="tk-b"><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + (t.mid ? 'MID ' + esc(t.mid) : '') + (t.mid && t.tid ? ' · ' : '') + (t.tid ? 'TID ' + esc(t.tid) : '') + '</div><div class="tk-pr"><span class="tk-pp">' + esc(t.purpose) + '</span> ' + tkRemHtml(t) + '</div>' + (t.contact ? '<div class="small mt-1"><i class="bi bi-telephone me-1"></i>' + tkTel(t.contact) + '</div>' : '') + (t.status === 'Done' ? '<div class="small text-muted mt-1">' + tkDoneTxt(t) + (t.remark ? ' · “' + esc(t.remark) + '”' : '') + '</div>' : '<div class="small text-muted mt-1">Deadline ' + esc(fmtD(t.deadline)) + ' 17:00</div>') + '</div></div>').join('');
   }
@@ -3804,7 +3806,8 @@ $('#tkStaffF').addEventListener('change', tkPaint); $('#tkPurF').addEventListene
 let tkT = 0; $('#tkQ').addEventListener('input', () => { clearTimeout(tkT); tkT = setTimeout(tkPaint, 120); });
 const tkDoneModal = new bootstrap.Modal($('#tkDoneModal')), tkModal = new bootstrap.Modal($('#tkModal'));
 $('#tkList').addEventListener('click', async e => {
-  const del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck');
+  const ed = e.target.closest('.tk-ed'), del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck');
+  if (ed) { tkEdit(ed.dataset.id); return; }
   if (del) { if (!confirm('Delete this task?')) return; try { await api('deleteTask', S.token, del.dataset.id); toast('Task deleted.', 'success'); loadTasks(); tkBadge(); } catch (x) { toast(x.message, 'danger'); } return; }
   if (!ck) return; const t = (S.tk.d.rows || []).find(r => r.id === ck.dataset.id); if (!t) return;
   if (t.status === 'Done') { if (!isWide() || !confirm('Put this task back to Open?')) return; try { await api('reopenTask', S.token, t.id); loadTasks(); tkBadge(); } catch (x) { toast(x.message, 'danger'); } return; }
@@ -3844,3 +3847,30 @@ $('#tkSave').addEventListener('click', async () => {
   busy(btn, false);
 });
 setInterval(() => { if (S.user && document.visibilityState === 'visible') tkBadge(); }, 300000);
+
+/* tasks: edit and CSV export (admin / supervisor) */
+const tkEditModal = new bootstrap.Modal($('#tkEditModal'));
+async function tkEdit(id) {
+  const t = ((S.tk.d || {}).rows || []).find(r => r.id === id); if (!t) return; await tkStaffLoad();
+  S.tk.editId = id; $('#teId').textContent = id;
+  const have = (S.tk.staff || []).some(u => u.name === t.staff); $('#teStaff').innerHTML = (have ? '' : '<option value="' + esc(t.staff) + '">' + esc(t.staff) + '</option>') + $('#tkStaff').innerHTML.replace('<option value="">— choose —</option>', ''); $('#teStaff').value = t.staff;
+  $('#teDue').value = t.deadline; $('#teMerchant').value = t.merchant; $('#teMid').value = t.mid; $('#teTid').value = t.tid; $('#tePurpose').value = t.purpose; $('#teContact').value = t.contact; $('#teRemark').value = t.remark; $('#teMsg').textContent = '';
+  tkEditModal.show();
+}
+$('#teSave').addEventListener('click', async () => {
+  const b = $('#teSave'); busy(b, true, 'Saving…');
+  try {
+    await api('updateTask', S.token, S.tk.editId, { staff: $('#teStaff').value, deadline: $('#teDue').value, merchant: $('#teMerchant').value, mid: $('#teMid').value, tid: $('#teTid').value, purpose: $('#tePurpose').value, contact: $('#teContact').value, remark: $('#teRemark').value });
+    tkEditModal.hide(); toast('Task saved.', 'success'); loadTasks(); tkBadge();
+  } catch (e) { $('#teMsg').textContent = e.message; }
+  busy(b, false);
+});
+$('#tkCsvBtn').addEventListener('click', () => {
+  const rows = S.tk.shown || []; if (!rows.length) { toast('Nothing to export.', 'warning'); return; }
+  const head = ['Task ID', 'Staff', 'Branch', 'Merchant', 'MID', 'TID', 'Purpose', 'Contact', 'Deadline', 'Status', 'Done time', 'Done by', 'Remark', 'Created', 'Created by'];
+  const cell = v => { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+  const lines = [head].concat(rows.map(t => [t.id, t.staff, t.branch, t.merchant, t.mid, t.tid, t.purpose, t.contact, t.deadline + ' 17:00', t.status, t.doneAt, t.doneBy, t.remark, t.created, t.by]));
+  const csv = '﻿' + lines.map(l => l.map(cell).join(',')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'tasks_' + ymd(new Date()) + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  toast(rows.length + ' task' + (rows.length > 1 ? 's' : '') + ' exported (what the list shows now).', 'success');
+});
