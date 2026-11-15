@@ -1518,6 +1518,15 @@ $('#submitBtn').addEventListener('click', async () => {
   const bytes = Math.max(0, ...photoSets.map(ps => ps.reduce((u, p) => u + p.length, 0)));
   if (bytes > 32e6) { toast('Photos and videos of one merchant are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
   const btn = $('#submitBtn');
+  if (S.tk.anyOpen !== false && items.some(it => (it.mid && it.mid !== NOQR) || it.tid)) {      // is there an open task for this merchant? (skipped when no task is open anywhere)
+    busy(btn, true, 'Checking tasks…');
+    let found = []; try { const r = await api('taskLookup', S.token, items.map(it => ({ mid: it.mid === NOQR ? '' : it.mid, tid: it.tid }))); found = r.map((tasks, idx) => ({ idx, tasks: tasks.filter(t => !(idx === 0 && S.taskLink && t.id === S.taskLink.id)) })).filter(g => g.tasks.length); } catch (e) {}
+    busy(btn, false);
+    if (found.length) {
+      const pick = await tkAsk(found, items); if (!pick) return;
+      Object.keys(pick).forEach(i => { items[i].taskId = pick[i].id; if (pick[i].take) items[i].taskTake = true; });
+    }
+  }
   busy(btn, true, 'Submitting…'); S.submitting = true; pgStart(items.length);
   try {
     const needLoc = items.some(it => it.locLv > 0);
@@ -1538,7 +1547,7 @@ $('#submitBtn').addEventListener('click', async () => {
     const slow = r.ms && r.ms.total > 5000 ? ' [server ' + (r.ms.total / 1000).toFixed(1) + 's: prepare ' + (r.ms.prep / 1000).toFixed(1) + 's, waited for other requests ' + (r.ms.lock / 1000).toFixed(1) + 's, sheet write ' + (r.ms.work / 1000).toFixed(1) + 's]' : '';
     toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + ') in ' + r.secs + 's. Telegram: ' + r.telegram + slow, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
     if (r.stock) toast(r.stock, 'warning');
-    if (items[0] && items[0].taskId) { toast('Task completed ✅ ' + (S.taskLink ? S.taskLink.merchant : ''), 'success'); S.taskLink = null; tkBanner(); S.tk.d = null; setTimeout(tkBadge, 1500); }
+    { const n = items.filter(it => it.taskId).length; if (n) { toast(n > 1 ? n + ' tasks completed ✅' : 'Task completed ✅', 'success'); S.taskLink = null; tkBanner(); S.tk.d = null; setTimeout(tkBadge, 1500); } }
     Object.assign(keep, keepNew);
     if (items[0] && items[0].activity) rememberAct(items[0].activity);
     $('#merchantList').innerHTML = ''; S.cards = []; addMerchant();
@@ -3997,9 +4006,32 @@ function tkStart(id) {
   S.taskLink = { id: t.id, merchant: t.merchant, type: t.type, activity: t.activity }; tkBanner();
   toast('Task opened: add photos and submit.', 'dark');
 }
+const tkHist = t => (t.mid || t.tid || t.merchant) ? '<button type="button" class="btn btn-soft btn-sm tk-hist mt-2 ms-1" data-id="' + esc(t.id) + '"><i class="bi bi-clock-history me-1"></i>History</button>' : '';
+/** Before a record is saved: this merchant (MID / TID) has an open task? The person can ignore it, or take it over and complete it with this record. Resolves { itemIndex: { id, take } } or null (cancelled). */
+function tkAsk(found, items) {
+  return new Promise(res => {
+    let ov = $('#tkAsk'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'tkAsk'; ov.className = 'pk-ov';
+    const pick = {};
+    const grp = found.map(g => '<div class="pk-gh">' + (items.length > 1 ? 'Merchant ' + (g.idx + 1) + ' · ' : '') + esc(items[g.idx].merchant || items[g.idx].mid || '') + '</div>' + g.tasks.map(t =>
+      '<div class="tka-t"><div class="fw-semibold">' + esc(t.merchant) + ' <span class="tk-lk">' + esc(t.purpose) + '</span>' + (t.type ? ' <span class="tk-lk">' + esc(t.type + (t.activity ? ' · ' + t.activity : '')) + '</span>' : '') + '</div>' +
+      '<div class="small text-muted">' + (t.mine ? 'Assigned to you' : 'Assigned to <b>' + esc(t.staff) + '</b>') + ' · deadline ' + esc(fmtD(t.deadline)) + ' 17:00 · ' + esc(t.id) + '</div>' +
+      '<div class="chips mt-1" data-i="' + g.idx + '" data-id="' + esc(t.id) + '" data-mine="' + (t.mine ? 1 : 0) + '"><button type="button" class="chip active" data-a="ignore">Ignore</button><button type="button" class="chip" data-a="take">' + (t.mine ? 'Complete it with this record' : 'Assign to me &amp; complete') + '</button></div></div>').join('')).join('');
+    ov.innerHTML = '<div class="pk-bg"></div><div class="pk-box"><div class="pk-grab"></div><div class="pk-top"><b>This merchant has an open task</b></div><div class="small text-muted mb-1">Choose what to do with each task, then continue. Ignored tasks stay open.</div><div class="pk-list">' + grp + '</div><div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-soft flex-fill" id="tkaNo">Cancel</button><button type="button" class="btn btn-brand flex-fill" id="tkaGo">Continue</button></div></div>';
+    document.body.appendChild(ov);
+    const done = v => { ov.remove(); res(v); };
+    ov.addEventListener('click', e => {
+      const b = e.target.closest('.chip'); if (!b) return; const box = b.parentNode, i = box.dataset.i, on = b.dataset.a === 'take';
+      $$('.tka-t .chips[data-i="' + i + '"]', ov).forEach(x => $$('.chip', x).forEach(y => y.classList.toggle('active', y.dataset.a === 'ignore')));      // one task per merchant
+      $$('.chip', box).forEach(y => y.classList.toggle('active', (y.dataset.a === 'take') === on));
+      if (on) pick[i] = { id: box.dataset.id, take: box.dataset.mine !== '1' }; else delete pick[i];
+    });
+    $('#tkaNo', ov).onclick = () => done(null); $('#tkaGo', ov).onclick = () => done(pick); $('.pk-bg', ov).onclick = () => done(null);
+  });
+}
 async function tkBadge() {
   if (!S.user || S.submitting) return;
-  try { const d = await api('getTasks', S.token, { countOnly: 1 }); const n = d.counts.open, al = d.counts.alerts || 0; S.tk.off = d.nowMs - Date.now(); [$('#tkNavBadge'), $('#dnTkBadge')].forEach(b => { if (b) { b.textContent = n; show(b, n > 0); b.classList.toggle('tk-badge-al', al > 0); } });
+  try { const d = await api('getTasks', S.token, { countOnly: 1 }); const n = d.counts.open, al = d.counts.alerts || 0; S.tk.anyOpen = (d.openAll || 0) > 0; S.tk.off = d.nowMs - Date.now(); [$('#tkNavBadge'), $('#dnTkBadge')].forEach(b => { if (b) { b.textContent = n; show(b, n > 0); b.classList.toggle('tk-badge-al', al > 0); } });
     if (al && d.alertLast) {      // another staff already submitted one of my tasks: tell me once
       let seen = ''; try { seen = localStorage.getItem('it_tk_alert') || ''; } catch (e) {}
       if (seen !== d.alertLast) { try { localStorage.setItem('it_tk_alert', d.alertLast); } catch (e) {} const m = d.alertLast.split(' | '); toast('Task alert: ' + (m[2] || 'someone') + ' already submitted ' + (m[0] || 'one of your tasks') + '. Open Tasks to check.', 'warning'); }
@@ -4034,9 +4066,9 @@ function tkPaint() {
   S.tk.shown = rows;
   if (!rows.length) { $('#tkList').innerHTML = '<div class="small text-muted p-3">' + (S.tk.status === 'Open' && !tot ? (wide ? 'No tasks yet. Use New task or Paste from Excel.' : 'No tasks assigned to you.') : S.tk.status === 'Open' ? 'No open tasks. Well done!' : 'Nothing here.') + '</div>'; return; }
   if (wide) {
-    $('#tkList').innerHTML = '<div class="tk-scroll"><table class="tk-t"><thead><tr><th></th><th>Merchant</th><th>MID</th><th>TID</th><th>Purpose</th><th>Contact</th><th>Deadline</th><th>Staff</th><th>Remark (by staff)</th><th></th></tr></thead><tbody>' + rows.map(t => '<tr class="' + (t.status === 'Done' ? 'done' : '') + '"><td>' + tkBox(t) + '</td><td><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + esc(t.id) + '</div>' + tkLk(t) + tkAlert(t) + tkRec(t) + tkGo(t) + '</td><td>' + esc(t.mid || '–') + '</td><td>' + esc(t.tid || '–') + '</td><td><span class="tk-pp">' + esc(t.purpose) + '</span></td><td>' + tkTel(t.contact) + '</td><td class="nw">' + esc(fmtD(t.deadline)) + ' 17:00<div>' + (t.status === 'Open' ? tkRemHtml(t) : '<span class="small text-muted">' + tkDoneTxt(t) + '</span>') + '</div></td><td>' + esc(t.staff) + (t.branch ? '<div class="small text-muted">' + esc(t.branch) + '</div>' : '') + '</td><td class="tk-rm">' + (t.remark ? esc(t.remark) : '<span class="text-muted">–</span>') + '</td><td class="nw"><button type="button" class="tk-ed" data-id="' + esc(t.id) + '" title="Edit this task"><i class="bi bi-pencil"></i></button><button type="button" class="tk-del" data-id="' + esc(t.id) + '" title="Delete this task"><i class="bi bi-trash3"></i></button></td></tr>').join('') + '</tbody></table></div>';
+    $('#tkList').innerHTML = '<div class="tk-scroll"><table class="tk-t"><thead><tr><th></th><th>Merchant</th><th>MID</th><th>TID</th><th>Purpose</th><th>Contact</th><th>Deadline</th><th>Staff</th><th>Remark (by staff)</th><th></th></tr></thead><tbody>' + rows.map(t => '<tr class="' + (t.status === 'Done' ? 'done' : '') + '"><td>' + tkBox(t) + '</td><td><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + esc(t.id) + '</div>' + tkLk(t) + tkAlert(t) + tkRec(t) + tkGo(t) + tkHist(t) + '</td><td>' + esc(t.mid || '–') + '</td><td>' + esc(t.tid || '–') + '</td><td><span class="tk-pp">' + esc(t.purpose) + '</span></td><td>' + tkTel(t.contact) + '</td><td class="nw">' + esc(fmtD(t.deadline)) + ' 17:00<div>' + (t.status === 'Open' ? tkRemHtml(t) : '<span class="small text-muted">' + tkDoneTxt(t) + '</span>') + '</div></td><td>' + esc(t.staff) + (t.branch ? '<div class="small text-muted">' + esc(t.branch) + '</div>' : '') + '</td><td class="tk-rm">' + (t.remark ? esc(t.remark) : '<span class="text-muted">–</span>') + '</td><td class="nw"><button type="button" class="tk-ed" data-id="' + esc(t.id) + '" title="Edit this task"><i class="bi bi-pencil"></i></button><button type="button" class="tk-del" data-id="' + esc(t.id) + '" title="Delete this task"><i class="bi bi-trash3"></i></button></td></tr>').join('') + '</tbody></table></div>';
   } else {
-    $('#tkList').innerHTML = rows.map(t => '<div class="tk-it' + (t.status === 'Done' ? ' done' : '') + '">' + tkBox(t) + '<div class="tk-b"><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + (t.mid ? 'MID ' + esc(t.mid) : '') + (t.mid && t.tid ? ' · ' : '') + (t.tid ? 'TID ' + esc(t.tid) : '') + '</div><div class="tk-pr"><span class="tk-pp">' + esc(t.purpose) + '</span> ' + tkRemHtml(t) + '</div>' + tkLk(t) + tkAlert(t) + (t.contact ? '<div class="small mt-1"><i class="bi bi-telephone me-1"></i>' + tkTel(t.contact) + '</div>' : '') + (t.status === 'Done' ? '<div class="small text-muted mt-1">' + tkDoneTxt(t) + (t.remark ? ' · “' + esc(t.remark) + '”' : '') + '</div>' : '<div class="small text-muted mt-1">Deadline ' + esc(fmtD(t.deadline)) + ' 17:00</div>') + tkRec(t) + tkGo(t) + '</div></div>').join('');
+    $('#tkList').innerHTML = rows.map(t => '<div class="tk-it' + (t.status === 'Done' ? ' done' : '') + '">' + tkBox(t) + '<div class="tk-b"><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + (t.mid ? 'MID ' + esc(t.mid) : '') + (t.mid && t.tid ? ' · ' : '') + (t.tid ? 'TID ' + esc(t.tid) : '') + '</div><div class="tk-pr"><span class="tk-pp">' + esc(t.purpose) + '</span> ' + tkRemHtml(t) + '</div>' + tkLk(t) + tkAlert(t) + (t.contact ? '<div class="small mt-1"><i class="bi bi-telephone me-1"></i>' + tkTel(t.contact) + '</div>' : '') + (t.status === 'Done' ? '<div class="small text-muted mt-1">' + tkDoneTxt(t) + (t.remark ? ' · “' + esc(t.remark) + '”' : '') + '</div>' : '<div class="small text-muted mt-1">Deadline ' + esc(fmtD(t.deadline)) + ' 17:00</div>') + tkRec(t) + tkGo(t) + tkHist(t) + '</div></div>').join('');
   }
 }
 setInterval(() => { $$('.tk-rem').forEach(el => { const r = tkRem(+el.dataset.due); el.className = 'tk-rem ' + r.cls; el.innerHTML = '<i class="bi bi-clock me-1"></i>' + r.text; }); }, 30000);
@@ -4045,7 +4077,8 @@ $('#tkStaffF').addEventListener('change', tkPaint); $('#tkPurF').addEventListene
 let tkT = 0; $('#tkQ').addEventListener('input', () => { clearTimeout(tkT); tkT = setTimeout(tkPaint, 120); });
 const tkDoneModal = new bootstrap.Modal($('#tkDoneModal')), tkModal = new bootstrap.Modal($('#tkModal'));
 $('#tkList').addEventListener('click', async e => {
-  const ed = e.target.closest('.tk-ed'), del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck'), go = e.target.closest('.tk-go');
+  const ed = e.target.closest('.tk-ed'), del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck'), go = e.target.closest('.tk-go'), hs = e.target.closest('.tk-hist');
+  if (hs) { const t = ((S.tk.d || {}).rows || []).find(r => r.id === hs.dataset.id); if (t) { const q = t.mid || t.tid || t.merchant; $('#mhQ').value = q; lkModal.show(); mhRun(q); } return; }
   if (go) { tkStart(go.dataset.id); return; }
   if (ed) { tkEdit(ed.dataset.id); return; }
   if (del) { if (!confirm('Delete this task?')) return; try { await api('deleteTask', S.token, del.dataset.id); toast('Task deleted.', 'success'); loadTasks(); tkBadge(); } catch (x) { toast(x.message, 'danger'); } return; }
