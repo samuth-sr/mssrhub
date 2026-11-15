@@ -148,8 +148,8 @@ function pickAct(card, a) {
 }
 function openActSheet(card) {
   const list = actsFor(curType);
-  pkSheet({ title: 'Choose activity', items: list, sel: () => $('.f-act', card.el).value,
-    sections: () => { const sh = actShownList(list, ''); return [['Recent', sh], ['All activities', list.filter(a => !sh.includes(a))]]; },
+  pkSheet({ title: 'Choose activity', search: false, items: list, sel: () => $('.f-act', card.el).value,
+    sections: () => [['', list]],
     onPick: a => pickAct(card, a) });
 }
 /* Bottom sheet with search, used by the activity and business-type pickers. */
@@ -163,7 +163,7 @@ function pkRender() {
   let h = '', any = false, exact = false;
   o.sections().forEach(sc => {
     const it = sc[1].filter(t => !q || t.toLowerCase().includes(q)); if (!it.length) return;
-    any = true; h += '<div class="pk-gh">' + esc(sc[0]) + '</div>' + it.map(row).join('');
+    any = true; h += (sc[0] ? '<div class="pk-gh">' + esc(sc[0]) + '</div>' : '') + it.map(row).join('');
   });
   o.sections().forEach(sc => sc[1].forEach(t => { if (t.toLowerCase() === q) exact = true; }));
   if (o.custom && q && !exact) h += '<div class="pk-it pk-use" data-v="' + esc($('.pk-q', ov).value.trim()) + '"><span class="pk-n">Use “' + esc($('.pk-q', ov).value.trim()) + '”</span></div>';
@@ -184,10 +184,10 @@ function pkSheet(o) {
       const f = pk.o.onPick, v = r.dataset.v; pkClose(); f(v);
     });
   }
-  pk.o = o; $('.pk-t', ov).textContent = o.title; $('.pk-q', ov).value = '';
+  pk.o = o; $('.pk-t', ov).textContent = o.title; $('.pk-q', ov).value = ''; $('.pk-q', ov).style.display = o.search === false ? 'none' : '';
   $('.pk-note', ov).textContent = o.note || ''; show($('.pk-note', ov), !!o.note);
   ov.classList.remove('hidden'); document.body.classList.add('pk-open'); pkRender();
-  setTimeout(() => { try { $('.pk-q', ov).focus(); } catch (e) {} }, 60);
+  if (o.search !== false) setTimeout(() => { try { $('.pk-q', ov).focus(); } catch (e) {} }, 60);
 }
 /* Business type: your pinned types show as chips; "More types" opens the full list (tap the pin to add or remove one). */
 let BT_PINS = (() => { try { const l = JSON.parse(localStorage.getItem('it_btype_pins') || 'null'); if (Array.isArray(l)) return l.filter(x => BIZ_TYPES.includes(x)); } catch (e) {} return BIZ_TYPES.slice(0, 6); })();
@@ -280,7 +280,6 @@ async function fillFromPlace() {      // the small buttons: take the District an
   if (c) { i.value = c; delete i.dataset.touched; } if (p) { pi.value = p; delete pi.dataset.touched; }
   if (!c && !p) toast('No district or province found for this location. Type them.', 'warning');
 }
-$('#distFill').addEventListener('click', fillFromPlace); $('#provFill').addEventListener('click', fillFromPlace);
 function syncBtype(el) {
   const v = $('.f-btype', el).value.trim().toLowerCase();
   $$('.btype-chips .chip', el).forEach(b => b.classList.toggle('active', (b.dataset.t || '').toLowerCase() === v));
@@ -1172,7 +1171,6 @@ function paintLoc() {
     const pv = geo.place && geo.place.province, shown = !$('#provWrap').classList.contains('hidden') || !$('#distWrap').classList.contains('hidden');
     $('#locStatus').innerHTML = '<span class="ok">' + (geo.manual ? 'Chosen on the map or typed' : 'From GPS' + (p.acc ? ' · accuracy ±' + Math.round(p.acc) + ' m' : '')) + '</span>' + (pv && shown ? '<br><span class="chk">Province set to ' + esc(pv) + ' from this point – check it.</span>' : ''); }
   show($('#locTag'), !!geo.manual);
-  const o = $('#locOpen'); o.href = 'https://maps.google.com/?q=' + p.lat + ',' + p.lon; show(o, true);
   if (geo.map) { try { $('#locMap').src = geo.map.toDataURL('image/png'); show($('#locMap'), true); } catch (e) {} }
 }
 async function refreshLocation() {
@@ -2703,9 +2701,9 @@ function ceActPanel(t, ti, a, ai) {
           (['select', 'check', 'radio', 'toggle'].includes(f.kind) ? '<div class="cf-vics mb-2" data-ci="' + ci + '">' + vicHtml(f) + '</div>' : '') +
           (f.kind === 'select' || f.kind === 'check' || f.kind === 'radio' ? '<input class="form-control form-control-sm cf-opts mb-2" data-ci="' + ci + '" placeholder="Values, separated by commas (e.g. Small, Medium, Large)" value="' + esc((f.opts || []).join(', ')) + '">' : '') +
           (['spin', 'check', 'radio'].includes(f.kind) ? '<div class="d-flex gap-1 mb-1 align-items-center small text-muted" data-ci="' + ci + '">Layout <button type="button" class="chip cf-dir' + (cfDir(f) === 'h' ? ' active' : '') + '" data-d="h">Horizontal</button><button type="button" class="chip cf-dir' + (cfDir(f) === 'v' ? ' active' : '') + '" data-d="v">Vertical</button></div>' : '') +
-          (f.kind === 'spin' ? '<div class="d-flex gap-1 mb-2 align-items-center small text-muted" data-ci="' + ci + '">Min <input class="form-control form-control-sm cf-min" type="number" style="max-width:80px" value="' + (f.min == null ? 0 : f.min) + '"> Max <input class="form-control form-control-sm cf-max" type="number" style="max-width:80px" value="' + (f.max == null ? 100 : f.max) + '"> Step <input class="form-control form-control-sm cf-step" type="number" min="0" step="any" style="max-width:70px" value="' + (f.step || 1) + '"></div>' : '')).join('') +
+          (f.kind === 'spin' ? '<div class="d-flex gap-1 mb-2 align-items-center small text-muted" data-ci="' + ci + '">Min <input class="form-control form-control-sm cf-min" type="number" style="max-width:80px" value="' + (f.min == null ? 0 : f.min) + '"> Max <input class="form-control form-control-sm cf-max" type="number" style="max-width:80px" value="' + (f.max == null ? 100 : f.max) + '"> Step <input class="form-control form-control-sm cf-step" type="number" min="0" step="any" style="max-width:70px" value="' + (f.step || 1) + '"></div>' : '') + cfAlsoHtml(ti, ai, ci, f)).join('') +
         
-    '<button type="button" class="btn btn-soft btn-sm cf-add mt-1"><i class="bi bi-plus-lg me-1"></i>Field</button>' +
+    '<button type="button" class="btn btn-soft btn-sm cf-add mt-1"><i class="bi bi-plus-lg me-1"></i>Field</button>' + cfShareHtml(ti, ai) +
     '<div class="ce-two"><div>' + '<details class="mt-2 a-tgbox"' + (a.tg ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Telegram message <span class="text-muted fw-normal">(' + (a.tg ? 'own message' : 'standard message') + ')</span></summary>' +
           '<textarea class="form-control form-control-sm a-tg mt-2" rows="6" spellcheck="false" placeholder="Leave empty to use the standard message (Telegram message box below). Example:&#10;🛠 <b>{title}</b>&#10;🧾 {merchant} · MID {mid}">' + esc(a.tg || '') + '</textarea>' +
           '<div class="chips mt-2 a-tgchips">' + (S.tgPlaceholders || []).map(k => '<button type="button" class="chip a-tgk" data-k="' + esc(k) + '"' + ((S.tgFieldLabels || {})[k] ? ' title="Field: ' + esc(S.tgFieldLabels[k]) + '"' : '') + '>{' + esc(k) + '}</button>').join('') + '</div>' +
@@ -2725,6 +2723,37 @@ function cePreview() {
     if (!txt.trim()) { box.textContent = 'Open the Telegram section once to load the standard message.'; return; }
     api('previewTelegramTemplate', S.token, txt).then(r => { box.innerHTML = r; }).catch(ex => { box.textContent = ex.message; });
   }, 350);
+}
+/** Extra fields already defined in OTHER activities (by name). Switching one on copies it here; both then write to the same sheet column (the column is found by the field name). */
+const cfOpen = new Set();
+function cfPool(ti, ai) {
+  const m = {};
+  catDraft.forEach((t2, i) => t2.acts.forEach((a2, j) => {
+    if (i === ti && j === ai) return;
+    (a2.custom || []).forEach(f => { const k = String(f.label || '').trim().toLowerCase(); if (!k || f.kind === 'info') return; (m[k] = m[k] || { f, where: [] }).where.push(t2.name + ' / ' + a2.n); });
+  }));
+  return m;
+}
+/** Under each extra field: switch it on for other activities (default Off). On = the same field is added there; both write to one sheet column (found by the field name). Off = removed from that activity again. */
+const cfAlsoOpen = new Set();
+function cfAlsoHtml(ti, ai, ci, f) {
+  const key = String(f.label || '').trim().toLowerCase(); if (!key || f.kind === 'info') return '';
+  const id = ti + '|' + ai + '|' + ci; let on = 0, rows = '';
+  catDraft.forEach((t2, i) => {
+    const items = t2.acts.map((a2, j) => {
+      if (i === ti && j === ai) return '';
+      const has = (a2.custom || []).some(x => x.kind !== 'info' && String(x.label || '').trim().toLowerCase() === key); if (has) on++;
+      return '<div class="cf-also-row"><span>' + esc(a2.n || 'New activity') + '</span><div class="ce-sw cf-also' + (has ? ' on' : '') + '" data-t2="' + i + '" data-a2="' + j + '" role="switch" aria-checked="' + has + '" tabindex="0"><span class="sw"></span></div></div>';
+    }).join('');
+    if (items) rows += '<div class="cf-also-cat">' + esc(t2.name || 'New category') + '</div>' + items;
+  });
+  if (!rows) return '';
+  return '<details class="cf-also-box mb-2" data-cfi="' + ci + '" data-k="' + id + '"' + (cfAlsoOpen.has(id) ? ' open' : '') + '><summary class="small fw-semibold">Also use in other activities' + (on ? ' <span class="pill">' + on + ' on</span>' : '') + ' <span class="text-muted fw-normal">(same sheet column, default Off)</span></summary>' + rows + '</details>';
+}
+function cfShareHtml(ti, ai) {
+  const a = catDraft[ti].acts[ai], pool = cfPool(ti, ai), keys = Object.keys(pool).sort(), mine = (a.custom || []).map(f => String(f.label || '').trim().toLowerCase());
+  return '<details class="mt-2 cf-share" data-k="' + ti + '|' + ai + '"' + (cfOpen.has(ti + '|' + ai) ? ' open' : '') + '><summary class="small fw-semibold" style="cursor:pointer">Use a field from other activities <span class="text-muted fw-normal">(shares its sheet column, nothing new is created)</span></summary>' +
+    (keys.length ? '<div class="mt-2">' + keys.map(k => { const p = pool[k], on = mine.includes(k); return '<div class="cf-use-row"><button type="button" class="chip cf-use' + (on ? ' active' : '') + '" data-k="' + esc(k) + '">' + (on ? 'On' : 'Off') + '</button><span class="cf-use-n"><b>' + esc(p.f.label) + '</b> <span class="text-muted">' + esc((CF_KINDS.find(x => x[0] === p.f.kind) || [0, p.f.kind])[1]) + '</span><div class="small text-muted">' + esc(p.where.slice(0, 3).join(', ') + (p.where.length > 3 ? ' +' + (p.where.length - 3) : '')) + '</div></span></div>'; }).join('') + '</div>' : '<div class="small text-muted mt-2">No extra fields in other activities yet.</div>') + '</details>';
 }
 function renderCatEditor() {
   if (catSel.ti >= catDraft.length) catSel.ti = Math.max(0, catDraft.length - 1);
@@ -2807,6 +2836,30 @@ $('#catList').addEventListener('click', e => {
   }
   else if (e.target.closest('.cf-dir')) { const f = t.acts[ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.dir = e.target.closest('.cf-dir').dataset.d; renderCatEditor(); }
   else if (e.target.closest('.cf-add')) { const a = t.acts[ai]; a.custom = a.custom || []; if (a.custom.length >= 20) { toast('At most 20 fields per activity.', 'warning'); return; } a.custom.push({ id: 'f' + (++catSeq).toString(36) + Math.random().toString(36).slice(2, 6), label: '', kind: 'text', req: false }); renderCatEditor(); }
+  else if (e.target.closest('.cf-also')) {
+    const sw = e.target.closest('.cf-also'), det = sw.closest('.cf-also-box'), f = t.acts[ai].custom[+det.dataset.cfi]; if (!f) return;
+    const key = String(f.label || '').trim().toLowerCase(), a2 = catDraft[+sw.dataset.t2].acts[+sw.dataset.a2]; a2.custom = a2.custom || [];
+    cfAlsoOpen.add(det.dataset.k);
+    const at = a2.custom.findIndex(x => x.kind !== 'info' && String(x.label || '').trim().toLowerCase() === key);
+    if (at >= 0) a2.custom.splice(at, 1);
+    else {
+      if (a2.custom.length >= 20) { toast('At most 20 fields per activity.', 'warning'); return; }
+      const c = JSON.parse(JSON.stringify(f)); c.id = 'f' + (++catSeq).toString(36) + Math.random().toString(36).slice(2, 6); c.req = false; a2.custom.push(c);
+    }
+    renderCatEditor();
+  }
+  else if (e.target.closest('.cf-use')) {
+    const a = t.acts[ai], k = e.target.closest('.cf-use').dataset.k; a.custom = a.custom || [];
+    const at = a.custom.findIndex(f => String(f.label || '').trim().toLowerCase() === k);
+    cfOpen.add(ti + '|' + ai);
+    if (at >= 0) a.custom.splice(at, 1);
+    else {
+      if (a.custom.length >= 20) { toast('At most 20 fields per activity.', 'warning'); return; }
+      const src = cfPool(ti, ai)[k]; if (!src) return;
+      const c = JSON.parse(JSON.stringify(src.f)); c.id = 'f' + (++catSeq).toString(36) + Math.random().toString(36).slice(2, 6); c.req = false; a.custom.push(c);
+    }
+    renderCatEditor();
+  }
   else if (e.target.closest('.cf-del')) { t.acts[ai].custom.splice(+e.target.closest('[data-ci]').dataset.ci, 1); renderCatEditor(); }
   else if (e.target.closest('.cf-req')) { const f = t.acts[ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.req = !f.req; e.target.closest('.cf-req').classList.toggle('active', f.req); }
 });

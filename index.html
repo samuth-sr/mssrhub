@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=147" rel="stylesheet">
+  <link href="style.css?v=149" rel="stylesheet">
 </head>
 <body>
 
@@ -89,10 +89,9 @@
         <div class="loc-h"><span class="loc-ic"><i class="bi bi-geo-alt"></i></span><b>Merchant location</b> <span class="pill hidden" id="locTag">Chosen on map</span></div>
         <div class="row g-2 hidden" id="distRow">
           <div class="col-6 hidden" id="provWrap"><label class="form-label mb-1" for="fProvince">Province <span class="rq hidden" id="provStar">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label>
-            <div class="input-group"><input class="form-control" id="fProvince" maxlength="80" autocomplete="off" placeholder="Filled from your location"><button type="button" class="btn btn-soft" id="provFill" aria-label="Fill from my location" title="Fill from my location"><i class="bi bi-geo-alt"></i></button></div></div>
+            <div><input class="form-control" id="fProvince" maxlength="80" autocomplete="off" placeholder="Filled from your location"></div></div>
           <div class="col-6 hidden" id="distWrap"><label class="form-label mb-1" for="fDistrict">District <span class="rq hidden" id="distStar">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label>
-            <div class="input-group"><input class="form-control" id="fDistrict" maxlength="80" autocomplete="off" placeholder="Filled from your location"><button type="button" class="btn btn-soft" id="distFill" aria-label="Fill from my location" title="Fill from my location"><i class="bi bi-geo-alt"></i></button></div></div>
-          <div class="col-12 small text-muted loc-cap">Filled from your location. Type to change.</div>
+            <div><input class="form-control" id="fDistrict" maxlength="80" autocomplete="off" placeholder="Filled from your location"></div></div>
         </div>
 
         <div id="locRow">
@@ -105,7 +104,7 @@
             <div class="col-6"><button type="button" class="btn btn-soft loc-b w-100" id="locPick"><i class="bi bi-map me-1"></i>Pin on map</button></div>
           </div>
           <div class="loc-st" id="locStatus">Finding your location…</div>
-          <div class="loc-ad"><img id="locMap" class="hidden" alt="Map"><div class="flex-grow-1" style="min-width:0"><div class="small text-muted" id="locAddr">Finding your location…</div><div class="small text-muted" id="locCoords"></div><a id="locOpen" class="small hidden" target="_blank" rel="noopener">Open in Maps</a></div></div>
+          <div class="loc-ad"><img id="locMap" class="hidden" alt="Map"><div class="flex-grow-1" style="min-width:0"><div class="small text-muted" id="locAddr">Finding your location…</div><div class="small text-muted" id="locCoords"></div></div></div>
         </div>
       </div>
       <button class="btn btn-soft w-100 mb-3" id="addMerchantBtn"><i class="bi bi-plus-lg me-1"></i>Add another merchant</button>
@@ -951,6 +950,6 @@
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 <script src="config.js" defer></script>
-<script src="app.js?v=147" defer></script>
+<script src="app.js?v=149" defer></script>
 </body>
 </html>
