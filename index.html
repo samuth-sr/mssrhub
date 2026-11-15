@@ -20,7 +20,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 
-  <link href="style.css?v=138" rel="stylesheet">
+  <link href="style.css?v=147" rel="stylesheet">
 </head>
 <body>
 
@@ -82,27 +82,30 @@
     <section id="pane-new" class="fade-in">
       <div class="seg" id="typeTabs" role="tablist"></div>
       <div id="subWrap" class="hidden"><div class="seg seg-sub" aria-label="Sub category" id="subChips" role="tablist"></div></div>
+      <div id="taskBanner" class="tk-banner hidden"></div>
       <div id="merchantList"></div>
 
-      <div class="card-x" id="locCard">
-        <div class="d-flex gap-3 align-items-center" id="locRow">
-          <img id="locMap" class="hidden" alt="Map" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex:none">
-          <div class="flex-grow-1" style="min-width:0">
-            <div class="fw-semibold small"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Current location <span class="rq hidden" id="locStar">*</span> <span class="text-muted fw-normal">(sent to Telegram)</span> <span class="pill hidden" id="locTag">Chosen on map</span></div>
-            <div class="small text-muted" id="locAddr">Finding your location…</div>
-            <div class="small text-muted" id="locCoords"></div>
-          </div>
-          <div class="d-flex flex-column gap-1 flex-none">
-            <button type="button" class="btn btn-soft btn-sm" id="locRefresh" aria-label="Use my GPS location" title="Use my GPS location"><i class="bi bi-arrow-repeat"></i></button>
-            <button type="button" class="btn btn-soft btn-sm" id="locPick" aria-label="Choose on map" title="Choose on map"><i class="bi bi-pin-map"></i></button>
-            <a id="locOpen" class="btn btn-soft btn-sm hidden" target="_blank" rel="noopener" aria-label="Open in Maps"><i class="bi bi-box-arrow-up-right"></i></a>
-          </div>
-        </div>
-        <div class="row g-2 mt-1 hidden" id="distRow">
-          <div class="col-12 col-sm-6 hidden" id="provWrap"><label class="form-label mb-1" for="fProvince">Province <span class="rq hidden" id="provStar">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label>
+      <div class="card-x loc2" id="locCard">
+        <div class="loc-h"><span class="loc-ic"><i class="bi bi-geo-alt"></i></span><b>Merchant location</b> <span class="pill hidden" id="locTag">Chosen on map</span></div>
+        <div class="row g-2 hidden" id="distRow">
+          <div class="col-6 hidden" id="provWrap"><label class="form-label mb-1" for="fProvince">Province <span class="rq hidden" id="provStar">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label>
             <div class="input-group"><input class="form-control" id="fProvince" maxlength="80" autocomplete="off" placeholder="Filled from your location"><button type="button" class="btn btn-soft" id="provFill" aria-label="Fill from my location" title="Fill from my location"><i class="bi bi-geo-alt"></i></button></div></div>
-          <div class="col-12 col-sm-6 hidden" id="distWrap"><label class="form-label mb-1" for="fDistrict">District <span class="rq hidden" id="distStar">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label>
+          <div class="col-6 hidden" id="distWrap"><label class="form-label mb-1" for="fDistrict">District <span class="rq hidden" id="distStar">*</span> <span class="text-lowercase fw-normal">(from your location)</span></label>
             <div class="input-group"><input class="form-control" id="fDistrict" maxlength="80" autocomplete="off" placeholder="Filled from your location"><button type="button" class="btn btn-soft" id="distFill" aria-label="Fill from my location" title="Fill from my location"><i class="bi bi-geo-alt"></i></button></div></div>
+          <div class="col-12 small text-muted loc-cap">Filled from your location. Type to change.</div>
+        </div>
+
+        <div id="locRow">
+          <div class="row g-2">
+            <div class="col-6"><label class="form-label mb-1" for="locLat">Latitude <span class="rq hidden" id="locStar">*</span></label><div class="loc-in"><input class="form-control" id="locLat" inputmode="decimal" autocomplete="off" placeholder="0.000000"><button type="button" class="loc-x" data-for="locLat" aria-label="Clear"><i class="bi bi-x-circle-fill"></i></button></div></div>
+            <div class="col-6"><label class="form-label mb-1" for="locLon">Longitude <span class="rq hidden" id="locStar2">*</span></label><div class="loc-in"><input class="form-control" id="locLon" inputmode="decimal" autocomplete="off" placeholder="0.000000"><button type="button" class="loc-x" data-for="locLon" aria-label="Clear"><i class="bi bi-x-circle-fill"></i></button></div></div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-6"><button type="button" class="btn btn-soft loc-b w-100" id="locRefresh"><i class="bi bi-geo-alt me-1"></i>Use my location</button></div>
+            <div class="col-6"><button type="button" class="btn btn-soft loc-b w-100" id="locPick"><i class="bi bi-map me-1"></i>Pin on map</button></div>
+          </div>
+          <div class="loc-st" id="locStatus">Finding your location…</div>
+          <div class="loc-ad"><img id="locMap" class="hidden" alt="Map"><div class="flex-grow-1" style="min-width:0"><div class="small text-muted" id="locAddr">Finding your location…</div><div class="small text-muted" id="locCoords"></div><a id="locOpen" class="small hidden" target="_blank" rel="noopener">Open in Maps</a></div></div>
         </div>
       </div>
       <button class="btn btn-soft w-100 mb-3" id="addMerchantBtn"><i class="bi bi-plus-lg me-1"></i>Add another merchant</button>
@@ -511,6 +514,7 @@
         <div class="col-7"><label class="form-label">Staff <span class="text-muted fw-normal small" id="tkStaffHint"></span></label><select id="tkStaff" class="form-select"></select></div>
         <div class="col-5"><label class="form-label">Deadline <span class="text-muted fw-normal small">(5 pm)</span></label><input type="date" id="tkDue" class="form-control"></div>
       </div>
+      <div class="row g-2 mb-2"><div class="col-5"><label class="form-label">Link to activity <span class="text-muted fw-normal small">(optional)</span></label><select id="tkType" class="form-select"></select></div><div class="col-7"><label class="form-label">&nbsp;</label><select id="tkAct" class="form-select"></select></div></div>
       <div id="tkOne">
         <div class="mb-2"><label class="form-label">Merchant name</label><input id="tkMerchant" class="form-control" maxlength="80" autocomplete="off"></div>
         <div class="row g-2 mb-2"><div class="col-7"><label class="form-label">MID</label><input id="tkMid" class="form-control" maxlength="20" inputmode="numeric" autocomplete="off"></div><div class="col-5"><label class="form-label">TID</label><input id="tkTid" class="form-control" maxlength="12" inputmode="numeric" autocomplete="off"></div></div>
@@ -537,6 +541,7 @@
       <div class="row g-2 mb-2"><div class="col-7"><label class="form-label">MID</label><input id="teMid" class="form-control" maxlength="20" inputmode="numeric" autocomplete="off"></div><div class="col-5"><label class="form-label">TID</label><input id="teTid" class="form-control" maxlength="12" inputmode="numeric" autocomplete="off"></div></div>
       <div class="mb-2"><label class="form-label">Project purpose</label><input id="tePurpose" class="form-control" maxlength="80" autocomplete="off"></div>
       <div class="mb-2"><label class="form-label">Merchant contact number</label><input id="teContact" class="form-control" maxlength="20" inputmode="tel" autocomplete="off"></div>
+      <div class="row g-2 mb-2"><div class="col-5"><label class="form-label">Link to activity <span class="text-muted fw-normal small">(optional)</span></label><select id="teType" class="form-select"></select></div><div class="col-7"><label class="form-label">&nbsp;</label><select id="teAct" class="form-select"></select></div></div>
       <div class="mb-2"><label class="form-label">Remark <span class="text-muted fw-normal small">(written by the staff when done)</span></label><textarea id="teRemark" class="form-control" rows="2" maxlength="300"></textarea></div>
       <div class="small text-danger" id="teMsg"></div>
       <button type="button" class="btn btn-brand w-100 mt-2" id="teSave">Save changes</button>
@@ -946,6 +951,6 @@
 <script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 <script src="config.js" defer></script>
-<script src="app.js?v=138" defer></script>
+<script src="app.js?v=147" defer></script>
 </body>
 </html>

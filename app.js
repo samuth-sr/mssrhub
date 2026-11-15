@@ -127,10 +127,92 @@ function setCatalog(c) {
 function isLinked(t) { return !!(t && t.subs && t.subs.length && t.acts.some(a => a.subs && a.subs.some(Boolean))); }
 const actsFor = type => { const t = typeDef(type); return !t ? [] : isLinked(t) ? t.acts.filter(a => actSubs(a).includes(S.sub || '')).map(a => a.n) : t.acts.map(a => a.n); };
 const actKey = () => curType + (isLinked(typeDef(curType)) ? '|' + (S.sub || '') : '');
+/* Activity picker: the 3 most recently used activities as chips + "More activities" (searchable list); short lists show every chip. */
+const ACT_USE = (() => { try { return JSON.parse(localStorage.getItem('it_act_use') || '{}') || {}; } catch (e) { return {}; } })();
+const ACT_SHOW = 3;
+function actShownList(list, sel) {
+  if (list.length <= ACT_SHOW + 1) return list.slice();
+  const shown = [];
+  (ACT_USE[actKey()] || []).concat(list).forEach(a => { if (list.includes(a) && !shown.includes(a) && shown.length < ACT_SHOW) shown.push(a); });
+  if (sel && list.includes(sel) && !shown.includes(sel)) shown.push(sel);
+  return shown;
+}
+function actChips(card) {
+  const list = actsFor(curType), sel = $('.f-act', card.el).value, shown = actShownList(list, sel);
+  $('.act-chips', card.el).innerHTML = shown.map(a => '<button type="button" class="chip' + (a === sel ? ' active' : '') + '" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('') +
+    (shown.length < list.length ? '<button type="button" class="chip chip-more" data-more="1">More activities <b>▾ ' + (list.length - shown.length) + '</b></button>' : '');
+}
+function pickAct(card, a) {
+  setAct(card, a);
+  if (card === S.cards[0]) followFirst(); else card.own = true;     // changing a later merchant by hand stops it following merchant 1
+}
+function openActSheet(card) {
+  const list = actsFor(curType);
+  pkSheet({ title: 'Choose activity', items: list, sel: () => $('.f-act', card.el).value,
+    sections: () => { const sh = actShownList(list, ''); return [['Recent', sh], ['All activities', list.filter(a => !sh.includes(a))]]; },
+    onPick: a => pickAct(card, a) });
+}
+/* Bottom sheet with search, used by the activity and business-type pickers. */
+const pk = { o: null };
+function pkClose() { const ov = $('#pkSheet'); if (ov) ov.classList.add('hidden'); document.body.classList.remove('pk-open'); pk.o = null; }
+function pkRender() {
+  const ov = $('#pkSheet'), o = pk.o; if (!o) return;
+  const q = $('.pk-q', ov).value.trim().toLowerCase(), sel = (o.sel() || '').toLowerCase(), pins = o.pins ? o.pins().map(x => x.toLowerCase()) : null;
+  const row = t => '<div class="pk-it' + (t.toLowerCase() === sel ? ' on' : '') + '" data-v="' + esc(t) + '"><span class="pk-n">' + esc(t) + '</span>' +
+    (t.toLowerCase() === sel ? '<i class="bi bi-check2 pk-ck"></i>' : '') + (pins ? '<button type="button" class="pk-pin' + (pins.includes(t.toLowerCase()) ? ' on' : '') + '" data-p="1" aria-label="Pin"><i class="bi bi-' + (pins.includes(t.toLowerCase()) ? 'pin-angle-fill' : 'pin-angle') + '"></i></button>' : '') + '</div>';
+  let h = '', any = false, exact = false;
+  o.sections().forEach(sc => {
+    const it = sc[1].filter(t => !q || t.toLowerCase().includes(q)); if (!it.length) return;
+    any = true; h += '<div class="pk-gh">' + esc(sc[0]) + '</div>' + it.map(row).join('');
+  });
+  o.sections().forEach(sc => sc[1].forEach(t => { if (t.toLowerCase() === q) exact = true; }));
+  if (o.custom && q && !exact) h += '<div class="pk-it pk-use" data-v="' + esc($('.pk-q', ov).value.trim()) + '"><span class="pk-n">Use “' + esc($('.pk-q', ov).value.trim()) + '”</span></div>';
+  else if (!any) h = '<div class="pk-empty">Nothing found</div>';
+  $('.pk-list', ov).innerHTML = h;
+}
+function pkSheet(o) {
+  let ov = $('#pkSheet');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'pkSheet'; ov.className = 'pk-ov hidden';
+    ov.innerHTML = '<div class="pk-bg"></div><div class="pk-box"><div class="pk-grab"></div><div class="pk-top"><b class="pk-t"></b><button type="button" class="btn-close pk-x" aria-label="Close"></button></div><div class="pk-note small text-muted"></div><input class="form-control pk-q" placeholder="Search…" autocomplete="off"><div class="pk-list"></div></div>';
+    document.body.appendChild(ov);
+    $('.pk-bg', ov).onclick = pkClose; $('.pk-x', ov).onclick = pkClose;
+    $('.pk-q', ov).addEventListener('input', pkRender);
+    $('.pk-list', ov).addEventListener('click', e => {
+      const r = e.target.closest('.pk-it'); if (!r || !pk.o) return;
+      if (e.target.closest('.pk-pin')) { pk.o.onPin(r.dataset.v); pkRender(); return; }
+      const f = pk.o.onPick, v = r.dataset.v; pkClose(); f(v);
+    });
+  }
+  pk.o = o; $('.pk-t', ov).textContent = o.title; $('.pk-q', ov).value = '';
+  $('.pk-note', ov).textContent = o.note || ''; show($('.pk-note', ov), !!o.note);
+  ov.classList.remove('hidden'); document.body.classList.add('pk-open'); pkRender();
+  setTimeout(() => { try { $('.pk-q', ov).focus(); } catch (e) {} }, 60);
+}
+/* Business type: your pinned types show as chips; "More types" opens the full list (tap the pin to add or remove one). */
+let BT_PINS = (() => { try { const l = JSON.parse(localStorage.getItem('it_btype_pins') || 'null'); if (Array.isArray(l)) return l.filter(x => BIZ_TYPES.includes(x)); } catch (e) {} return BIZ_TYPES.slice(0, 6); })();
+function btChips(el) {
+  $('.btype-chips', el).innerHTML = BT_PINS.map(t => '<button type="button" class="chip" data-t="' + esc(t) + '">' + esc(t) + '</button>').join('') +
+    (BT_PINS.length < BIZ_TYPES.length ? '<button type="button" class="chip chip-more" data-more="1">More types <b>▾ ' + (BIZ_TYPES.length - BT_PINS.length) + '</b></button>' : '');
+  syncBtype(el);
+}
+function openBtypeSheet(el) {
+  pkSheet({ title: 'Business type', note: 'Tap the pin to keep a type on the form. Not in the list? Type it in the search box.', items: BIZ_TYPES, custom: true,
+    sel: () => $('.f-btype', el).value.trim(), pins: () => BT_PINS,
+    sections: () => [['Pinned', BIZ_TYPES.filter(t => BT_PINS.includes(t))], ['All types', BIZ_TYPES.filter(t => !BT_PINS.includes(t))]],
+    onPin: t => {
+      BT_PINS = BT_PINS.includes(t) ? BT_PINS.filter(x => x !== t) : BT_PINS.concat(t);
+      BT_PINS = BIZ_TYPES.filter(x => BT_PINS.includes(x));
+      try { localStorage.setItem('it_btype_pins', JSON.stringify(BT_PINS)); } catch (e) {}
+      S.cards.forEach(c => btChips(c.el));
+    },
+    onPick: t => { const i = $('.f-btype', el); i.value = t; syncBtype(el); } });
+}
 function fillActivities(card) {
   const list = actsFor(curType), keep = $('.f-act', card.el).value, single = list.length === 1;
-  $('.act-chips', card.el).innerHTML = list.map(a => '<button type="button" class="chip" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('');
+  actChips(card);
   show($('.act-wrap', card.el), !single);
+  { const ap = $('.act-pill', card.el); if (ap) { ap.textContent = single ? list[0] : ''; show(ap, single); } }       // one activity only: its name sits beside the category
   setAct(card, list.includes(keep) ? keep : (single ? list[0] : startAct(card, list)));
 }
 /* Merchants 2-10 start on merchant 1's activity and follow it until you pick their own; the first card starts on the activity used last time. */
@@ -169,6 +251,7 @@ $('#subChips').addEventListener('click', e => {
 /* Tag and Zone/Area stay filled after a submit (they rarely change within a day). */
 const keep = (() => { try { return JSON.parse(localStorage.getItem('it_keep') || '{}') || {}; } catch (e) { return {}; } })();
 function rememberAct(a) {
+  if (a) { const u = (ACT_USE[actKey()] || []).filter(x => x !== a); u.unshift(a); ACT_USE[actKey()] = u.slice(0, 10); try { localStorage.setItem('it_act_use', JSON.stringify(ACT_USE)); } catch (e) {} }
   lastActs[actKey()] = a; if (S.sub != null) { lastSubs[curType] = S.sub; sessSubs[curType] = S.sub; }
   try { localStorage.setItem('it_last_act', JSON.stringify(lastActs)); localStorage.setItem('it_last_sub', JSON.stringify(lastSubs)); localStorage.setItem('it_keep', JSON.stringify(keep)); } catch (e) {}
 }
@@ -200,33 +283,42 @@ async function fillFromPlace() {      // the small buttons: take the District an
 $('#distFill').addEventListener('click', fillFromPlace); $('#provFill').addEventListener('click', fillFromPlace);
 function syncBtype(el) {
   const v = $('.f-btype', el).value.trim().toLowerCase();
-  $$('.btype-chips .chip', el).forEach(b => b.classList.toggle('active', b.dataset.t.toLowerCase() === v));
+  $$('.btype-chips .chip', el).forEach(b => b.classList.toggle('active', (b.dataset.t || '').toLowerCase() === v));
 }
 const PHONE_RE = /^[0-9+\-\s()]{6,20}$/;
 /** HTML of one admin-added box: text / number / phone / date / serial (with scan) / drop-down / tick boxes. */
 /** A spin number starts at zero (or at its lowest value when zero is outside its range). */
 const spinDef = f => { const mn = f.min == null ? 0 : +f.min, mx = f.max == null ? 100 : +f.max; return 0 >= mn && 0 <= mx ? 0 : mn; };
+/** Extra boxes sit on one line (name left, box right). A long name or a box with many / long values goes full width, name on top. */
+function cfStack(f) {
+  const o = f.opts || [], tot = o.reduce((n, x) => n + String(x).length, 0);
+  if (String(f.label || '').length > 18) return true;
+  if (f.kind === 'radio' || f.kind === 'check') return cfDir(f) === 'v' || o.length > 3 || tot > 26 || o.some(x => String(x).length > 12);
+  if (f.kind === 'spin') return cfDir(f) === 'v';
+  return false;
+}
 function customFieldHtml(f) {
+  const sc = cfStack(f) ? ' cf-stack' : '';
   const lab = '<label class="form-label">' + esc(f.label) + (f.req ? ' <span class="rq">*</span>' : '') + '</label>';
-  if (f.kind === 'select') return '<div class="mb-3">' + lab + '<select class="form-select" data-fid="' + esc(f.id) + '" data-kind="select"><option value="">Select…</option>' +
+  if (f.kind === 'select') return '<div class="mb-3' + sc + '">' + lab + '<select class="form-select" data-fid="' + esc(f.id) + '" data-kind="select"><option value="">Select…</option>' +
     (f.opts || []).map(o => '<option value="' + esc(o) + '">' + esc(o) + '</option>').join('') + '</select></div>';
   if (f.kind === 'info') return '<div class="mb-3 info-lbl">' + (f.label ? '<div class="fw-semibold">' + esc(f.label) + '</div>' : '') + '<div class="small" style="white-space:pre-wrap">' + esc(f.text || '') + '</div></div>';
-  if (f.kind === 'scan') return '<div class="mb-3">' + lab + '<div class="scan-field" data-fid="' + esc(f.id) + '" data-kind="scan"><div class="scan-thumbs"></div><button type="button" class="btn btn-soft scan-btn"><i class="bi bi-file-earmark-text me-1"></i>Scan document</button><input type="file" accept="image/*" capture="environment" class="scan-file hidden"><div class="small text-muted scan-note">Take a photo of the paper. It is straightened and cleaned like a scanner and sent to Telegram as one PDF.</div></div></div>';
+  if (f.kind === 'scan') return '<div class="mb-3' + sc + '">' + lab + '<div class="scan-field" data-fid="' + esc(f.id) + '" data-kind="scan"><div class="scan-thumbs"></div><button type="button" class="btn btn-soft scan-btn"><i class="bi bi-file-earmark-text me-1"></i>Scan document</button><input type="file" accept="image/*" capture="environment" class="scan-file hidden"><div class="small text-muted scan-note">Take a photo of the paper. It is straightened and cleaned like a scanner and sent to Telegram as one PDF.</div></div></div>';
   if (f.kind === 'toggle') return '<div class="yn-row" data-fid="' + esc(f.id) + '" data-kind="toggle"><label class="form-check-label">' + esc(f.label) + '</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" aria-label="' + esc(f.label) + '"><span class="yn-t small fw-semibold">No</span></div></div>';
   const vert = cfDir(f) === 'v';
-  if (f.kind === 'radio') return '<div class="mb-3">' + lab + '<div class="chips' + (vert ? ' opt-v' : '') + '" data-fid="' + esc(f.id) + '" data-kind="radio">' +
+  if (f.kind === 'radio') return '<div class="mb-3' + sc + '">' + lab + '<div class="chips' + (vert ? ' opt-v' : '') + '" data-fid="' + esc(f.id) + '" data-kind="radio">' +
     (f.opts || []).map(o => '<button type="button" class="chip rc-chip" data-v="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div></div>';
-  if (f.kind === 'check') return '<div class="mb-3">' + lab + '<div data-fid="' + esc(f.id) + '" data-kind="check">' +
+  if (f.kind === 'check') return '<div class="mb-3' + sc + '">' + lab + '<div data-fid="' + esc(f.id) + '" data-kind="check">' +
     (f.opts || []).map(o => '<div class="form-check' + (vert ? '' : ' form-check-inline') + '"><label class="form-check-label"><input class="form-check-input" type="checkbox" value="' + esc(o) + '"> ' + esc(o) + '</label></div>').join('') + '</div></div>';
-  if (f.kind === 'spin' && vert) return '<div class="mb-3">' + lab + '<div class="spin spin-v" data-fid="' + esc(f.id) + '" data-kind="spin" data-min="' + (f.min == null ? 0 : f.min) + '" data-max="' + (f.max == null ? 100 : f.max) + '" data-step="' + (f.step || 1) + '">' +
+  if (f.kind === 'spin' && vert) return '<div class="mb-3' + sc + '">' + lab + '<div class="spin spin-v" data-fid="' + esc(f.id) + '" data-kind="spin" data-min="' + (f.min == null ? 0 : f.min) + '" data-max="' + (f.max == null ? 100 : f.max) + '" data-step="' + (f.step || 1) + '">' +
     '<button type="button" class="btn btn-soft spin-up" aria-label="More"><i class="bi bi-plus-lg"></i></button><input class="form-control text-center spin-in" inputmode="decimal" autocomplete="off" value="' + spinDef(f) + '" placeholder="' + (f.min == null ? 0 : f.min) + ' – ' + (f.max == null ? 100 : f.max) + '">' +
     '<button type="button" class="btn btn-soft spin-dn" aria-label="Less"><i class="bi bi-dash-lg"></i></button></div></div>';
-  if (f.kind === 'spin') return '<div class="mb-3">' + lab + '<div class="input-group spin" style="max-width:220px" data-fid="' + esc(f.id) + '" data-kind="spin" data-min="' + (f.min == null ? 0 : f.min) + '" data-max="' + (f.max == null ? 100 : f.max) + '" data-step="' + (f.step || 1) + '">' +
+  if (f.kind === 'spin') return '<div class="mb-3' + sc + '">' + lab + '<div class="input-group spin" style="max-width:220px" data-fid="' + esc(f.id) + '" data-kind="spin" data-min="' + (f.min == null ? 0 : f.min) + '" data-max="' + (f.max == null ? 100 : f.max) + '" data-step="' + (f.step || 1) + '">' +
     '<button type="button" class="btn btn-soft spin-dn" aria-label="Less"><i class="bi bi-dash-lg"></i></button><input class="form-control text-center spin-in" inputmode="decimal" autocomplete="off" value="' + spinDef(f) + '" placeholder="' + (f.min == null ? 0 : f.min) + ' – ' + (f.max == null ? 100 : f.max) + '">' +
     '<button type="button" class="btn btn-soft spin-up" aria-label="More"><i class="bi bi-plus-lg"></i></button></div></div>';
   const t = f.kind === 'date' ? 'date' : (f.kind === 'phone' ? 'tel' : 'text'), im = f.kind === 'number' ? 'decimal' : (f.kind === 'phone' ? 'tel' : 'text');
   const inp = '<input class="form-control" data-fid="' + esc(f.id) + '" data-kind="' + f.kind + '" type="' + t + '" inputmode="' + im + '" autocomplete="off"' + (f.kind === 'serial' ? ' autocapitalize="characters"' : '') + '>';
-  return '<div class="mb-3">' + lab + (f.kind === 'serial' ? '<div class="input-group">' + inp + '<button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div>' : inp) + '</div>';
+  return '<div class="mb-3' + sc + '">' + lab + (f.kind === 'serial' ? '<div class="input-group">' + inp + '<button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div>' : inp) + '</div>';
 }
 document.addEventListener('click', e => {      // spin number bar: - / +
   const b = e.target.closest('.spin-dn, .spin-up'); if (!b) return;
@@ -383,6 +475,7 @@ $('#merchantList').addEventListener('change', e => {
 function setAct(card, a) {
   const changed = $('.f-act', card.el).value !== a;
   $('.f-act', card.el).value = a;
+  if (a && !$$('.act-chips .chip', card.el).some(b => b.dataset.a === a)) actChips(card);
   $$('.act-chips .chip', card.el).forEach(b => b.classList.toggle('active', b.dataset.a === a));
   const d = effDef(curType, a, S.sub || '');
   applyLevels(card.el, d);
@@ -402,9 +495,9 @@ function setAct(card, a) {
 function updateLocCard() {
   const ds = S.cards.map(c => { const a = $('.f-act', c.el).value; return a ? effDef(curType, a, S.sub || '') : null; });
   const needLoc = ds.some(d => !d || lvl(d, 'location') > 0 || lvl(d, 'province') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0), needProv = ds.some(d => d && lvl(d, 'province') > 0);
-  show($('#locCard'), needLoc || needDist || needProv); show($('#locRow'), needLoc); show($('#distRow'), needDist || needProv); show($('#distWrap'), needDist); show($('#provWrap'), needProv);
+  show($('#locCard'), needLoc || needDist || needProv); show($('#locRow'), needLoc); show($('#distRow'), needDist || needProv); show($('#distWrap'), needDist); show($('#provWrap'), needProv); $('#provWrap').classList.toggle('col-12', needProv && !needDist); $('#provWrap').classList.toggle('col-6', !(needProv && !needDist)); $('#distWrap').classList.toggle('col-12', needDist && !needProv); $('#distWrap').classList.toggle('col-6', !(needDist && !needProv));
   show($('#provStar'), ds.some(d => d && lvl(d, 'province') === 2));
-  show($('#locStar'), ds.some(d => d && lvl(d, 'location') === 2));
+  show($('#locStar'), ds.some(d => d && lvl(d, 'location') === 2)); show($('#locStar2'), ds.some(d => d && lvl(d, 'location') === 2));
   show($('#distStar'), ds.some(d => d && lvl(d, 'commune') === 2));
 }
 function updateDateLabel(card) {
@@ -834,7 +927,7 @@ function addMerchant() {
   const el = document.createElement('div');
   el.className = 'card-x fade-in';
   el.innerHTML =
-    '<div class="merchant-head"><span class="badge-num">Merchant <span class="n"></span></span><span class="flex-grow-1 ms-2"><span class="pill ty"></span></span>' +
+    '<div class="merchant-head"><span class="badge-num">Merchant <span class="n"></span></span><span class="flex-grow-1 ms-2"><span class="pill ty"></span> <span class="pill act-pill hidden"></span></span>' +
     '<button class="btn btn-sm btn-outline-danger border-0 btn-remove" type="button"><i class="bi bi-trash3"></i></button></div>' +
     '<div class="mb-3 act-wrap"><label class="form-label">Activity <span class="rq">*</span></label><div class="chips act-chips"></div></div><input type="hidden" class="f-act">' +
     '<div class="small text-muted mb-3 act-hint hidden">Choose an activity to see the boxes it needs.</div>' +
@@ -851,7 +944,7 @@ function addMerchant() {
     '<div class="mb-3 hidden" data-fk="oldSn"><label class="form-label">Old S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-old" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="newSn"><label class="form-label">New S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-new" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="btype"><label class="form-label">Business type <span class="rq hidden">*</span></label><input class="form-control f-btype mb-2" maxlength="60" autocomplete="off" placeholder="Type, or tap one below">' +
-      '<div class="chips btype-chips">' + BIZ_TYPES.map(t => '<button type="button" class="chip" data-t="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div></div>' +
+      '<div class="chips btype-chips"></div></div>' +
     '<div class="mb-3 hidden" data-fk="ptype"><label class="form-label">Product type <span class="rq hidden">*</span></label><input type="hidden" class="f-ptype" maxlength="120"><div class="chips ptype-chips"></div></div>' +
     '<div class="mb-3 hidden" data-fk="hours"><label class="form-label">Business hours <span class="rq hidden">*</span></label><div class="d-flex align-items-center gap-2 hours-line"><label class="small text-muted mb-0">Open</label><input type="time" class="form-control f-open" aria-label="Open" value="08:00"><label class="small text-muted mb-0 ms-1">Close</label><input type="time" class="form-control f-close" aria-label="Close" value="20:00"></div></div>' +
     '<div class="mb-3 hidden" data-fk="group"><label class="form-label">Group name <span class="rq hidden">*</span></label><input class="form-control f-group" maxlength="100" autocomplete="off" placeholder="e.g. owner / chain / group name"></div>' +
@@ -883,8 +976,10 @@ function addMerchant() {
   const card = { id, el, photos: [], qc: qcFresh() };
   S.cards.push(card);
   applyType(card);
+  btChips(el);
   $('.btype-chips', el).addEventListener('click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
+    if (b.dataset.more) { openBtypeSheet(el); return; }
     const inp = $('.f-btype', el); inp.value = b.dataset.t; syncBtype(el);
   });
   $('.f-btype', el).addEventListener('input', () => syncBtype(el));
@@ -898,8 +993,8 @@ function addMerchant() {
   $('.f-ptype', el).addEventListener('input', () => syncPtype(el));
   $('.act-chips', el).addEventListener('click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
-    setAct(card, b.dataset.a);
-    if (card === S.cards[0]) followFirst(); else card.own = true;     // changing a later merchant by hand stops it following merchant 1
+    if (b.dataset.more) { openActSheet(card); return; }
+    pickAct(card, b.dataset.a);
   });
 
   qcWire(card);
@@ -1073,13 +1168,16 @@ function paintLoc() {
   if (!p) return;
   $('#locAddr').textContent = addrText(p);
   $('#locCoords').textContent = coordText(p);
+  { const la = $('#locLat'), lo = $('#locLon'); if (document.activeElement !== la) la.value = p.lat.toFixed(6); if (document.activeElement !== lo) lo.value = p.lon.toFixed(6);
+    const pv = geo.place && geo.place.province, shown = !$('#provWrap').classList.contains('hidden') || !$('#distWrap').classList.contains('hidden');
+    $('#locStatus').innerHTML = '<span class="ok">' + (geo.manual ? 'Chosen on the map or typed' : 'From GPS' + (p.acc ? ' · accuracy ±' + Math.round(p.acc) + ' m' : '')) + '</span>' + (pv && shown ? '<br><span class="chk">Province set to ' + esc(pv) + ' from this point – check it.</span>' : ''); }
   show($('#locTag'), !!geo.manual);
   const o = $('#locOpen'); o.href = 'https://maps.google.com/?q=' + p.lat + ',' + p.lon; show(o, true);
   if (geo.map) { try { $('#locMap').src = geo.map.toDataURL('image/png'); show($('#locMap'), true); } catch (e) {} }
 }
 async function refreshLocation() {
   geo.manual = false; show($('#locTag'), false);
-  $('#locAddr').textContent = 'Finding your location…'; $('#locCoords').textContent = '';
+  $('#locAddr').textContent = 'Finding your location…'; $('#locCoords').textContent = ''; $('#locStatus').textContent = 'Finding your location…'; $('#locLat').value = ''; $('#locLon').value = '';
   const p = await refreshGeo(10000, true);
   if (!p) { $('#locAddr').textContent = 'Location unavailable. Allow location access in your browser, then tap refresh.'; return; }
   paintLoc();
@@ -1087,6 +1185,18 @@ async function refreshLocation() {
   try { await geo.mapLookup; } catch (e) {} paintLoc();
 }
 $('#locRefresh').addEventListener('click', refreshLocation);
+/* typed coordinates: both numbers must be valid, then Province / District / address / map follow the new point */
+async function applyCoords() {
+  const la = parseFloat(String($('#locLat').value).replace(',', '.')), lo = parseFloat(String($('#locLon').value).replace(',', '.'));
+  if (!(la >= -90 && la <= 90 && lo >= -180 && lo <= 180)) { if (geo.pos) { if ($('#locLat').value.trim() && $('#locLon').value.trim()) toast('Latitude must be between -90 and 90, Longitude between -180 and 180.', 'warning'); paintLoc(); } return; }
+  if (geo.pos && Math.abs(geo.pos.lat - la) < 1e-6 && Math.abs(geo.pos.lon - lo) < 1e-6) return;
+  geo.manual = true; geo.key = ''; geo.mapKey = ''; geo.pos = { lat: la, lon: lo, acc: 0, t: Date.now() };
+  lookupPlace(geo.pos); loadMap(geo.pos); $('#locAddr').textContent = 'Finding the address…'; paintLoc();
+  try { await geo.lookup; } catch (e) {} paintLoc();
+  try { await geo.mapLookup; } catch (e) {} paintLoc();
+}
+$('#locLat').addEventListener('change', applyCoords); $('#locLon').addEventListener('change', applyCoords);
+$$('.loc-x').forEach(b => b.addEventListener('click', () => { const i = $('#' + b.dataset.for); i.value = ''; i.focus(); }));
 /* time boxes (business hours): one tap opens the phone's time picker */
 document.addEventListener('click', e => { const i = e.target.closest && e.target.closest('input[type=time]'); if (i && i.showPicker) { try { i.showPicker(); } catch (x) {} } });
 
@@ -1405,36 +1515,39 @@ $('#submitBtn').addEventListener('click', async () => {
       btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), province: L('province') ? $('#fProvince').value.trim() : '', sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
     docSets.push(docs);
   }
+  if (S.taskLink && items[0] && items[0].type === S.taskLink.type && items[0].activity === S.taskLink.activity) items[0].taskId = S.taskLink.id;      // started from a task: saving the record completes it
   const photoSets = items.map(it => it.photos);      // the photos wait on the phone: the record is saved first, the photos are sent to Telegram afterwards
   const bytes = Math.max(0, ...photoSets.map(ps => ps.reduce((u, p) => u + p.length, 0)));
   if (bytes > 32e6) { toast('Photos and videos of one merchant are too big to send together (' + Math.round(bytes / 1e6) + ' MB). Submit fewer merchants at once or remove a video.', 'danger'); return; }
   const btn = $('#submitBtn');
-  busy(btn, true, 'Submitting…'); S.submitting = true;
+  busy(btn, true, 'Submitting…'); S.submitting = true; pgStart(items.length);
   try {
     const needLoc = items.some(it => it.locLv > 0);
     const loc = needLoc ? await currentLocation() : null;
-    if (!loc && items.some(it => it.locLv === 2)) { toast('The location is required. Allow GPS (tap the refresh arrow) or choose the spot with the pin button.', 'danger'); busy(btn, false); return; }
+    if (!loc && items.some(it => it.locLv === 2)) { toast('The location is required. Allow GPS (tap the refresh arrow) or choose the spot with the pin button.', 'danger'); busy(btn, false); S.submitting = false; pgEnd('Not saved', 'bad', 300); return; }
     items.forEach(it => { if (loc && it.locLv > 0) it.location = loc; delete it.locLv; });
     if (!S.batchId) S.batchId = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);     // same id on a retry, so a repeated send is saved only once
     if (S.deferOk === undefined) { try { await S.deferProbe; } catch (e) {} }
     const defer = S.deferOk === true, t0 = Date.now();
-    if (!defer && docSets.some(d => d.length)) { toast('Scanned documents need the latest backend (Code.gs). Update it first.', 'danger'); busy(btn, false); return; }
+    if (!defer && docSets.some(d => d.length)) { toast('Scanned documents need the latest backend (Code.gs). Update it first.', 'danger'); busy(btn, false); S.submitting = false; pgEnd('Not saved', 'bad', 300); return; }
     if (defer) items.forEach((it, i) => { it.photoCount = photoSets[i].length; it.photos = []; });
     const r = await api('submitInstallations', S.token, items, S.batchId, defer || undefined);
     S.batchId = null;
+    if (defer && r.deferred) pgSaved(r.stamps); else pgEnd('Saved', 'ok');
     if (defer && r.deferred) await qAdd(r.stamps.map((st, i) => ({ id: S.user.username + '|' + st, stamp: st, user: S.user.username, n: i + 1, total: r.stamps.length, photos: photoSets[i], docs: docSets[i], tries: 0, next: 0, t: Date.now() })));
     r.telegram = defer && r.deferred ? 'photos are sending in the background' : r.telegram;
     r.secs = ((Date.now() - t0) / 1000).toFixed(1);
     const slow = r.ms && r.ms.total > 5000 ? ' [server ' + (r.ms.total / 1000).toFixed(1) + 's: prepare ' + (r.ms.prep / 1000).toFixed(1) + 's, waited for other requests ' + (r.ms.lock / 1000).toFixed(1) + 's, sheet write ' + (r.ms.work / 1000).toFixed(1) + 's]' : '';
     toast('Saved ' + r.saved + ' ' + curType + ' (' + r.stamps[0] + (r.stamps.length > 1 ? ' … ' + r.stamps[r.stamps.length - 1].slice(-3) : '') + ') in ' + r.secs + 's. Telegram: ' + r.telegram + slow, /FAILED|not configured/.test(r.telegram) ? 'warning' : 'success');
     if (r.stock) toast(r.stock, 'warning');
+    if (items[0] && items[0].taskId) { toast('Task completed ✅ ' + (S.taskLink ? S.taskLink.merchant : ''), 'success'); S.taskLink = null; tkBanner(); S.tk.d = null; setTimeout(tkBadge, 1500); }
     Object.assign(keep, keepNew);
     if (items[0] && items[0].activity) rememberAct(items[0].activity);
     $('#merchantList').innerHTML = ''; S.cards = []; addMerchant();
     if (!loc && needLoc) toast('Location was not available, so it was not added to Telegram.', 'warning');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     loadSummary(); loadLast();
-  } catch (e) { if (!e.net) S.batchId = null; toast(e.message + (e.net ? ' If you retry, nothing is saved twice.' : ''), 'danger'); }
+  } catch (e) { pgEnd('Not saved', 'bad', 2500); if (!e.net) S.batchId = null; toast(e.message + (e.net ? ' If you retry, nothing is saved twice.' : ''), 'danger'); }
   S.submitting = false; busy(btn, false);
 });
 
@@ -1717,6 +1830,45 @@ function qOpen() {
   });
 }
 const qTx = (mode, fn) => qOpen().then(db => new Promise((ok, no) => { const tx = db.transaction(['jobs', 'blobs'], mode), st = tx.objectStore('jobs'); let out; try { out = fn(st, tx.objectStore('blobs')); } catch (e) { no(e); return; } tx.oncomplete = () => ok(out && out.result !== undefined ? out.result : out); tx.onerror = () => no(tx.error); tx.onabort = () => no(tx.error); }));
+/* Submit progress: a thin bar at the top + a small pill with the % (save = first 40%, photos to Telegram = the rest). Stage based, not byte based. */
+const PG = { pct: 0, cap: 0, ids: null, total: 0, done: 0, timer: null, hide: null };
+function pgEls() {
+  let t = $('#pgTop');
+  if (!t) {
+    t = document.createElement('div'); t.id = 'pgTop'; t.className = 'pg-top hidden'; t.innerHTML = '<i></i>'; document.body.appendChild(t);
+    const p = document.createElement('div'); p.id = 'pgPill'; p.className = 'pg-pill hidden'; p.innerHTML = '<span class="pg-l"></span><span class="pg-r"></span>'; document.body.appendChild(p);
+  }
+  return [t, $('#pgPill')];
+}
+function pgPaint(label, right, state) {
+  const [t, p] = pgEls();
+  $('i', t).style.width = Math.round(PG.pct) + '%';
+  $('.pg-l', p).textContent = label + ' ' + Math.round(PG.pct) + '%'; $('.pg-r', p).textContent = right || '';
+  t.className = 'pg-top' + (state ? ' ' + state : ''); p.className = 'pg-pill' + (state ? ' ' + state : '');
+}
+function pgStart(n) {
+  clearTimeout(PG.hide); clearInterval(PG.timer);
+  Object.assign(PG, { pct: 2, cap: 36, ids: null, total: 0, done: 0, label: 'Saving…', right: n > 1 ? n + ' merchants' : '' });
+  pgPaint(PG.label, PG.right);
+  PG.timer = setInterval(() => { PG.pct += (PG.cap - PG.pct) * 0.07; if (PG.pct > PG.cap) PG.pct = PG.cap; pgPaint(PG.label, PG.right, PG.state); }, 250);
+}
+function pgEnd(label, state, ms) {
+  clearInterval(PG.timer); PG.timer = null; PG.ids = null; PG.state = ''; if (state !== 'bad') PG.pct = 100;
+  pgPaint(label, '', state); clearTimeout(PG.hide);
+  PG.hide = setTimeout(() => { const [t, p] = pgEls(); t.classList.add('hidden'); p.classList.add('hidden'); }, ms || 1400);
+}
+function pgSaved(stamps) {      // the record is saved; the photos still go to Telegram in the background
+  if (!stamps || !stamps.length) { pgEnd('Done', 'ok'); return; }
+  PG.ids = new Set(stamps.map(st => S.user.username + '|' + st)); PG.total = stamps.length; PG.done = 0;
+  PG.pct = Math.max(PG.pct, 40); PG.label = 'Sending photos…'; PG.right = '1 of ' + PG.total; PG.cap = 40 + 60 * 0.85 / PG.total;
+}
+function pgJob(ok) {      // one photo job finished (ok) or failed
+  if (!PG.ids) return;
+  if (!ok) { pgEnd('Saved · photos will retry', 'warn', 3000); return; }
+  PG.done++;
+  if (PG.done >= PG.total) { pgEnd('Done', 'ok'); return; }
+  PG.pct = Math.max(PG.pct, 40 + 60 * PG.done / PG.total); PG.cap = 40 + 60 * (PG.done + 0.85) / PG.total; PG.right = (PG.done + 1) + ' of ' + PG.total;
+}
 const Q = { jobs: [], busy: false };      // Q.jobs = the waiting jobs without their photos (the photos stay in the database until sent)
 async function qAdd(list) {
   try { await qTx('readwrite', (st, bl) => { list.forEach(j => { const { photos, docs, ...meta } = j; st.put(meta); bl.put({ id: j.id, photos, docs }); }); }); }
@@ -1757,10 +1909,11 @@ async function qRun() {
       if ((j.next || 0) > now) { nextAt = nextAt ? Math.min(nextAt, j.next) : j.next; continue; }
       try {
         const bl = await qBlob(j), r = await api('sendRecordTelegram', S.token, j.stamp, j.n, j.total, bl.photos, bl.docs);
-        await qDel(j.id);
+        await qDel(j.id); if (PG.ids && PG.ids.has(j.id)) pgJob(true);
         if (r && r.pdf && r.pdf !== 'ok' && r.pdf !== 'none') toast('Photos sent, but the PDF file was not (' + r.pdf + ').', 'warning');
       } catch (e) {
         if (!S.token) break;      // signed out meanwhile: the job waits for the next sign-in
+        if (PG.ids && PG.ids.has(j.id)) pgJob(false);
         j.tries = (j.tries || 0) + 1; j.err = e.message; j.next = Date.now() + Q_WAIT[Math.min(j.tries - 1, Q_WAIT.length - 1)] * 1000;
         if (/was not found/i.test(e.message)) j.next = Date.now() + 600000;
         await qPut(j); if (Q.mem) { const m = Q.mem.find(x => x.id === j.id); if (m) Object.assign(m, j); }
@@ -3762,9 +3915,42 @@ const tkRemHtml = t => t.status === 'Open' && t.dueMs ? '<span class="tk-rem ' +
 const tkBox = t => '<button type="button" class="tk-ck' + (t.status === 'Done' ? ' on' : '') + '" data-id="' + esc(t.id) + '" aria-label="' + (t.status === 'Done' ? 'Done' : 'Mark done') + '">' + (t.status === 'Done' ? '✓' : '') + '</button>';
 const tkDoneTxt = t => t.status === 'Done' ? '✅ ' + esc(t.doneBy === (S.user && S.user.username) ? 'You' : t.doneBy) + ' · ' + esc(fmtD(t.doneAt) + ' ' + (t.doneAt.slice(11, 16) || '')) : '';
 const tkTel = c => c ? '<a href="tel:' + esc(c.replace(/[^0-9+]/g, '')) + '">' + esc(c) + '</a>' : '<span class="text-muted">–</span>';
+/* tasks linked to an activity: pills, the Start button, and the alert when someone else already submitted it */
+const tkLk = t => t.type ? '<div class="mt-1"><span class="tk-lk">' + esc(t.type) + '</span>' + (t.activity ? ' <span class="tk-lk">' + esc(t.activity) + '</span>' : '') + '</div>' : '';
+const tkAlert = t => { if (!t.match || t.status !== 'Open') return ''; const m = String(t.match).split(' | '); return '<div class="tk-al"><i class="bi bi-exclamation-triangle-fill me-1"></i>Already submitted by <b>' + esc(m[1] || '') + '</b> · ' + esc(m[0] || '') + ' · ' + esc((m[2] || '').slice(5)) + '</div>'; };
+const tkGo = t => t.type && t.activity && t.status === 'Open' && S.user && t.staff === S.user.username ? '<button type="button" class="btn btn-brand btn-sm tk-go mt-2" data-id="' + esc(t.id) + '"><i class="bi bi-play-fill me-1"></i>Start ' + esc(t.activity) + '</button>' : '';
+const tkRec = t => t.record && t.status === 'Done' ? '<div class="small mt-1">Record: <b>' + esc(t.record) + '</b></div>' : '';
+function tkLinkFill(typeSel, actSel, type, act) {
+  const ts = $(typeSel), as = $(actSel);
+  ts.innerHTML = '<option value="">— none —</option>' + TYPES.map(t => '<option>' + esc(t) + '</option>').join(''); ts.value = TYPES.includes(type) ? type : '';
+  const fill = () => { const td = typeDef(ts.value); as.innerHTML = '<option value="">Choose activity</option>' + ((td && td.acts) || []).map(a => '<option>' + esc(a.n) + '</option>').join(''); as.disabled = !ts.value; };
+  fill(); as.value = act || ''; ts.onchange = fill;
+}
+function tkBanner() {
+  const b = $('#taskBanner'), l = S.taskLink; show(b, !!l);
+  if (l) b.innerHTML = '<span><i class="bi bi-clipboard-check me-1"></i>From task <b>' + esc(l.merchant) + '</b> · ' + esc(l.activity) + '. Submit to complete it.</span><button type="button" class="btn-close" aria-label="Cancel"></button>';
+}
+$('#taskBanner').addEventListener('click', e => { if (e.target.closest('.btn-close')) { S.taskLink = null; tkBanner(); } });
+function tkStart(id) {
+  const t = ((S.tk.d || {}).rows || []).find(r => r.id === id); if (!t) return;
+  const td = typeDef(t.type), ad = td && td.acts.find(a => a.n === t.activity);
+  if (!ad) { toast('That activity is not available any more. Ask your admin to edit the task.', 'warning'); return; }
+  switchTab('new'); setType(t.type);
+  if (isLinked(td)) { S.sub = (actSubs(ad).find(Boolean)) || S.sub; fillSubs(); }
+  if (!S.cards.length) addMerchant();
+  const c = S.cards[0]; fillActivities(c); pickAct(c, t.activity);
+  const set = (sel, v) => { const i = $(sel, c.el); if (i && v) { i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); } };
+  set('.f-name', t.merchant); set('.f-mid', t.mid); set('.f-tid', t.tid); set('.f-phone', t.contact);
+  S.taskLink = { id: t.id, merchant: t.merchant, type: t.type, activity: t.activity }; tkBanner();
+  toast('Task opened: add photos and submit.', 'dark');
+}
 async function tkBadge() {
   if (!S.user || S.submitting) return;
-  try { const d = await api('getTasks', S.token, { countOnly: 1 }); const n = d.counts.open; S.tk.off = d.nowMs - Date.now(); [$('#tkNavBadge'), $('#dnTkBadge')].forEach(b => { if (b) { b.textContent = n; show(b, n > 0); } }); } catch (e) {}
+  try { const d = await api('getTasks', S.token, { countOnly: 1 }); const n = d.counts.open, al = d.counts.alerts || 0; S.tk.off = d.nowMs - Date.now(); [$('#tkNavBadge'), $('#dnTkBadge')].forEach(b => { if (b) { b.textContent = n; show(b, n > 0); b.classList.toggle('tk-badge-al', al > 0); } });
+    if (al && d.alertLast) {      // another staff already submitted one of my tasks: tell me once
+      let seen = ''; try { seen = localStorage.getItem('it_tk_alert') || ''; } catch (e) {}
+      if (seen !== d.alertLast) { try { localStorage.setItem('it_tk_alert', d.alertLast); } catch (e) {} const m = d.alertLast.split(' | '); toast('Task alert: ' + (m[2] || 'someone') + ' already submitted ' + (m[0] || 'one of your tasks') + '. Open Tasks to check.', 'warning'); }
+    } } catch (e) {}
 }
 async function tkStaffLoad() {
   if (S.tk.staff || !isWide()) return;
@@ -3795,9 +3981,9 @@ function tkPaint() {
   S.tk.shown = rows;
   if (!rows.length) { $('#tkList').innerHTML = '<div class="small text-muted p-3">' + (S.tk.status === 'Open' && !tot ? (wide ? 'No tasks yet. Use New task or Paste from Excel.' : 'No tasks assigned to you.') : S.tk.status === 'Open' ? 'No open tasks. Well done!' : 'Nothing here.') + '</div>'; return; }
   if (wide) {
-    $('#tkList').innerHTML = '<div class="tk-scroll"><table class="tk-t"><thead><tr><th></th><th>Merchant</th><th>MID</th><th>TID</th><th>Purpose</th><th>Contact</th><th>Deadline</th><th>Staff</th><th>Remark (by staff)</th><th></th></tr></thead><tbody>' + rows.map(t => '<tr class="' + (t.status === 'Done' ? 'done' : '') + '"><td>' + tkBox(t) + '</td><td><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + esc(t.id) + '</div></td><td>' + esc(t.mid || '–') + '</td><td>' + esc(t.tid || '–') + '</td><td><span class="tk-pp">' + esc(t.purpose) + '</span></td><td>' + tkTel(t.contact) + '</td><td class="nw">' + esc(fmtD(t.deadline)) + ' 17:00<div>' + (t.status === 'Open' ? tkRemHtml(t) : '<span class="small text-muted">' + tkDoneTxt(t) + '</span>') + '</div></td><td>' + esc(t.staff) + (t.branch ? '<div class="small text-muted">' + esc(t.branch) + '</div>' : '') + '</td><td class="tk-rm">' + (t.remark ? esc(t.remark) : '<span class="text-muted">–</span>') + '</td><td class="nw"><button type="button" class="tk-ed" data-id="' + esc(t.id) + '" title="Edit this task"><i class="bi bi-pencil"></i></button><button type="button" class="tk-del" data-id="' + esc(t.id) + '" title="Delete this task"><i class="bi bi-trash3"></i></button></td></tr>').join('') + '</tbody></table></div>';
+    $('#tkList').innerHTML = '<div class="tk-scroll"><table class="tk-t"><thead><tr><th></th><th>Merchant</th><th>MID</th><th>TID</th><th>Purpose</th><th>Contact</th><th>Deadline</th><th>Staff</th><th>Remark (by staff)</th><th></th></tr></thead><tbody>' + rows.map(t => '<tr class="' + (t.status === 'Done' ? 'done' : '') + '"><td>' + tkBox(t) + '</td><td><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + esc(t.id) + '</div>' + tkLk(t) + tkAlert(t) + tkRec(t) + tkGo(t) + '</td><td>' + esc(t.mid || '–') + '</td><td>' + esc(t.tid || '–') + '</td><td><span class="tk-pp">' + esc(t.purpose) + '</span></td><td>' + tkTel(t.contact) + '</td><td class="nw">' + esc(fmtD(t.deadline)) + ' 17:00<div>' + (t.status === 'Open' ? tkRemHtml(t) : '<span class="small text-muted">' + tkDoneTxt(t) + '</span>') + '</div></td><td>' + esc(t.staff) + (t.branch ? '<div class="small text-muted">' + esc(t.branch) + '</div>' : '') + '</td><td class="tk-rm">' + (t.remark ? esc(t.remark) : '<span class="text-muted">–</span>') + '</td><td class="nw"><button type="button" class="tk-ed" data-id="' + esc(t.id) + '" title="Edit this task"><i class="bi bi-pencil"></i></button><button type="button" class="tk-del" data-id="' + esc(t.id) + '" title="Delete this task"><i class="bi bi-trash3"></i></button></td></tr>').join('') + '</tbody></table></div>';
   } else {
-    $('#tkList').innerHTML = rows.map(t => '<div class="tk-it' + (t.status === 'Done' ? ' done' : '') + '">' + tkBox(t) + '<div class="tk-b"><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + (t.mid ? 'MID ' + esc(t.mid) : '') + (t.mid && t.tid ? ' · ' : '') + (t.tid ? 'TID ' + esc(t.tid) : '') + '</div><div class="tk-pr"><span class="tk-pp">' + esc(t.purpose) + '</span> ' + tkRemHtml(t) + '</div>' + (t.contact ? '<div class="small mt-1"><i class="bi bi-telephone me-1"></i>' + tkTel(t.contact) + '</div>' : '') + (t.status === 'Done' ? '<div class="small text-muted mt-1">' + tkDoneTxt(t) + (t.remark ? ' · “' + esc(t.remark) + '”' : '') + '</div>' : '<div class="small text-muted mt-1">Deadline ' + esc(fmtD(t.deadline)) + ' 17:00</div>') + '</div></div>').join('');
+    $('#tkList').innerHTML = rows.map(t => '<div class="tk-it' + (t.status === 'Done' ? ' done' : '') + '">' + tkBox(t) + '<div class="tk-b"><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + (t.mid ? 'MID ' + esc(t.mid) : '') + (t.mid && t.tid ? ' · ' : '') + (t.tid ? 'TID ' + esc(t.tid) : '') + '</div><div class="tk-pr"><span class="tk-pp">' + esc(t.purpose) + '</span> ' + tkRemHtml(t) + '</div>' + tkLk(t) + tkAlert(t) + (t.contact ? '<div class="small mt-1"><i class="bi bi-telephone me-1"></i>' + tkTel(t.contact) + '</div>' : '') + (t.status === 'Done' ? '<div class="small text-muted mt-1">' + tkDoneTxt(t) + (t.remark ? ' · “' + esc(t.remark) + '”' : '') + '</div>' : '<div class="small text-muted mt-1">Deadline ' + esc(fmtD(t.deadline)) + ' 17:00</div>') + tkRec(t) + tkGo(t) + '</div></div>').join('');
   }
 }
 setInterval(() => { $$('.tk-rem').forEach(el => { const r = tkRem(+el.dataset.due); el.className = 'tk-rem ' + r.cls; el.innerHTML = '<i class="bi bi-clock me-1"></i>' + r.text; }); }, 30000);
@@ -3806,7 +3992,8 @@ $('#tkStaffF').addEventListener('change', tkPaint); $('#tkPurF').addEventListene
 let tkT = 0; $('#tkQ').addEventListener('input', () => { clearTimeout(tkT); tkT = setTimeout(tkPaint, 120); });
 const tkDoneModal = new bootstrap.Modal($('#tkDoneModal')), tkModal = new bootstrap.Modal($('#tkModal'));
 $('#tkList').addEventListener('click', async e => {
-  const ed = e.target.closest('.tk-ed'), del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck');
+  const ed = e.target.closest('.tk-ed'), del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck'), go = e.target.closest('.tk-go');
+  if (go) { tkStart(go.dataset.id); return; }
   if (ed) { tkEdit(ed.dataset.id); return; }
   if (del) { if (!confirm('Delete this task?')) return; try { await api('deleteTask', S.token, del.dataset.id); toast('Task deleted.', 'success'); loadTasks(); tkBadge(); } catch (x) { toast(x.message, 'danger'); } return; }
   if (!ck) return; const t = (S.tk.d.rows || []).find(r => r.id === ck.dataset.id); if (!t) return;
@@ -3831,7 +4018,7 @@ async function tkOpen(mode) {
   await tkStaffLoad(); const f = $('#tkStaffF').value; if (f) $('#tkStaff').value = f;
   const t = new Date(Date.now() + S.tk.off); const today = t.getFullYear() ? new Date(Date.now() + S.tk.off + 7 * 36e5).toISOString().slice(0, 10) : '';      // Phnom Penh date
   $('#tkDue').min = today; if (!$('#tkDue').value || $('#tkDue').value < today) $('#tkDue').value = today;
-  $('#tkMsg').textContent = ''; tkMode(mode); tkModal.show();
+  tkLinkFill('#tkType', '#tkAct', '', ''); $('#tkMsg').textContent = ''; tkMode(mode); tkModal.show();
 }
 $('#tkNewBtn').addEventListener('click', () => tkOpen('one')); $('#tkPasteBtn').addEventListener('click', () => tkOpen('paste'));
 $('#tkSave').addEventListener('click', async () => {
@@ -3840,13 +4027,14 @@ $('#tkSave').addEventListener('click', async () => {
   if (!rows.length) { msg.textContent = 'Paste at least one line.'; return; }
   busy(btn, true, 'Saving…');
   try {
-    const r = await api('createTasks', S.token, { rows, staff: $('#tkStaff').value, deadline: $('#tkDue').value });
+    const r = await api('createTasks', S.token, { rows, staff: $('#tkStaff').value, deadline: $('#tkDue').value, type: $('#tkType').value, activity: $('#tkAct').value });
     if (r.errors && r.errors.length) { msg.innerHTML = '<b>Nothing was saved. Please fix:</b><br>' + r.errors.map(esc).join('<br>'); }
     else { tkModal.hide(); toast(r.added + ' task' + (r.added > 1 ? 's' : '') + ' created.', 'success'); ['#tkMerchant', '#tkMid', '#tkTid', '#tkPurpose', '#tkContact', '#tkPaste'].forEach(i => { $(i).value = ''; }); S.tk.status = 'Open'; loadTasks(); tkBadge(); }
   } catch (e) { msg.textContent = e.message; }
   busy(btn, false);
 });
-setInterval(() => { if (S.user && document.visibilityState === 'visible') tkBadge(); }, 300000);
+setInterval(() => { if (S.user && document.visibilityState === 'visible') tkBadge(); }, 120000);
+document.addEventListener('visibilitychange', () => { if (S.user && document.visibilityState === 'visible') setTimeout(tkBadge, 800); });
 
 /* tasks: edit and CSV export (admin / supervisor) */
 const tkEditModal = new bootstrap.Modal($('#tkEditModal'));
@@ -3854,22 +4042,22 @@ async function tkEdit(id) {
   const t = ((S.tk.d || {}).rows || []).find(r => r.id === id); if (!t) return; await tkStaffLoad();
   S.tk.editId = id; $('#teId').textContent = id;
   const have = (S.tk.staff || []).some(u => u.name === t.staff); $('#teStaff').innerHTML = (have ? '' : '<option value="' + esc(t.staff) + '">' + esc(t.staff) + '</option>') + $('#tkStaff').innerHTML.replace('<option value="">— choose —</option>', ''); $('#teStaff').value = t.staff;
-  $('#teDue').value = t.deadline; $('#teMerchant').value = t.merchant; $('#teMid').value = t.mid; $('#teTid').value = t.tid; $('#tePurpose').value = t.purpose; $('#teContact').value = t.contact; $('#teRemark').value = t.remark; $('#teMsg').textContent = '';
+  $('#teDue').value = t.deadline; $('#teMerchant').value = t.merchant; $('#teMid').value = t.mid; $('#teTid').value = t.tid; $('#tePurpose').value = t.purpose; $('#teContact').value = t.contact; $('#teRemark').value = t.remark; $('#teMsg').textContent = ''; tkLinkFill('#teType', '#teAct', t.type, t.activity);
   tkEditModal.show();
 }
 $('#teSave').addEventListener('click', async () => {
   const b = $('#teSave'); busy(b, true, 'Saving…');
   try {
-    await api('updateTask', S.token, S.tk.editId, { staff: $('#teStaff').value, deadline: $('#teDue').value, merchant: $('#teMerchant').value, mid: $('#teMid').value, tid: $('#teTid').value, purpose: $('#tePurpose').value, contact: $('#teContact').value, remark: $('#teRemark').value });
+    await api('updateTask', S.token, S.tk.editId, { staff: $('#teStaff').value, deadline: $('#teDue').value, merchant: $('#teMerchant').value, mid: $('#teMid').value, tid: $('#teTid').value, purpose: $('#tePurpose').value, contact: $('#teContact').value, remark: $('#teRemark').value, type: $('#teType').value, activity: $('#teAct').value });
     tkEditModal.hide(); toast('Task saved.', 'success'); loadTasks(); tkBadge();
   } catch (e) { $('#teMsg').textContent = e.message; }
   busy(b, false);
 });
 $('#tkCsvBtn').addEventListener('click', () => {
   const rows = S.tk.shown || []; if (!rows.length) { toast('Nothing to export.', 'warning'); return; }
-  const head = ['Task ID', 'Staff', 'Branch', 'Merchant', 'MID', 'TID', 'Purpose', 'Contact', 'Deadline', 'Status', 'Done time', 'Done by', 'Remark', 'Created', 'Created by'];
+  const head = ['Task ID', 'Staff', 'Branch', 'Merchant', 'MID', 'TID', 'Purpose', 'Contact', 'Deadline', 'Status', 'Done time', 'Done by', 'Remark', 'Category', 'Activity', 'Record', 'Created', 'Created by'];
   const cell = v => { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
-  const lines = [head].concat(rows.map(t => [t.id, t.staff, t.branch, t.merchant, t.mid, t.tid, t.purpose, t.contact, t.deadline + ' 17:00', t.status, t.doneAt, t.doneBy, t.remark, t.created, t.by]));
+  const lines = [head].concat(rows.map(t => [t.id, t.staff, t.branch, t.merchant, t.mid, t.tid, t.purpose, t.contact, t.deadline + ' 17:00', t.status, t.doneAt, t.doneBy, t.remark, t.type, t.activity, t.record, t.created, t.by]));
   const csv = '﻿' + lines.map(l => l.map(cell).join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'tasks_' + ymd(new Date()) + '.csv'; document.body.appendChild(a); a.click(); a.remove();
   toast(rows.length + ' task' + (rows.length > 1 ? 's' : '') + ' exported (what the list shows now).', 'success');

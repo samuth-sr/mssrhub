@@ -498,3 +498,100 @@ body.desk #pane-tasks > *{margin-bottom:12px}
 #pane-stock.is-loading #stDashCard,#pane-stock.is-loading #snCard{opacity:.6;transition:opacity .15s}
 
 .tk-ed{border:0;background:transparent;color:#9ca3af;padding:2px 6px;border-radius:6px}.tk-ed:hover{color:#4f46e5;background:#e0e7ff}
+
+/* v139 picker: recent chips + "More" sheet */
+.chip-more{border-style:dashed;color:var(--bs-primary,#4a45d9);font-weight:600}.chip-more b{font-weight:700}
+.pk-ov{position:fixed;inset:0;z-index:2000;display:flex;align-items:flex-end;justify-content:center}.pk-ov.hidden{display:none}
+.pk-bg{position:absolute;inset:0;background:rgba(20,20,50,.4)}
+.pk-box{position:relative;background:var(--card,#fff);color:var(--ink,#1c1b3a);width:100%;max-width:520px;max-height:80vh;border-radius:20px 20px 0 0;padding:10px 16px 16px;display:flex;flex-direction:column;box-shadow:0 -8px 24px rgba(30,30,80,.2)}
+.pk-grab{width:40px;height:4px;border-radius:9px;background:var(--line,#d8d8e8);margin:0 auto 8px}
+.pk-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.pk-note{margin-bottom:6px}.pk-q{margin-bottom:6px}
+.pk-list{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1}
+.pk-gh{font-size:11px;font-weight:800;color:var(--muted,#7a7a99);text-transform:uppercase;margin:10px 0 2px}
+.pk-it{display:flex;align-items:center;gap:8px;padding:11px 4px;border-bottom:1px solid var(--line,#f0f0f7);cursor:pointer}.pk-it .pk-n{flex:1}.pk-it.on{color:#4a45d9;font-weight:700}.pk-use{color:#4a45d9;font-weight:600}
+.pk-pin{border:0;background:none;color:#aab;padding:4px 8px;font-size:17px}.pk-pin.on{color:#4a45d9}
+.pk-empty{padding:18px;text-align:center;color:#99a}
+
+
+/* v141 submit progress: thin top bar + bottom pill */
+.pg-top{position:fixed;left:0;right:0;top:0;height:5px;z-index:3000;background:rgba(124,58,237,.15);pointer-events:none}.pg-top.hidden,.pg-pill.hidden{display:none}
+.pg-top i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4f46e5,#7c3aed);transition:width .25s ease}
+.pg-top.ok i{background:#16a34a}.pg-top.warn i{background:#d97706}.pg-top.bad i{background:#dc2626}
+.pg-pill{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:3000;display:flex;justify-content:space-between;gap:10px;background:#1c1b3a;color:#fff;border-radius:99px;padding:10px 18px;font-size:13.5px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);pointer-events:none;max-width:520px;margin:0 auto}
+.pg-pill.ok{background:#15803d}.pg-pill.warn{background:#b45309}.pg-pill.bad{background:#b91c1c}.pg-r{opacity:.8;font-weight:500}
+body.desk .pg-pill{bottom:24px;left:260px;margin:0}
+
+/* v142 tasks linked to an activity */
+.tk-lk{display:inline-block;background:#eef0ff;color:#4a45d9;border-radius:99px;padding:2px 9px;font-size:.72rem;font-weight:700}
+.tk-al{margin-top:6px;background:#fff4e5;border:1px solid #fcd9a6;color:#b45309;border-radius:10px;padding:6px 9px;font-size:.78rem;font-weight:600}
+.tk-banner{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#eef0ff;border:1px solid #c9c6f5;color:#4a45d9;border-radius:12px;padding:9px 12px;font-size:.85rem;font-weight:600;margin-bottom:10px}.tk-banner.hidden{display:none}
+.tk-badge-al{background:#dc2626!important}
+[data-theme="dark"] .tk-lk,[data-theme="dark"] .tk-banner{background:#2a2a52;color:#b9b6ff;border-color:#3d3d75}[data-theme="dark"] .tk-al{background:#3a2a12;border-color:#6b4a1a;color:#fbbf6a}
+
+/* v143 dark mode: readable text on every light-tinted block (both the phone's dark setting and the manual dark theme) */
+:root[data-theme="dark"] .pk-it.on,:root[data-theme="dark"] .pk-use,:root[data-theme="dark"] .pk-pin.on,:root[data-theme="dark"] .chip-more{color:#a5b4fc}
+:root[data-theme="dark"] .rv-note,:root[data-theme="dark"] .lk-sum,:root[data-theme="dark"] .col-row,:root[data-theme="dark"] .scan-th,:root[data-theme="dark"] .f-locked,:root[data-theme="dark"] .tk-prog,:root[data-theme="dark"] .ce-it.on,:root[data-theme="dark"] .info-lbl{background:#25274a;color:var(--ink)}
+:root[data-theme="dark"] .rv-note{background:#3a1f26;color:#fecaca}
+:root[data-theme="dark"] .tk-pp,:root[data-theme="dark"] .tk-lk{background:#2f3170;color:#c7d2fe}
+:root[data-theme="dark"] .tk-rem{color:#a9aed0}:root[data-theme="dark"] .tk-rem.warn{color:#fbbf6a}:root[data-theme="dark"] .tk-rem.bad{color:#fca5a5}
+:root[data-theme="dark"] .tk-banner{background:#2a2a52;color:#c7d2fe;border-color:#3d3d75}:root[data-theme="dark"] .tk-al{background:#3a2a12;border-color:#6b4a1a;color:#fbbf6a}
+:root[data-theme="dark"] .rec-table th,:root[data-theme="dark"] .rec-sub{color:#a9aed0}
+@media (prefers-color-scheme: dark){
+:root:not([data-theme="light"]) .pk-it.on,:root:not([data-theme="light"]) .pk-use,:root:not([data-theme="light"]) .pk-pin.on,:root:not([data-theme="light"]) .chip-more{color:#a5b4fc}
+:root:not([data-theme="light"]) .rv-note,:root:not([data-theme="light"]) .lk-sum,:root:not([data-theme="light"]) .col-row,:root:not([data-theme="light"]) .scan-th,:root:not([data-theme="light"]) .f-locked,:root:not([data-theme="light"]) .tk-prog,:root:not([data-theme="light"]) .ce-it.on,:root:not([data-theme="light"]) .info-lbl{background:#25274a;color:var(--ink)}
+:root:not([data-theme="light"]) .rv-note{background:#3a1f26;color:#fecaca}
+:root:not([data-theme="light"]) .tk-pp,:root:not([data-theme="light"]) .tk-lk{background:#2f3170;color:#c7d2fe}
+:root:not([data-theme="light"]) .tk-rem{color:#a9aed0}:root:not([data-theme="light"]) .tk-rem.warn{color:#fbbf6a}:root:not([data-theme="light"]) .tk-rem.bad{color:#fca5a5}
+:root:not([data-theme="light"]) .tk-banner{background:#2a2a52;color:#c7d2fe;border-color:#3d3d75}:root:not([data-theme="light"]) .tk-al{background:#3a2a12;border-color:#6b4a1a;color:#fbbf6a}
+:root:not([data-theme="light"]) .rec-table th,:root:not([data-theme="light"]) .rec-sub{color:#a9aed0}
+}
+
+/* v144 dark mode: Bootstrap's grey helper text was dark grey on the dark card */
+:root[data-theme="dark"]{--bs-body-color:#eceefd;--bs-secondary-color:#b4b9da;--bs-tertiary-color:#9aa0c0;--bs-emphasis-color:#fff;--bs-border-color:#2a2d4d}
+:root[data-theme="dark"] .text-muted,:root[data-theme="dark"] .text-body-secondary,:root[data-theme="dark"] .form-text,:root[data-theme="dark"] small.text-muted,:root[data-theme="dark"] .small.text-muted{color:#b4b9da!important}
+:root[data-theme="dark"] .text-dark,:root[data-theme="dark"] .text-body{color:var(--ink)!important}
+:root[data-theme="dark"] .form-control::placeholder{color:#8389ad}
+@media (prefers-color-scheme: dark){
+:root:not([data-theme="light"]){--bs-body-color:#eceefd;--bs-secondary-color:#b4b9da;--bs-tertiary-color:#9aa0c0;--bs-emphasis-color:#fff;--bs-border-color:#2a2d4d}
+:root:not([data-theme="light"]) .text-muted,:root:not([data-theme="light"]) .text-body-secondary,:root:not([data-theme="light"]) .form-text{color:#b4b9da!important}
+:root:not([data-theme="light"]) .text-dark,:root:not([data-theme="light"]) .text-body{color:var(--ink)!important}
+:root:not([data-theme="light"]) .form-control::placeholder{color:#8389ad}
+}
+
+/* v145 location card in the new style: header, tinted filled boxes, two buttons, status lines */
+.loc2{border:1.5px solid rgba(79,70,229,.14);border-radius:22px}
+.loc-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}.loc-h b{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:#27407a}
+.loc-ic{width:36px;height:36px;border-radius:11px;background:#eef2ff;display:grid;place-items:center;color:#27407a;font-size:1.05rem}
+.loc2 #distRow{margin-bottom:10px}.loc2 .form-label{font-weight:700}
+.loc2 .form-control{border-radius:14px;border:1.5px solid #c7d3e8;padding:.6rem .85rem}.loc2 .input-group>.form-control{border-radius:14px 0 0 14px}.loc2 .input-group>.btn{border-radius:0 14px 14px 0}
+.loc2 .form-control:not(:placeholder-shown){background:#f0faf6;border-color:#9fd5c9}
+.loc-in{position:relative}.loc-in .form-control{padding-right:2.2rem}.loc-x{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:#9ca3af;font-size:1.1rem;padding:2px;line-height:1}
+.loc-b{border:1.5px solid #dbe4f0;border-radius:14px;font-weight:700;padding:.65rem .4rem}
+.loc-st{margin-top:8px;font-size:.88rem;line-height:1.35}.loc-st .ok{color:#15803d}.loc-st .chk{color:#27407a;font-weight:600}
+.loc-ad{display:flex;gap:12px;align-items:center;margin-top:10px;padding:8px;border-radius:14px;background:rgba(79,70,229,.05)}.loc-ad img{width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none}.loc-ad img.hidden{display:none}
+:root[data-theme="dark"] .loc-h b,:root[data-theme="dark"] .loc-st .chk{color:#a5b4fc}:root[data-theme="dark"] .loc-ic{background:#25274a;color:#a5b4fc}:root[data-theme="dark"] .loc-st .ok{color:#6ee7b7}
+:root[data-theme="dark"] .loc2 .form-control{border-color:#33375f}:root[data-theme="dark"] .loc2 .form-control:not(:placeholder-shown){background:#12262a;border-color:#2f6f66}:root[data-theme="dark"] .loc-b{border-color:#2a2d4d}
+@media (prefers-color-scheme: dark){
+:root:not([data-theme="light"]) .loc-h b,:root:not([data-theme="light"]) .loc-st .chk{color:#a5b4fc}:root:not([data-theme="light"]) .loc-ic{background:#25274a;color:#a5b4fc}:root:not([data-theme="light"]) .loc-st .ok{color:#6ee7b7}
+:root:not([data-theme="light"]) .loc2 .form-control{border-color:#33375f}:root:not([data-theme="light"]) .loc2 .form-control:not(:placeholder-shown){background:#12262a;border-color:#2f6f66}:root:not([data-theme="light"]) .loc-b{border-color:#2a2d4d}
+}
+
+/* v146 location card: everything sits in even rows (Province | District, Latitude | Longitude, two buttons) */
+.loc2 #distRow .text-lowercase{display:none}
+.loc2 .form-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.loc2 .form-control,.loc2 .input-group>.btn,.loc2 .loc-b{height:48px}
+.loc2 .input-group{flex-wrap:nowrap}.loc2 .input-group>.form-control{min-width:0}
+.loc2 .loc-cap{margin-top:2px}
+.loc2 .loc-b{display:flex;align-items:center;justify-content:center;white-space:nowrap}
+
+/* v147 extra boxes: one line by default (name left, box right); many / long values or a long name = stacked */
+.custom-wrap > .mb-3:not(.info-lbl):not(.cf-stack) > .form-label{flex:0 0 40%;max-width:40%;font-size:.74rem;letter-spacing:.04em;line-height:1.2;overflow-wrap:anywhere}
+.custom-wrap > .mb-3:not(.cf-stack) > .chips{flex-wrap:nowrap;gap:6px;justify-content:stretch}
+.custom-wrap > .mb-3:not(.cf-stack) > .chips .chip{flex:1 1 0;min-width:0;text-align:center;white-space:nowrap;padding-left:6px;padding-right:6px}
+.custom-wrap .form-control,.custom-wrap .form-select,.custom-wrap .input-group.spin > .btn{height:44px}
+.custom-wrap > .mb-3.cf-stack{display:block}
+.custom-wrap > .mb-3.cf-stack > .form-label{max-width:none;margin:0 0 6px;display:block}
+.custom-wrap > .mb-3.cf-stack > .chips{justify-content:flex-start}
+.custom-wrap > .mb-3.cf-stack > .chips .chip{flex:1 1 auto;text-align:center}
+.custom-wrap > .mb-3.cf-stack > [data-kind="check"]{text-align:left}
+.custom-wrap > .mb-3.cf-stack > .spin-v{margin-left:0}
