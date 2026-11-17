@@ -620,3 +620,30 @@ body.desk .pg-pill{bottom:24px;left:260px;margin:0}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .f-locked{background:#1f2242!important;color:var(--ink)!important}:root:not([data-theme="light"]) .f-locked::placeholder{color:#8389ad}}
 .tka-t{padding:9px 2px;border-bottom:1px solid var(--line,#eee)}.tka-t .chip{padding:6px 12px}
 #tkAsk{z-index:3200}
+
+/* v153: Track result (Successful / Unsuccessful + reason) */
+.res-seg { display: flex; gap: 8px; }
+.res-seg button { flex: 1; border: 1.5px solid var(--line, #dfe2ee); background: var(--card, #fff); color: var(--ink, #1c2033); border-radius: 12px; padding: 10px 8px; font-weight: 600; font-size: .92rem; }
+.res-seg .res-ok.active { background: #e8f7ee; border-color: #2fa866; color: #17763f; }
+.res-seg .res-no.active { background: #fdecec; border-color: #e0524f; color: #b3261e; }
+.res-why { background: rgba(224, 82, 79, .06); border: 1px solid rgba(224, 82, 79, .25); border-radius: 12px; padding: 10px 12px; }
+.res-fail [data-fk="serial"], .res-fail [data-fk="oldSn"], .res-fail [data-fk="newSn"], .res-fail .stock-wrap, .res-fail .qc-wrap { display: none !important; }
+.res-fail:not(.res-ph) [data-fk="photo"] .rq, .res-fail:not(.res-ph) [data-fk="photo"] .ph-min, .res-fail .custom-wrap .rq { display: none !important; }
+.pill.res-bad { background: #fdecec; color: #b3261e; }
+.pill.res-good { background: #e8f7ee; color: #17763f; }
+.res-bar { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: .85rem; }
+.res-bar .rb-n { flex: 0 0 38%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.res-bar .rb-t { flex: 1; height: 8px; border-radius: 6px; background: var(--line, #e6e8f2); overflow: hidden; }
+.res-bar .rb-t i { display: block; height: 100%; background: #2fa866; border-radius: 6px; }
+.res-bar .rb-t i.bad { background: #e0524f; }
+.ce-res { border: 1px dashed var(--line, #cfd3e6); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
+:root[data-theme="dark"] .res-seg .res-ok.active { background: #12301f; color: #7be0a3; }
+:root[data-theme="dark"] .res-seg .res-no.active { background: #3a1716; color: #ff9d98; }
+:root[data-theme="dark"] .pill.res-bad { background: #3a1716; color: #ff9d98; }
+:root[data-theme="dark"] .pill.res-good { background: #12301f; color: #7be0a3; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .res-seg .res-ok.active { background: #12301f; color: #7be0a3; }
+  :root:not([data-theme="light"]) .res-seg .res-no.active { background: #3a1716; color: #ff9d98; }
+  :root:not([data-theme="light"]) .pill.res-bad { background: #3a1716; color: #ff9d98; }
+  :root:not([data-theme="light"]) .pill.res-good { background: #12301f; color: #7be0a3; }
+}
