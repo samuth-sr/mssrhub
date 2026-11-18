@@ -628,7 +628,6 @@ body.desk .pg-pill{bottom:24px;left:260px;margin:0}
 .res-seg .res-no.active { background: #fdecec; border-color: #e0524f; color: #b3261e; }
 .res-why { background: rgba(224, 82, 79, .06); border: 1px solid rgba(224, 82, 79, .25); border-radius: 12px; padding: 10px 12px; }
 .res-fail [data-fk="serial"], .res-fail [data-fk="oldSn"], .res-fail [data-fk="newSn"], .res-fail .stock-wrap, .res-fail .qc-wrap { display: none !important; }
-.res-fail:not(.res-ph) [data-fk="photo"] .rq, .res-fail:not(.res-ph) [data-fk="photo"] .ph-min, .res-fail .custom-wrap .rq { display: none !important; }
 .pill.res-bad { background: #fdecec; color: #b3261e; }
 .pill.res-good { background: #e8f7ee; color: #17763f; }
 .res-bar { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: .85rem; }
@@ -647,3 +646,17 @@ body.desk .pg-pill{bottom:24px;left:260px;margin:0}
   :root:not([data-theme="light"]) .pill.res-bad { background: #3a1716; color: #ff9d98; }
   :root:not([data-theme="light"]) .pill.res-good { background: #12301f; color: #7be0a3; }
 }
+.ce-rb { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line, #eef0f6); font-size: .85rem; }
+.ce-rb .n { font-weight: 600; } .ce-rb .was { color: var(--muted, #9aa0bd); font-size: .72rem; font-weight: 400; margin-left: 4px; }
+.ce-rb .chip { padding: 2px 9px; font-size: .78rem; margin-left: 3px; }
+
+/* v156: Points tab */
+.pt-tbl { border-collapse: collapse; width: 100%; font-size: .82rem; }
+.pt-tbl th { font-size: .66rem; letter-spacing: .05em; color: var(--muted, #6b7090); text-align: left; padding: 6px 6px; border-bottom: 2px solid var(--line, #e3e6f2); white-space: nowrap; }
+.pt-tbl td { padding: 6px; border-bottom: 1px solid var(--line, #eef0f6); vertical-align: top; }
+.pt-tbl .n { text-align: right; white-space: nowrap; }
+.pt-tbl .pt-br td { background: rgba(91, 75, 213, .08); font-weight: 700; cursor: pointer; }
+.pt-up { color: #17763f; font-weight: 700; font-size: .75rem; } .pt-dn { color: #b3261e; font-weight: 700; font-size: .75rem; }
+:root[data-theme="dark"] .pt-up { color: #7be0a3; } :root[data-theme="dark"] .pt-dn { color: #ff9d98; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pt-up { color: #7be0a3; } :root:not([data-theme="light"]) .pt-dn { color: #ff9d98; } }
+.ce-pts { margin: 8px 0; }

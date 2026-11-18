@@ -38,7 +38,7 @@ function legacyLevel(cat, a, k) {
   return 0;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.tkChk === true) o.tkChk = true; if (a.tgChat) o.tgChat = String(a.tgChat); if (a.tgTopic) o.tgTopic = String(a.tgTopic); if (a.res && a.res.on === true) o.res = { on: true, r: (Array.isArray(a.res.r) ? a.res.r : []).map(x => String(x).trim()).filter(Boolean), o: a.res.o !== false, ph: a.res.ph === true }; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => (k === 'merchant' || k === 'mid') && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.tkChk === true) o.tkChk = true; if (a.pt > 0) o.pt = +a.pt; if (a.ptFail > 0) o.ptFail = +a.ptFail; if (a.tgChat) o.tgChat = String(a.tgChat); if (a.tgTopic) o.tgTopic = String(a.tgTopic); if (a.res && a.res.on === true) o.res = { on: true, r: (Array.isArray(a.res.r) ? a.res.r : []).map(x => String(x).trim()).filter(Boolean), o: a.res.o !== false, ph: a.res.ph === true, b: a.res.b && typeof a.res.b === 'object' ? a.res.b : {} }; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => (k === 'merchant' || k === 'mid') && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); if (YN_KEYS.includes(k)) o.f[k] = o.f[k] ? 1 : 0; });
@@ -472,6 +472,29 @@ $('#merchantList').addEventListener('change', e => {
 });
 /** Selects an activity: highlights it and shows the extra boxes it needs (phone/tag, old/new S/N). */
 /* ---- Track result: Successful / Unsuccessful with a reason (per activity, set by the admin) ---- */
+/** The activity's boxes when a record is Unsuccessful (serial / S/N and stock are always off; the admin's Off / Optional / Must per box; photos optional unless kept). */
+function failDef(d) {
+  const rs = d.res || {}, b = rs.b || {}, o = Object.assign({}, d, { f: Object.assign({}, d.f) });
+  FIELD_KEYS.forEach(k => {
+    if (k === 'serial' || k === 'oldSn' || k === 'newSn') { o.f[k] = 0; return; }
+    if (b[k] === 0 || b[k] === 1 || b[k] === 2) o.f[k] = (k === 'merchant' || k === 'mid') && !b[k] ? 1 : b[k];
+  });
+  ['integ', 'sim', 'standee'].forEach(k => { if (o.f[k] > 1) o.f[k] = 1; });
+  if (b.photo === undefined && !rs.ph) { o.minPh = 0; if (o.f.photo === 2) o.f.photo = 1; }
+  else if (b.photo !== undefined && b.photo !== 2) o.minPh = 0;
+  if (o.minPh && !o.f.photo) o.f.photo = 1;
+  o.custom = (d.custom || []).filter(f => f.kind !== 'serial' && b[f.id] !== 0).map(f => b[f.id] === 1 ? Object.assign({}, f, { req: false }) : b[f.id] === 2 ? Object.assign({}, f, { req: true }) : f);
+  return o;
+}
+/** The boxes shown on a merchant card follow its result: the normal rules, or the Unsuccessful rules. */
+function resApply(card) {
+  const a = $('.f-act', card.el).value; if (!a) return;
+  const d = effDef(curType, a, S.sub || ''); if (!d) return;
+  const fail = card.res === 'fail' && d.res && d.res.on, dd = fail ? failDef(d) : d;
+  applyLevels(card.el, dd);
+  if (fail || card._cf) { renderCustom($('.custom-wrap', card.el), dd); card._cf = !!fail; }      // extra fields are redrawn only when the result switches
+  updateLocCard();
+}
 function resDef(card) { const a = $('.f-act', card.el).value, d = a ? effDef(curType, a, S.sub || '') : null; return d && d.res && d.res.on ? d.res : null; }
 function renderRes(card, d) {
   const rs = d && d.res && d.res.on ? d.res : null;
@@ -481,8 +504,9 @@ function renderRes(card, d) {
   paintRes(card, rs);
 }
 function paintRes(card, rs) {
-  const fail = card.res === 'fail';
+  const fail = card.res === 'fail', was = card._rf;
   card.el.classList.toggle('res-fail', fail);
+  if (was !== fail) { card._rf = fail; resApply(card); }
   $$('.res-seg button', card.el).forEach(b => b.classList.toggle('active', b.dataset.v === (card.res || 'ok')));
   show($('.res-why', card.el), fail);
   if (!fail) return;
@@ -521,12 +545,13 @@ function setAct(card, a) {
   renderCustom($('.custom-wrap', card.el), d);
   renderStockBox(card, d);
   applyOrder(card.el, d);
+  card._rf = undefined; if (card.res === 'fail') resApply(card);
   if (changed) resetToggles(card.el);      // every toggle starts at No
   updateDateLabel(card); updateLocCard(); fillCommuneAll(); qcSync(card);
 }
 /** The location card is shown while some merchant card still needs a location (admin: Location box = optional or must). */
 function updateLocCard() {
-  const ds = S.cards.map(c => { const a = $('.f-act', c.el).value; return a ? effDef(curType, a, S.sub || '') : null; });
+  const ds = S.cards.map(c => { const a = $('.f-act', c.el).value, d0 = a ? effDef(curType, a, S.sub || '') : null; return d0 && d0.res && d0.res.on && c.res === 'fail' ? failDef(d0) : d0; });
   const needLoc = ds.some(d => !d || lvl(d, 'location') > 0 || lvl(d, 'province') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0), needProv = ds.some(d => d && lvl(d, 'province') > 0);
   show($('#locCard'), needLoc || needDist || needProv); show($('#locRow'), needLoc); show($('#distRow'), needDist || needProv); show($('#distWrap'), needDist); show($('#provWrap'), needProv); $('#provWrap').classList.toggle('col-12', needProv && !needDist); $('#provWrap').classList.toggle('col-6', !(needProv && !needDist)); $('#distWrap').classList.toggle('col-12', needDist && !needProv); $('#distWrap').classList.toggle('col-6', !(needDist && !needProv));
   show($('#provStar'), ds.some(d => d && lvl(d, 'province') === 2));
@@ -625,7 +650,7 @@ async function showApp() {
   const admin = S.user.role === 'Admin';
   $('#whoName').textContent = S.user.username;
   $('#whoRole').textContent = ' · ' + S.user.role;
-  show($('#navUsers'), admin); show($('#navStock'), admin || S.user.role === 'Supervisor');
+  show($('#navUsers'), admin); paintTabs();
   paintStaffVis(); show($('#branchWrap'), admin); setTimeout(tkBadge, 4000); show($('#reviewBtn'), admin);
   deskSync();
   show($('#chartCard'), false);
@@ -680,12 +705,14 @@ $('#pinForm').addEventListener('submit', async e => {
 
 /* ============================ Tabs ============================ */
 function switchTab(name) {
-  ['new', 'records', 'map', 'stock', 'tasks', 'users'].forEach(t => show($('#pane-' + t), t === name));
+  if (['records', 'tasks', 'stock', 'points'].includes(name) && !canTab(name)) name = 'new';      // a tab the admin did not allow
+  ['new', 'records', 'map', 'stock', 'tasks', 'users', 'points'].forEach(t => show($('#pane-' + t), t === name));
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (name === 'records') { loadRecords(); loadTeam(); }
   if (name === 'map') mapTabOpen();
   if (name === 'stock') loadStock();
+  if (name === 'points') loadPoints();
   if (name === 'tasks') loadTasks();
   if (name === 'users') { loadUsers(); renderCatSummary(); loadTemplate(); loadCols(); loadArch(); api('getEditRules', S.token).then(r => { S.gRules = r; paintRules(); }).catch(() => {}); }
   deskPaint(name);
@@ -1497,9 +1524,8 @@ $('#submitBtn').addEventListener('click', async () => {
     const c = S.cards[i], g = s => $(s, c.el).value.trim();
     const bad = (m, sel) => { toast('Merchant ' + (i + 1) + ': ' + m, 'danger'); if (sel) $(sel, c.el).focus(); c.el.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
     if (!g('.f-act')) { bad('select an activity.'); return; }
-    const ad = effDef(curType, g('.f-act'), S.sub || ''), L = k => lvl(ad, k);
+    const ad0 = effDef(curType, g('.f-act'), S.sub || ''), rsd = ad0 && ad0.res && ad0.res.on ? ad0.res : null, fail = !!(rsd && c.res === 'fail'), ad = fail ? failDef(ad0) : ad0, L = k => lvl(ad, k);      // Track result: an Unsuccessful record uses its own box rules
     if (!g('.f-date')) { bad('pick the date.', '.f-date'); return; }
-    const rsd = ad && ad.res && ad.res.on ? ad.res : null, fail = !!(rsd && c.res === 'fail');      // Track result: marked Unsuccessful
     if (fail) {
       if (!c.why) { bad('choose the reason why it was not successful.'); $('.res-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       if (c.why === 'Other' && !$('.res-note', c.el).value.trim()) { bad('write the reason (Other).', '.res-note'); return; }
@@ -1524,7 +1550,7 @@ $('#submitBtn').addEventListener('click', async () => {
     for (const f of ((ad && ad.custom) || [])) {
       const inp = $('[data-fid="' + f.id + '"]', c.el), v = inp ? customVal(inp) : '';
       if (f.kind === 'spin' && v.length && parseFloat(v) === 0) continue;      // zero = nothing to record
-      if (!v.length) { if (f.req && !fail) { bad((f.kind === 'select' || f.kind === 'radio' ? 'choose ' : f.kind === 'check' ? 'tick at least one ' : f.kind === 'scan' ? 'scan ' : 'enter ') + f.label + '.'); if (inp && inp.focus) inp.focus(); return; } continue; }
+      if (!v.length) { if (f.req) { bad((f.kind === 'select' || f.kind === 'radio' ? 'choose ' : f.kind === 'check' ? 'tick at least one ' : f.kind === 'scan' ? 'scan ' : 'enter ') + f.label + '.'); if (inp && inp.focus) inp.focus(); return; } continue; }
       if ((f.kind === 'number' || f.kind === 'spin') && !/^-?\d+(\.\d+)?$/.test(v)) { bad(f.label + ' must be a number.'); return; }
       if (f.kind === 'spin' && (+v < f.min || +v > f.max)) { bad(f.label + ' must be between ' + f.min + ' and ' + f.max + '.'); return; }
       if (f.kind === 'phone' && !PHONE_RE.test(v)) { bad(f.label + ' looks wrong.'); return; }
@@ -1543,7 +1569,7 @@ $('#submitBtn').addEventListener('click', async () => {
         if (k === 'qty' && !(l.qty >= 1)) { bad(l.item + ': enter the quantity.'); return; }
       }
     }
-    const needPh = L('photo') && !(fail && !rsd.ph) ? ((ad && ad.minPh) > 0 ? ad.minPh : (L('photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;
+    const needPh = L('photo') ? ((ad && ad.minPh) > 0 ? ad.minPh : (L('photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;
     if (c.photos.length < needPh) { bad(needPh > 1 ? 'attach at least ' + needPh + ' photos or videos (you have ' + c.photos.length + ').' : 'attach at least one photo.'); return; }
     if (L('tag')) keepNew.tag = g('.f-tag'); if (L('zone')) keepNew.zone = g('.f-zone');
     const v = (k, sel) => L(k) ? g(sel) : '';
@@ -2597,6 +2623,7 @@ function openUser(u) {
   $('#uTopic').value = u ? u.topicId : '';
   $('#uGroup').value = u ? (u.groupId || '') : ''; $('#uTg').value = u ? (u.tgUser || '') : '';
   $('#uMaxEdits').value = u && u.maxEdits != null ? u.maxEdits : ''; $('#uEditDays').value = u && u.editDays != null ? u.editDays : '';
+  { const cu = !!(u && u.tabsSet); S.uTabs = { custom: cu, set: new Set(cu ? u.tabsSet.split(',') : tabDefaults($('#uRole').value)) }; paintUTabs(); }
   userModal.show();
 }
 $('#addUserBtn').addEventListener('click', () => openUser(null));
@@ -2607,7 +2634,7 @@ $('#userForm').addEventListener('submit', async e => {
   try {
     const list = await api('saveUser', S.token, {
       original: $('#uOriginal').value, username: $('#uName').value, staffId: $('#uStaffId').value.trim(), branch: $('#uBranch').value.trim(), pin: $('#uPin').value,
-      role: $('#uRole').value, topicId: $('#uTopic').value, groupId: $('#uGroup').value.trim(), tgUser: $('#uTg').value.trim(), maxEdits: $('#uMaxEdits').value.trim(), editDays: $('#uEditDays').value.trim()
+      role: $('#uRole').value, tabsSet: $('#uRole').value !== 'Admin' && S.uTabs.custom ? ['new'].concat(Array.from(S.uTabs.set).filter(k => k !== 'new')).join(',') : '', topicId: $('#uTopic').value, groupId: $('#uGroup').value.trim(), tgUser: $('#uTg').value.trim(), maxEdits: $('#uMaxEdits').value.trim(), editDays: $('#uEditDays').value.trim()
     });
     renderUsers(list); userModal.hide(); toast('Staff saved', 'success');
   } catch (ex) { err.textContent = ex.message; show(err, true); }
@@ -2744,12 +2771,25 @@ function ceCatPanel(t, ti) {
     '<button type="button" class="btn btn-soft btn-sm s-add mb-3"><i class="bi bi-plus-lg me-1"></i>Sub category</button>' +
     '</div>';
 }
+/** Admin: the boxes of an Unsuccessful record, one row per box the activity shows (Same as normal / Optional / Must / Off). */
+function resBoxRows(a) {
+  const b = a.res.b || {}, lab = l => l === 2 ? 'Must' : l === 1 ? 'Optional' : 'Off';
+  const row = (k, name, normal, opts) => {
+    const cur = k === 'photo' ? (a.res.ph ? 's' : b.photo === 0 ? '0' : '1') : (b[k] === undefined ? 's' : String(b[k]));
+    return '<div class="ce-rb"><span class="n">' + esc(name) + '<span class="was">normal: ' + lab(normal) + '</span></span><span>' + opts.map(([v, t]) => '<button type="button" class="chip a-resb' + (cur === v ? ' active' : '') + '" data-k="' + esc(k) + '" data-v="' + v + '">' + t + '</button>').join('') + '</span></div>';
+  };
+  const std = k => k === 'merchant' || k === 'mid' ? [['s', 'Same'], ['1', 'Optional'], ['2', 'Must']] : k === 'photo' ? [['s', 'Same'], ['1', 'Optional'], ['0', 'Off']] : ['integ', 'sim', 'standee'].includes(k) ? [['s', 'Same'], ['0', 'Off']] : [['s', 'Same'], ['1', 'Optional'], ['2', 'Must'], ['0', 'Off']];
+  const core = FIELD_KEYS.filter(k => !['serial', 'oldSn', 'newSn'].includes(k) && lvl(a, k) > 0).map(k => row(k, FIELD_NAMES[k], lvl(a, k), std(k)));
+  const cus = (a.custom || []).filter(f => f.kind !== 'info' && f.kind !== 'serial' && f.id).map(f => row(f.id, f.label || 'Extra field', f.req ? 2 : 1, f.kind === 'toggle' ? [['s', 'Same'], ['0', 'Off']] : [['s', 'Same'], ['1', 'Optional'], ['2', 'Must'], ['0', 'Off']]));
+  return '<div class="ce-lab mt-2">BOXES WHEN UNSUCCESSFUL <span class="fw-normal text-muted">(Same = as a normal record)</span></div>' + core.concat(cus).join('');
+}
 const RES_DEFAULT = ['Merchant refused', 'Merchant not available / closed', 'Merchant not ready', 'Wrong address / cannot find', 'Merchant already has a terminal', 'Equipment or network problem'];
 function ceActPanel(t, ti, a, ai) {
   const nm = '<div class="ce-title"><input class="a-name ce-name" maxlength="40" placeholder="Activity name" value="' + esc(a.n) + '"><span class="ce-sub">· ' + esc(t.name) + ' · code</span><input class="a-code ce-code" maxlength="4" placeholder="–" title="Optional code added to the record ID" value="' + esc(a.code || '') + '"></div>';
   return '<div class="ce-pane" data-ti="' + ti + '"><div data-ai="' + ai + '" class="ce-act">' + ceHead(nm) +
     '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (a.tkChk === true ? ' active' : '') + '" data-f="tkChk" title="Default Off. On: before saving, the app checks for an open task of this merchant and offers to complete it, and task owners are alerted when someone else submits it.">Check open tasks</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button><button type="button" class="chip a-flag' + (a.res && a.res.on ? ' active' : '') + '" data-f="resOn" title="Default Off. On: staff can mark a record Unsuccessful and choose a reason (the list below).">Track result</button></div>' +
-    (a.res && a.res.on ? '<div class="ce-res"><div class="ce-lab">UNSUCCESSFUL REASONS <span class="fw-normal text-muted">(one per line; staff choose one)</span></div><textarea class="form-control form-control-sm a-resr" rows="5" maxlength="1500">' + esc((a.res.r || []).join('\n')) + '</textarea><div class="chips mt-2"><button type="button" class="chip a-res-o' + (a.res.o !== false ? ' active' : '') + '">Allow “Other” with a note</button><button type="button" class="chip a-res-ph' + (a.res.ph ? ' active' : '') + '">Photos still required</button></div><div class="small text-muted mt-1">Serial number and stock boxes are always skipped, and no stock is taken, when a record is Unsuccessful.</div></div>' : '') +
+    '<div class="ce-pts"><div class="ce-lab">POINTS <span class="fw-normal text-muted">(for the Points tab; blank or 0 = no points)</span></div><div class="row g-2"><div class="col-6"><div class="small text-muted">Per successful action</div><input class="form-control form-control-sm a-pt" type="number" min="0" max="10000" step="0.5" value="' + (a.pt || '') + '"></div>' + (a.res && a.res.on ? '<div class="col-6"><div class="small text-muted">Per unsuccessful action</div><input class="form-control form-control-sm a-ptf" type="number" min="0" max="10000" step="0.5" value="' + (a.ptFail || '') + '"></div>' : '') + '</div><div class="small text-muted mt-1">A change applies to new records only; records already saved keep the points they earned.</div></div>' +
+    (a.res && a.res.on ? '<div class="ce-res"><div class="ce-lab">UNSUCCESSFUL REASONS <span class="fw-normal text-muted">(one per line; staff choose one)</span></div><textarea class="form-control form-control-sm a-resr" rows="5" maxlength="1500">' + esc((a.res.r || []).join('\n')) + '</textarea><div class="chips mt-2"><button type="button" class="chip a-res-o' + (a.res.o !== false ? ' active' : '') + '">Allow “Other” with a note</button></div>' + resBoxRows(a) + '<div class="small text-muted mt-1">Serial number and stock boxes are always skipped, and no stock is taken, when a record is Unsuccessful.</div></div>' : '') +
     ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
     '<div class="ce-lab">BOXES TO FILL</div><div class="a-fields ce-boxes">' + ceFieldRows(a) + '</div>' +
     '<div class="ce-lab">SCAN ONLY <span class="fw-normal text-muted">(on by default: cannot be typed, filled by scanning or uploading the QR; the TID is filled from the MID)</span></div><div class="chips mb-2">' + [['merchant', 'Merchant name'], ['mid', 'MID']].map(p => '<button type="button" class="chip a-lk' + (lkOf(a).includes(p[0]) ? ' active' : '') + '" data-k="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>' +
@@ -2850,6 +2890,7 @@ $('#catList').addEventListener('input', e => {
   else if (e.target.classList.contains('a-tgchat')) t.acts[+e.target.closest('[data-ai]').dataset.ai].tgChat = e.target.value.trim();
   else if (e.target.classList.contains('a-tgtopic')) t.acts[+e.target.closest('[data-ai]').dataset.ai].tgTopic = e.target.value.trim();
   else if (e.target.classList.contains('a-tg')) { t.acts[+e.target.closest('[data-ai]').dataset.ai].tg = e.target.value; cePreview(); }
+  else if (e.target.classList.contains('a-pt') || e.target.classList.contains('a-ptf')) { const a = t.acts[+e.target.closest('[data-ai]').dataset.ai], k = e.target.classList.contains('a-pt') ? 'pt' : 'ptFail', v = Math.round(+e.target.value * 100) / 100; if (v > 0) a[k] = Math.min(10000, v); else delete a[k]; }
   else if (e.target.classList.contains('a-resr')) { const a = t.acts[+e.target.closest('[data-ai]').dataset.ai]; if (a.res) a.res.r = e.target.value.split('\n').map(x => x.trim()).filter(Boolean); }
   else if (e.target.classList.contains('a-code')) t.acts[+e.target.closest('[data-ai]').dataset.ai].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   else if (e.target.classList.contains('s-name')) { const s = t.subs[+e.target.closest('[data-si]').dataset.si], old = s.n; s.n = e.target.value; t.acts.forEach(a => { if (a.subs) a.subs = a.subs.map(x => x === old ? s.n : x); }); }
@@ -2903,6 +2944,12 @@ $('#catList').addEventListener('click', e => {
   else if (e.target.closest('.a-lk')) { const b = e.target.closest('.a-lk'), a = t.acts[ai], l = lkOf(a); a.lk = l.includes(b.dataset.k) ? l.filter(x => x !== b.dataset.k) : l.concat(b.dataset.k); renderCatEditor(); }
   else if (e.target.closest('.a-res-o')) { const r = t.acts[ai].res; r.o = r.o === false; renderCatEditor(); }
   else if (e.target.closest('.a-res-ph')) { const r = t.acts[ai].res; r.ph = !r.ph; renderCatEditor(); }
+  else if (e.target.closest('.a-resb')) {
+    const bt = e.target.closest('.a-resb'), r = t.acts[ai].res, k = bt.dataset.k, v = bt.dataset.v; r.b = r.b || {};
+    if (k === 'photo') { if (v === 's') { r.ph = true; delete r.b.photo; } else { r.ph = false; r.b.photo = +v; } }
+    else if (v === 's') delete r.b[k]; else r.b[k] = +v;
+    renderCatEditor();
+  }
   else if (e.target.closest('.a-flag') && e.target.closest('.a-flag').dataset.f === 'resOn') { const a = t.acts[ai], r = a.res || {}; a.res = { on: !r.on, r: (r.r && r.r.length) ? r.r : RES_DEFAULT.slice(), o: r.o !== false, ph: r.ph === true }; renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; if (f === 'qrchk') t.acts[ai].qrchk = !qcEff(t.name, t.acts[ai], ''); else t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
@@ -3714,12 +3761,12 @@ $('#lblReset').addEventListener('click', async () => {
 /* ============================ Desktop mode (admin + supervisor, wide screens) ============================ */
 const DESK_MIN = 1100;
 S.deskKey = 'records';
-const DESK_TITLES = { new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', tasks: 'Tasks', map: 'Merchant map', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', cols: 'Sheet columns', arch: 'Archive & backup', audit: 'Audit log', rules: 'Edit rules & record ID' };
+const DESK_TITLES = { points: 'Points', new: 'New record', records: 'Records & dashboard', review: 'Records & dashboard', stock: 'Stock', tasks: 'Tasks', map: 'Merchant map', staff: 'Staff', cats: 'Categories & activities', tg: 'Telegram', cols: 'Sheet columns', arch: 'Archive & backup', audit: 'Audit log', rules: 'Edit rules & record ID' };
 const deskItems = () => {
   const admin = S.user && S.user.role === 'Admin';
-  return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], ['map', 'bi-map', 'Merchant map'], admin && ['review', 'bi-patch-check', 'Review queue'], ['tasks', 'bi-check2-square', 'Tasks'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
+  return [['WORK'], ['new', 'bi-plus-circle', 'New record'], ['records', 'bi-table', 'Records & dashboard'], ['map', 'bi-map', 'Merchant map'], admin && ['review', 'bi-patch-check', 'Review queue'], ['tasks', 'bi-check2-square', 'Tasks'], ['points', 'bi-trophy', 'Points'], ['stock', 'bi-box-seam', 'Stock'], admin && ['staff', 'bi-people', 'Staff'],
     ['TOOLS'], ['lookup', 'bi-search', 'Merchant history'], ['qr', 'bi-qr-code-scan', 'Live QR check'], ['repeats', 'bi-files', 'Repeated records'], ['stamp', 'bi-geo-alt', 'Stamp settings'],
-    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['cols', 'bi-layout-three-columns', 'Sheet columns'], admin && ['arch', 'bi-archive', 'Archive & backup'], admin && ['audit', 'bi-journal-text', 'Audit log'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean);
+    admin && ['SETUP'], admin && ['cats', 'bi-diagram-3', 'Categories & activities'], admin && ['cols', 'bi-layout-three-columns', 'Sheet columns'], admin && ['arch', 'bi-archive', 'Archive & backup'], admin && ['audit', 'bi-journal-text', 'Audit log'], admin && ['tg', 'bi-send', 'Telegram'], admin && ['rules', 'bi-pencil-square', 'Edit rules & record ID']].filter(Boolean).filter(it => !['records', 'tasks', 'stock', 'points'].includes(it[0]) || canTab(it[0]));
 };
 let deskBuilt = false;
 function deskBuild() {
@@ -3749,13 +3796,14 @@ function deskGo(k) {
   else if (k === 'review') { switchTab('records'); S.rvStatus = 'Pending'; reviewModal.show(); loadReview(); }
   else if (k === 'stock') switchTab('stock');
   else if (k === 'tasks') switchTab('tasks');
+  else if (k === 'points') switchTab('points');
   else { switchTab('users'); if (k === 'cats') setTimeout(() => $('#catEditBtn').click(), 80); }
 }
 /** Marks the sidebar item, the page title and (in Setup) which card is shown. */
 function deskPaint(name) {
   document.body.dataset.pane = name;
   try { clEnsure(); if ($('#clLock')) clLockPaint(); } catch (e) {}
-  if (name === 'new') S.deskKey = 'new'; else if (name === 'map') S.deskKey = 'map'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'tasks') S.deskKey = 'tasks'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules', 'cols', 'arch', 'audit'].includes(S.deskKey)) S.deskKey = 'staff';
+  if (name === 'new') S.deskKey = 'new'; else if (name === 'map') S.deskKey = 'map'; else if (name === 'records' && S.deskKey !== 'review') S.deskKey = 'records'; else if (name === 'stock') S.deskKey = 'stock'; else if (name === 'tasks') S.deskKey = 'tasks'; else if (name === 'points') S.deskKey = 'points'; else if (name === 'users' && !['staff', 'cats', 'tg', 'rules', 'cols', 'arch', 'audit'].includes(S.deskKey)) S.deskKey = 'staff';
   $('#pane-users').dataset.show = ['staff', 'cats', 'tg', 'rules', 'cols', 'arch', 'audit'].includes(S.deskKey) ? S.deskKey : 'staff';
   document.body.dataset.key = S.deskKey;
   if (S.deskKey === 'audit') loadAudit();
@@ -4215,4 +4263,106 @@ $('#tkCsvBtn').addEventListener('click', () => {
   const csv = '﻿' + lines.map(l => l.map(cell).join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'tasks_' + ymd(new Date()) + '.csv'; document.body.appendChild(a); a.click(); a.remove();
   toast(rows.length + ' task' + (rows.length > 1 ? 's' : '') + ' exported (what the list shows now).', 'success');
+});
+
+
+/* ============================ Tab access + Points tab ============================ */
+const TAB_KEYS = ['records', 'tasks', 'stock', 'points'], TAB_NAMES = { records: 'Records', tasks: 'Tasks', stock: 'Stock', points: 'Points' };
+function tabDefaults(role) { return role === 'Supervisor' || role === 'Admin' ? TAB_KEYS.slice() : ['records', 'tasks']; }
+/** Which tabs this person may see: the admin's choice for them, else the role's default. */
+function canTab(k) { const u = S.user; if (!u) return false; if (u.role === 'Admin') return true; return (Array.isArray(u.tabs) ? u.tabs : tabDefaults(u.role)).includes(k); }
+function paintTabs() {
+  const u = S.user, adm = u.role === 'Admin';
+  show($('.bottom-nav [data-tab="records"]'), canTab('records')); show($('#navTasks'), canTab('tasks')); show($('#navStock'), adm || (u.role === 'Supervisor' && canTab('stock'))); show($('#navPoints'), canTab('points'));
+}
+S.uTabs = { custom: false, set: new Set() };
+function paintUTabs() {
+  const role = $('#uRole').value, items = ['records', 'tasks'].concat(role === 'Supervisor' ? ['stock'] : []).concat(['points']);
+  show($('#uTabsW'), role !== 'Admin');
+  $('#uTabs').innerHTML = items.map(k => '<button type="button" class="chip' + (S.uTabs.set.has(k) ? ' active' : '') + '" data-k="' + k + '">' + TAB_NAMES[k] + '</button>').join('') + (S.uTabs.custom ? '<button type="button" class="chip" data-k="__reset">Reset to default</button>' : '');
+  $('#uTabsHint').textContent = S.uTabs.custom ? 'Custom: this person sees New and the ticked tabs only.' : 'Default for ' + role + ': New, ' + tabDefaults(role).filter(k => k !== 'stock' || role === 'Supervisor').map(k => TAB_NAMES[k]).join(', ') + '.';
+}
+$('#uTabs').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  if (b.dataset.k === '__reset') { S.uTabs = { custom: false, set: new Set(tabDefaults($('#uRole').value)) }; }
+  else { if (!S.uTabs.custom) S.uTabs.custom = true; if (S.uTabs.set.has(b.dataset.k)) S.uTabs.set.delete(b.dataset.k); else S.uTabs.set.add(b.dataset.k); }
+  paintUTabs();
+});
+$('#uRole').addEventListener('change', () => { if (!S.uTabs.custom) S.uTabs.set = new Set(tabDefaults($('#uRole').value)); paintUTabs(); });
+
+S.pt = { range: 'month', cmp: false, seq: 0, data: null, per: null, open: {} };
+const PT_RANGES = [['today', 'Today'], ['7d', 'Last 7 days'], ['month', 'This month'], ['lastmonth', 'Last month'], ['quarter', 'This quarter'], ['custom', 'Custom']];
+const dAdd = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+/** The period shown and the one before it (same length, or the same days of the previous month / quarter). */
+function ptPeriods() {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const y = t.getFullYear(), m = t.getMonth(), r = S.pt.range; let cur, prev;
+  if (r === 'today') { cur = [t, t]; prev = [dAdd(t, -1), dAdd(t, -1)]; }
+  else if (r === '7d') { cur = [dAdd(t, -6), t]; prev = [dAdd(t, -13), dAdd(t, -7)]; }
+  else if (r === 'month') { const pl = new Date(y, m, 0); cur = [new Date(y, m, 1), t]; prev = [new Date(y, m - 1, 1), new Date(y, m - 1, Math.min(t.getDate(), pl.getDate()))]; }
+  else if (r === 'lastmonth') { cur = [new Date(y, m - 1, 1), new Date(y, m, 0)]; prev = [new Date(y, m - 2, 1), new Date(y, m - 1, 0)]; }
+  else if (r === 'quarter') { const qm = Math.floor(m / 3) * 3, f = new Date(y, qm, 1), pf = new Date(y, qm - 3, 1), pe = dAdd(pf, Math.round((t - f) / 864e5)), pl = new Date(y, qm, 0); cur = [f, t]; prev = [pf, pe > pl ? pl : pe]; }
+  else {
+    const a = $('#ptFrom').value, b = $('#ptTo').value; if (!a || !b) return null;
+    const f = new Date(a + 'T00:00:00'), l = new Date(b + 'T00:00:00'); if (l < f) return null;
+    const n = Math.round((l - f) / 864e5) + 1; cur = [f, l]; prev = [dAdd(f, -n), dAdd(f, -1)];
+  }
+  return { cur: { from: ymd(cur[0]), to: ymd(cur[1]) }, prev: { from: ymd(prev[0]), to: ymd(prev[1]) } };
+}
+function ptChips() { $('#ptRange').innerHTML = PT_RANGES.map(r => '<button type="button" class="chip' + (S.pt.range === r[0] ? ' active' : '') + '" data-r="' + r[0] + '">' + r[1] + '</button>').join(''); show($('#ptCustom'), S.pt.range === 'custom'); }
+async function loadPoints() {
+  ptChips();
+  const per = ptPeriods();
+  if (!per) { $('#ptTbl').innerHTML = '<tr><td class="empty">Choose the From and To dates.</td></tr>'; $('#ptKpi').innerHTML = ''; $('#ptPer').textContent = ''; return; }
+  const my = ++S.pt.seq;
+  $('#ptTbl').innerHTML = '<tr><td class="empty"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+  try {
+    const d = await api('getPoints', S.token, per.cur, S.pt.cmp ? per.prev : null);
+    if (my !== S.pt.seq) return;
+    S.pt.data = d; S.pt.per = per; renderPoints();
+  } catch (e) { $('#ptTbl').innerHTML = ''; toast(e.message, 'danger'); }
+}
+const ptN = n => (Math.round(n * 100) / 100).toLocaleString();
+function ptDelta(a, b, pct) {
+  const diff = a - b; if (!diff) return '<span class="text-muted">–</span>';
+  const up = diff > 0, txt = pct ? (b ? Math.abs(Math.round(diff / b * 100)) + '%' : 'new') : ptN(Math.abs(diff));
+  return '<span class="pt-' + (up ? 'up' : 'dn') + '">' + (up ? '▲ ' : '▼ ') + txt + '</span>';
+}
+function ptKey(g) { return [g.branch, g.user, g.type, g.sub, g.activity, g.res].join('\u0001'); }
+function renderPoints() {
+  const d = S.pt.data, per = S.pt.per; if (!d) return;
+  const cmp = !!d.prev, sum = (l, f) => l.reduce((t, g) => t + f(g), 0), tot = l => sum(l, g => g.pts);
+  const nOk = l => sum(l.filter(g => g.res === 'ok'), g => g.n), nBad = l => sum(l.filter(g => g.res === 'fail'), g => g.n);
+  $('#ptPer').textContent = fmtD(per.cur.from) + (per.cur.to !== per.cur.from ? ' to ' + fmtD(per.cur.to) : '') + (cmp ? ' · compared with ' + fmtD(per.prev.from) + (per.prev.to !== per.prev.from ? ' to ' + fmtD(per.prev.to) : '') : '');
+  const byB = {}; d.cur.forEach(g => { (byB[g.branch] = byB[g.branch] || []).push(g); });
+  const prevB = {}, prevK = {}; (d.prev || []).forEach(g => { prevB[g.branch] = (prevB[g.branch] || 0) + g.pts; prevK[ptKey(g)] = g.pts; });
+  const branches = Object.keys(byB).sort((a, b) => tot(byB[b]) - tot(byB[a]));
+  const top = branches[0];
+  const tile = (l, v, s) => '<div class="kpi"><div class="k-l">' + esc(l) + '</div><div class="k-v">' + esc(String(v)) + '</div><div class="k-s">' + s + '</div></div>';
+  $('#ptKpi').innerHTML = tile('Total points', ptN(tot(d.cur)), cmp ? ptDelta(tot(d.cur), tot(d.prev), true) : 'in this period') + tile('Successful', nOk(d.cur), cmp ? ptDelta(nOk(d.cur), nOk(d.prev)) : 'actions') + tile('Unsuccessful', nBad(d.cur), cmp ? ptDelta(nBad(d.cur), nBad(d.prev)) : 'actions') + tile('Top branch', top ? top : '–', top ? ptN(tot(byB[top])) + ' points' : '');
+  let h = '<tr><th>BRANCH CODE</th><th>STAFF</th><th>CATEGORY + SUB + ACTIVITY</th><th class="n">NUMBER OF ACTION</th><th class="n">KPI POINT</th><th class="n">TOTAL POINT</th>' + (cmp ? '<th class="n">VS PREVIOUS</th>' : '') + '</tr>';
+  branches.forEach(b => {
+    const list = byB[b], users = Array.from(new Set(list.map(g => g.user))), open = S.pt.open[b] !== false;
+    h += '<tr class="pt-br" data-b="' + esc(b) + '"><td><i class="bi bi-chevron-' + (open ? 'down' : 'right') + ' me-1"></i>' + esc(b) + '</td><td>' + users.length + ' staff</td><td></td><td class="n">' + sum(list, g => g.n) + '</td><td></td><td class="n">' + ptN(tot(list)) + '</td>' + (cmp ? '<td class="n">' + ptDelta(tot(list), prevB[b] || 0, true) + '</td>' : '') + '</tr>';
+    if (!open) return;
+    users.sort((x, y) => sum(list.filter(g => g.user === y), g => g.pts) - sum(list.filter(g => g.user === x), g => g.pts)).forEach(u => {
+      list.filter(g => g.user === u).sort((x, y) => y.pts - x.pts || y.n - x.n).forEach((g, i) => {
+        h += '<tr><td></td><td>' + (i ? '' : '<b>' + esc(u) + '</b>') + '</td><td>' + esc(shortName(g.type) + (g.sub ? ' · ' + g.sub : '') + ' · ' + g.activity) + (g.res === 'fail' ? ' · <span class="pt-dn">Unsuccessful</span>' : '') + '</td><td class="n">' + g.n + '</td><td class="n">' + (g.n ? ptN(g.pts / g.n) : '') + '</td><td class="n">' + ptN(g.pts) + '</td>' + (cmp ? '<td class="n">' + ptDelta(g.pts, prevK[ptKey(g)] || 0) + '</td>' : '') + '</tr>';
+      });
+    });
+  });
+  if (!branches.length) h += '<tr><td colspan="' + (cmp ? 7 : 6) + '" class="empty">No records in this period</td></tr>';
+  $('#ptTbl').innerHTML = h;
+}
+$('#ptTbl').addEventListener('click', e => { const tr = e.target.closest('.pt-br'); if (!tr) return; S.pt.open[tr.dataset.b] = S.pt.open[tr.dataset.b] === false; renderPoints(); });
+$('#ptRange').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.pt.range = b.dataset.r; if (b.dataset.r === 'custom' && !$('#ptFrom').value) { $('#ptFrom').value = ymd(dAdd(new Date(), -6)); $('#ptTo').value = ymd(new Date()); } loadPoints(); });
+$('#ptCmp').addEventListener('change', () => { S.pt.cmp = $('#ptCmp').checked; loadPoints(); });
+['#ptFrom', '#ptTo'].forEach(s => $(s).addEventListener('change', () => loadPoints()));
+$('#ptCsv').addEventListener('click', () => {
+  const d = S.pt.data; if (!d || !d.cur.length) { toast('Nothing to export.', 'warning'); return; }
+  const cmp = !!d.prev, prevK = {}; (d.prev || []).forEach(g => { prevK[ptKey(g)] = g.pts; });
+  const lines = [['Branch Code', 'Staff', 'Category', 'Sub Category', 'Activity', 'Result', 'Number of action', 'KPI point', 'Total point'].concat(cmp ? ['Previous period total point'] : [])]
+    .concat(d.cur.slice().sort((a, b) => a.branch.localeCompare(b.branch) || a.user.localeCompare(b.user)).map(g => [g.branch, g.user, g.type, g.sub, g.activity, g.res === 'fail' ? 'Unsuccessful' : 'Successful', g.n, g.n ? Math.round(g.pts / g.n * 100) / 100 : 0, g.pts].concat(cmp ? [prevK[ptKey(g)] || 0] : [])));
+  const cell = v => { const x = String(v == null ? '' : v); return /[",\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.map(l => l.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })); a.download = 'points_' + S.pt.per.cur.from + '_' + S.pt.per.cur.to + '.csv'; document.body.appendChild(a); a.click(); a.remove();
 });
