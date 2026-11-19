@@ -660,3 +660,10 @@ body.desk .pg-pill{bottom:24px;left:260px;margin:0}
 :root[data-theme="dark"] .pt-up { color: #7be0a3; } :root[data-theme="dark"] .pt-dn { color: #ff9d98; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pt-up { color: #7be0a3; } :root:not([data-theme="light"]) .pt-dn { color: #ff9d98; } }
 .ce-pts { margin: 8px 0; }
+
+/* v158: Points grand total + category rows */
+.pt-tbl .pt-gt td { background: #1c2033; color: #fff; font-weight: 800; }
+.pt-tbl .pt-cat td { background: rgba(91, 75, 213, .05); font-weight: 700; color: #4b3fc4; }
+.pt-tbl .pt-st td { background: rgba(47, 168, 102, .09); font-weight: 700; }
+:root[data-theme="dark"] .pt-tbl .pt-cat td { color: #b9b1ff; } :root[data-theme="dark"] .pt-tbl .pt-gt td { background: #2a2f4a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pt-tbl .pt-cat td { color: #b9b1ff; } :root:not([data-theme="light"]) .pt-tbl .pt-gt td { background: #2a2f4a; } }

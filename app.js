@@ -643,10 +643,26 @@ function showLogin() { show($('#appView'), false); show($('#loginView'), true); 
 
 /** Admin or Supervisor: may look at other people's records (a supervisor: the staff of their branch, read-only). */
 const isWide = () => !!(S.user && (S.user.role === 'Admin' || S.user.role === 'Supervisor'));
+/** Chart.js, Leaflet and ZXing are not needed for the first screen: they load after the app is up, or the first time they are used. */
+const LIB_URL = { zxing: 'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js', leaflet: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js', chart: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js' };
+const LIB_OK = { zxing: () => typeof ZXing !== 'undefined', leaflet: () => typeof L !== 'undefined' && !!L.map, chart: () => typeof Chart !== 'undefined' }, libP = {};
+function ensureLib(k) {
+  if (LIB_OK[k]()) return Promise.resolve();
+  return libP[k] || (libP[k] = new Promise((res, rej) => { const s = document.createElement('script'); s.src = LIB_URL[k]; s.onload = res; s.onerror = () => { delete libP[k]; rej(new Error('Could not load ' + k)); }; document.head.appendChild(s); }));
+}
+function libsIdle() { const go = () => ['chart', 'leaflet', 'zxing'].forEach(k => ensureLib(k).catch(() => {})); if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 6000 }); else setTimeout(go, 3000); }
 async function showApp() {
   show($('#loginView'), false); show($('#appView'), true);
-  try { setCatalog(await api('getCatalog', S.token)); } catch (e) {}
-  await loadStockItems();
+  {   // the form opens at once from the saved catalog; the fresh one is fetched meanwhile (and replaces it when nothing has been filled in yet)
+    let saved = null; try { saved = JSON.parse(store.get('it_catalog') || 'null'); } catch (e) {}
+    const fresh = api('getCatalog', S.token).then(c => { try { store.set('it_catalog', JSON.stringify(c)); } catch (e) {} return c; });
+    if (saved && Array.isArray(saved) && saved.length) {
+      setCatalog(saved);
+      fresh.then(c => { if (JSON.stringify(c) !== JSON.stringify(saved) && S.cards.every(cd => !$('.f-act', cd.el).value)) { setCatalog(c); setType(curType); } }).catch(() => {});
+    } else { try { setCatalog(await fresh); } catch (e) {} }
+  }
+  loadStockItems().then(() => S.cards.forEach(cd => { const a = $('.f-act', cd.el).value, d = a ? effDef(curType, a, S.sub || '') : null; if (d && d.stock) renderStockBox(cd, d); }));      // the stock list no longer holds the screen back
+  libsIdle();
   const admin = S.user.role === 'Admin';
   $('#whoName').textContent = S.user.username;
   $('#whoRole').textContent = ' · ' + S.user.role;
@@ -812,6 +828,7 @@ function loadZbar() {
 }
 /** Camera scanner. Uses the phone's own barcode detector when it has one (fast, reads small / curved stickers), else ZXing with "try harder". HD video, continuous focus, light and zoom where the phone allows. */
 async function startScan() {
+  if (typeof ZXing === 'undefined') { try { await ensureLib('zxing'); } catch (e) {} }
   show($('#scanError'), false); show($('#scanTools'), false); $('#scanEngine').textContent = '';
   const sn = !!S.snInput, video = $('#scanVideo');
   $('#scanFrame').classList.toggle('qr', !sn);
@@ -1272,7 +1289,7 @@ function setPick(lat, lon, pan) {
   $('#pickUse').disabled = false;
 }
 function openPick() {
-  if (!window.L) { toast('The map could not load. Check your internet connection.', 'warning'); return; }
+  if (!window.L || !L.map) { ensureLib('leaflet').then(openPick, () => toast('The map could not load. Check your internet connection.', 'warning')); return; }
   mapModal.show();
   setTimeout(() => {
     const start = geo.pos ? [geo.pos.lat, geo.pos.lon] : [11.5564, 104.9282];
@@ -1767,6 +1784,7 @@ document.addEventListener('click', e => { if (e.target.closest('#mapFull')) mapF
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#mapCard').classList.contains('map-full')) mapFullSet(false); });
 /** Desktop: the Merchant map tab was opened. */
 function mapTabOpen() {
+  if (typeof L === 'undefined' || !L.map) { ensureLib('leaflet').then(mapTabOpen, () => {}); return; }
   show($('#mapBody'), true);
   if (!MF.loaded) mfLoad(true); else setTimeout(() => { if (MAP.map) MAP.map.invalidateSize(); }, 60);
 }
@@ -2401,6 +2419,7 @@ function whoText() {
   return 'Staff: ' + ($('#fUser').value || 'All staff') + ' · Branch: ' + br;
 }
 function drawChart() {
+  if (typeof Chart === 'undefined') { ensureLib('chart').then(drawChart, () => {}); return; }
   try { gbRender(); } catch (e) { console.error(e); }
   const m = S.chartModel = dashModel(), admin = isWide();
   show($('#chartCard'), (S.agg || []).length > 0);
@@ -3404,8 +3423,8 @@ $('#itSave').addEventListener('click', async () => {
 S.rules = { enabled: true, max: 3, days: 1 };
 const ruleText = () => 'edit up to ' + S.rules.max + (S.rules.max === 1 ? ' time' : ' times') + (S.rules.days === 1 ? ', same day only' : ', within ' + S.rules.days + ' days');
 async function loadLast() {
-  try { S.rules = await api('getMyEditRules', S.token); } catch (e) {}
-  try { S.today = await api('getTodayRecords', S.token); } catch (e) { S.today = []; }
+  const [rules, today] = await Promise.all([api('getMyEditRules', S.token).catch(() => S.rules), api('getTodayRecords', S.token).catch(() => [])]);      // both at once
+  if (rules) S.rules = rules; S.today = today || [];
   renderLast();
 }
 function renderLast() {
@@ -4290,7 +4309,7 @@ $('#uTabs').addEventListener('click', e => {
 });
 $('#uRole').addEventListener('change', () => { if (!S.uTabs.custom) S.uTabs.set = new Set(tabDefaults($('#uRole').value)); paintUTabs(); });
 
-S.pt = { range: 'month', cmp: false, seq: 0, data: null, per: null, open: {} };
+S.pt = { sort: 'az', range: 'month', cmp: false, seq: 0, data: null, per: null, open: {} };
 const PT_RANGES = [['today', 'Today'], ['7d', 'Last 7 days'], ['month', 'This month'], ['lastmonth', 'Last month'], ['quarter', 'This quarter'], ['custom', 'Custom']];
 const dAdd = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 /** The period shown and the one before it (same length, or the same days of the previous month / quarter). */
@@ -4309,7 +4328,8 @@ function ptPeriods() {
   }
   return { cur: { from: ymd(cur[0]), to: ymd(cur[1]) }, prev: { from: ymd(prev[0]), to: ymd(prev[1]) } };
 }
-function ptChips() { $('#ptRange').innerHTML = PT_RANGES.map(r => '<button type="button" class="chip' + (S.pt.range === r[0] ? ' active' : '') + '" data-r="' + r[0] + '">' + r[1] + '</button>').join(''); show($('#ptCustom'), S.pt.range === 'custom'); }
+function ptSortChips() { $('#ptSort').innerHTML = [['az', 'A to Z (category + sub + activity)'], ['pts', 'Highest points']].map(r => '<button type="button" class="chip' + (S.pt.sort === r[0] ? ' active' : '') + '" data-s="' + r[0] + '">' + r[1] + '</button>').join(''); }
+function ptChips() { ptSortChips(); $('#ptRange').innerHTML = PT_RANGES.map(r => '<button type="button" class="chip' + (S.pt.range === r[0] ? ' active' : '') + '" data-r="' + r[0] + '">' + r[1] + '</button>').join(''); show($('#ptCustom'), S.pt.range === 'custom'); }
 async function loadPoints() {
   ptChips();
   const per = ptPeriods();
@@ -4340,29 +4360,43 @@ function renderPoints() {
   const top = branches[0];
   const tile = (l, v, s) => '<div class="kpi"><div class="k-l">' + esc(l) + '</div><div class="k-v">' + esc(String(v)) + '</div><div class="k-s">' + s + '</div></div>';
   $('#ptKpi').innerHTML = tile('Total points', ptN(tot(d.cur)), cmp ? ptDelta(tot(d.cur), tot(d.prev), true) : 'in this period') + tile('Successful', nOk(d.cur), cmp ? ptDelta(nOk(d.cur), nOk(d.prev)) : 'actions') + tile('Unsuccessful', nBad(d.cur), cmp ? ptDelta(nBad(d.cur), nBad(d.prev)) : 'actions') + tile('Top branch', top ? top : '–', top ? ptN(tot(byB[top])) + ' points' : '');
+  // grand total by staff (all branches), best first
+  const byU = {}; d.cur.forEach(g => { const u = byU[g.user] = byU[g.user] || { user: g.user, branch: g.branch, n: 0, pts: 0 }; u.n += g.n; u.pts += g.pts; });
+  const prevU = {}; (d.prev || []).forEach(g => { prevU[g.user] = (prevU[g.user] || 0) + g.pts; });
+  const ranked = Object.keys(byU).map(k => byU[k]).sort((x, y) => y.pts - x.pts || x.user.localeCompare(y.user)), mxU = ranked.length ? Math.max(ranked[0].pts, 1) : 1;
+  show($('#ptGrand'), ranked.length > 0);
+  $('#ptGrand').innerHTML = ranked.length ? '<div class="fw-bold small mb-1"><i class="bi bi-people me-1"></i>Grand total by staff</div><div style="overflow-x:auto"><table class="pt-tbl"><tr><th>#</th><th>STAFF</th><th>BRANCH</th><th class="n">ACTIONS</th><th class="n">GRAND TOTAL POINT</th><th></th>' + (cmp ? '<th class="n">VS PREVIOUS</th>' : '') + '</tr>' +
+    ranked.map((u, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(u.user) + '</b></td><td>' + esc(u.branch) + '</td><td class="n">' + u.n + '</td><td class="n"><b>' + ptN(u.pts) + '</b></td><td style="min-width:70px"><div class="rb-t" style="height:8px;border-radius:5px;background:var(--line,#e3e6f2);overflow:hidden"><i style="display:block;height:100%;width:' + Math.round(u.pts / mxU * 100) + '%;background:#5b4bd5"></i></div></td>' + (cmp ? '<td class="n">' + ptDelta(u.pts, prevU[u.user] || 0) + '</td>' : '') + '</tr>').join('') +
+    '<tr class="pt-gt"><td></td><td>GRAND TOTAL</td><td></td><td class="n">' + sum(ranked, u => u.n) + '</td><td class="n">' + ptN(tot(d.cur)) + '</td><td></td>' + (cmp ? '<td class="n">' + ptDelta(tot(d.cur), tot(d.prev), true) + '</td>' : '') + '</tr></table></div>' : '';
+  const lab = g => shortName(g.type) + (g.sub ? ' · ' + g.sub : '') + ' · ' + g.activity, az = S.pt.sort !== 'pts';
+  const cmpG = az ? (x, y) => lab(x).localeCompare(lab(y)) || (x.res === y.res ? 0 : x.res === 'ok' ? -1 : 1) : (x, y) => y.pts - x.pts || y.n - x.n;
+  const cols = cmp ? 7 : 6;
+  const arow = (g, ind) => '<tr><td></td><td></td><td>' + (ind ? '&nbsp;&nbsp;' : '') + esc((ind ? (g.sub ? g.sub + ' · ' : '') + g.activity : lab(g))) + (g.res === 'fail' ? ' · <span class="pt-dn">Unsuccessful</span>' : '') + '</td><td class="n">' + g.n + '</td><td class="n">' + (g.n ? ptN(g.pts / g.n) : '') + '</td><td class="n">' + ptN(g.pts) + '</td>' + (cmp ? '<td class="n">' + ptDelta(g.pts, prevK[ptKey(g)] || 0) + '</td>' : '') + '</tr>';
   let h = '<tr><th>BRANCH CODE</th><th>STAFF</th><th>CATEGORY + SUB + ACTIVITY</th><th class="n">NUMBER OF ACTION</th><th class="n">KPI POINT</th><th class="n">TOTAL POINT</th>' + (cmp ? '<th class="n">VS PREVIOUS</th>' : '') + '</tr>';
   branches.forEach(b => {
     const list = byB[b], users = Array.from(new Set(list.map(g => g.user))), open = S.pt.open[b] !== false;
     h += '<tr class="pt-br" data-b="' + esc(b) + '"><td><i class="bi bi-chevron-' + (open ? 'down' : 'right') + ' me-1"></i>' + esc(b) + '</td><td>' + users.length + ' staff</td><td></td><td class="n">' + sum(list, g => g.n) + '</td><td></td><td class="n">' + ptN(tot(list)) + '</td>' + (cmp ? '<td class="n">' + ptDelta(tot(list), prevB[b] || 0, true) + '</td>' : '') + '</tr>';
     if (!open) return;
-    users.sort((x, y) => sum(list.filter(g => g.user === y), g => g.pts) - sum(list.filter(g => g.user === x), g => g.pts)).forEach(u => {
-      list.filter(g => g.user === u).sort((x, y) => y.pts - x.pts || y.n - x.n).forEach((g, i) => {
-        h += '<tr><td></td><td>' + (i ? '' : '<b>' + esc(u) + '</b>') + '</td><td>' + esc(shortName(g.type) + (g.sub ? ' · ' + g.sub : '') + ' · ' + g.activity) + (g.res === 'fail' ? ' · <span class="pt-dn">Unsuccessful</span>' : '') + '</td><td class="n">' + g.n + '</td><td class="n">' + (g.n ? ptN(g.pts / g.n) : '') + '</td><td class="n">' + ptN(g.pts) + '</td>' + (cmp ? '<td class="n">' + ptDelta(g.pts, prevK[ptKey(g)] || 0) + '</td>' : '') + '</tr>';
-      });
+    users.sort((x, y) => byU[y].pts - byU[x].pts || x.localeCompare(y)).forEach(u => {
+      const ul = list.filter(g => g.user === u);
+      h += '<tr><td></td><td colspan="' + (cols - 1) + '"><b>' + esc(u) + '</b></td></tr>';
+      h += ul.sort(cmpG).map(g => arow(g, false)).join('');      // one line per activity: category + sub + activity (A to Z, or highest points)
+      h += '<tr class="pt-st"><td></td><td>' + esc(u) + ' total</td><td></td><td class="n">' + byU[u].n + '</td><td></td><td class="n">' + ptN(byU[u].pts) + '</td>' + (cmp ? '<td class="n">' + ptDelta(byU[u].pts, prevU[u] || 0) + '</td>' : '') + '</tr>';
     });
   });
-  if (!branches.length) h += '<tr><td colspan="' + (cmp ? 7 : 6) + '" class="empty">No records in this period</td></tr>';
+  if (!branches.length) h += '<tr><td colspan="' + cols + '" class="empty">No records in this period</td></tr>';
   $('#ptTbl').innerHTML = h;
 }
 $('#ptTbl').addEventListener('click', e => { const tr = e.target.closest('.pt-br'); if (!tr) return; S.pt.open[tr.dataset.b] = S.pt.open[tr.dataset.b] === false; renderPoints(); });
 $('#ptRange').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.pt.range = b.dataset.r; if (b.dataset.r === 'custom' && !$('#ptFrom').value) { $('#ptFrom').value = ymd(dAdd(new Date(), -6)); $('#ptTo').value = ymd(new Date()); } loadPoints(); });
+$('#ptSort').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.pt.sort = b.dataset.s; ptSortChips(); renderPoints(); });
 $('#ptCmp').addEventListener('change', () => { S.pt.cmp = $('#ptCmp').checked; loadPoints(); });
 ['#ptFrom', '#ptTo'].forEach(s => $(s).addEventListener('change', () => loadPoints()));
 $('#ptCsv').addEventListener('click', () => {
   const d = S.pt.data; if (!d || !d.cur.length) { toast('Nothing to export.', 'warning'); return; }
   const cmp = !!d.prev, prevK = {}; (d.prev || []).forEach(g => { prevK[ptKey(g)] = g.pts; });
   const lines = [['Branch Code', 'Staff', 'Category', 'Sub Category', 'Activity', 'Result', 'Number of action', 'KPI point', 'Total point'].concat(cmp ? ['Previous period total point'] : [])]
-    .concat(d.cur.slice().sort((a, b) => a.branch.localeCompare(b.branch) || a.user.localeCompare(b.user)).map(g => [g.branch, g.user, g.type, g.sub, g.activity, g.res === 'fail' ? 'Unsuccessful' : 'Successful', g.n, g.n ? Math.round(g.pts / g.n * 100) / 100 : 0, g.pts].concat(cmp ? [prevK[ptKey(g)] || 0] : [])));
+    .concat(d.cur.slice().sort((a, b) => a.branch.localeCompare(b.branch) || a.user.localeCompare(b.user) || (a.type + a.sub + a.activity).localeCompare(b.type + b.sub + b.activity)).map(g => [g.branch, g.user, g.type, g.sub, g.activity, g.res === 'fail' ? 'Unsuccessful' : 'Successful', g.n, g.n ? Math.round(g.pts / g.n * 100) / 100 : 0, g.pts].concat(cmp ? [prevK[ptKey(g)] || 0] : [])));
   const cell = v => { const x = String(v == null ? '' : v); return /[",\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.map(l => l.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })); a.download = 'points_' + S.pt.per.cur.from + '_' + S.pt.per.cur.to + '.csv'; document.body.appendChild(a); a.click(); a.remove();
 });
