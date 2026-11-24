@@ -22,7 +22,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" media="print" onload="this.media='all'">
 
-  <link href="style.css?v=159" rel="stylesheet">
+  <link href="style.css?v=164" rel="stylesheet">
 </head>
 <body>
 
@@ -332,9 +332,11 @@
     <section id="pane-tasks" class="hidden">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <div><div class="fw-bold" style="font-size:1.15rem" id="tkTitle">My tasks</div><div class="small text-muted" id="tkSub"></div></div>
-        <div class="d-flex gap-2 hidden" id="tkBtns"><button type="button" class="btn btn-soft btn-sm" id="tkCsvBtn"><i class="bi bi-download me-1"></i>Export CSV</button><button type="button" class="btn btn-soft btn-sm" id="tkPasteBtn"><i class="bi bi-clipboard-data me-1"></i>Paste from Excel</button><button type="button" class="btn btn-brand btn-sm" id="tkNewBtn"><i class="bi bi-plus-lg me-1"></i>New task</button></div>
+        <div class="d-flex gap-2 hidden flex-wrap" id="tkBtns"><button type="button" class="btn btn-soft btn-sm hidden" id="tkPtsBtn"><i class="bi bi-trophy me-1"></i>Remote points</button><button type="button" class="btn btn-soft btn-sm" id="tkCsvBtn"><i class="bi bi-download me-1"></i>Export CSV</button><button type="button" class="btn btn-soft btn-sm" id="tkPasteBtn"><i class="bi bi-clipboard-data me-1"></i>Paste from Excel</button><button type="button" class="btn btn-brand btn-sm" id="tkNewBtn"><i class="bi bi-plus-lg me-1"></i>New task</button></div>
       </div>
       <div class="tk-prog mb-2" id="tkProg"><u></u></div>
+      <div class="chips mb-2 hidden" id="tkView"></div>
+      <div class="card-x hidden" id="tkDash"></div>
       <div class="tk-kpi hidden" id="tkKpi"></div>
       <div class="card-x" id="tkFilters">
         <div class="chips" id="tkStatus"></div>
@@ -571,7 +573,14 @@
 <div class="modal fade" id="tkDoneModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:20px">
     <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">Mark ✅ done</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body"><div class="small mb-2" id="tkDoneWho"></div><label class="form-label">Remark <span class="text-muted fw-normal small">(what you did, who you met, the result)</span></label><textarea id="tkRemark" class="form-control" rows="3" maxlength="300"></textarea><div class="small text-danger mt-1" id="tkDoneMsg"></div><button type="button" class="btn btn-brand w-100 mt-2" id="tkDoneSave">Mark ✅ done</button></div>
+    <div class="modal-body"><div class="small mb-2" id="tkDoneWho"></div><div class="hidden mb-2" id="tkHowW"><label class="form-label">How was it done?</label><div class="chips" id="tkHow"></div></div><label class="form-label">Remark <span class="text-muted fw-normal small">(what you did, who you met, the result)</span></label><textarea id="tkRemark" class="form-control" rows="3" maxlength="300"></textarea><div class="small text-danger mt-1" id="tkDoneMsg"></div><button type="button" class="btn btn-brand w-100 mt-2" id="tkDoneSave">Mark ✅ done</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade" id="tkPtsModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:20px">
+    <div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold"><i class="bi bi-trophy me-1"></i>Points for tasks finished remotely</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="small text-muted mb-2">A task finished remotely has no activity record. Set the points for each purpose; leave blank or 0 = remote finishing is not offered for that purpose. They show in the Points tab as Tasks · Remote.</div><div id="tkPtsRows"></div><div class="small text-danger mt-1" id="tkPtsMsg"></div><button type="button" class="btn btn-brand w-100 mt-2" id="tkPtsSave">Save points</button></div>
   </div></div>
 </div>
 
@@ -963,12 +972,14 @@
   </div>
 </div>
 
+<div id="appVer" class="app-ver" aria-hidden="true">v1.64.0</div>
+
 <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" id="toasts" style="margin-top: env(safe-area-inset-top)"></div>
 
 <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <!-- Chart.js, Leaflet and ZXing are loaded by app.js after the app is up (ensureLib), so they do not slow the first screen -->
 
 <script src="config.js" defer></script>
-<script src="app.js?v=159" defer></script>
+<script src="app.js?v=164" defer></script>
 </body>
 </html>

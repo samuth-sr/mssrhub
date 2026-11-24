@@ -667,3 +667,29 @@ body.desk .pg-pill{bottom:24px;left:260px;margin:0}
 .pt-tbl .pt-st td { background: rgba(47, 168, 102, .09); font-weight: 700; }
 :root[data-theme="dark"] .pt-tbl .pt-cat td { color: #b9b1ff; } :root[data-theme="dark"] .pt-tbl .pt-gt td { background: #2a2f4a; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pt-tbl .pt-cat td { color: #b9b1ff; } :root:not([data-theme="light"]) .pt-tbl .pt-gt td { background: #2a2f4a; } }
+
+/* v160: other devices */
+.dev-wrap { border: 1.5px dashed var(--line, #cfd3e6); border-radius: 14px; padding: 10px 12px; }
+.dev-title { font-weight: 700; margin-bottom: 8px; }
+.dev-row { border: 1px solid var(--line, #e3e6f2); border-radius: 12px; padding: 10px; margin-bottom: 10px; background: rgba(91, 75, 213, .04); }
+.ce-dev { margin: 6px 0 10px; }
+
+/* v161 accessories */
+.acc-wrap .acc-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bs-border-color,#eef0f6)}
+.acc-wrap .acc-n{flex:1;font-weight:600;font-size:14px}
+.acc-wrap .acc-st{display:flex;gap:5px}
+.acc-wrap .acc-b{border:1.5px solid var(--bs-border-color,#dfe2ee);background:transparent;color:inherit;border-radius:9px;padding:6px 0;width:68px;font-size:12px}
+.acc-wrap .acc-b.on-y{background:#1f9d62;border-color:#1f9d62;color:#fff;font-weight:700}
+.acc-wrap .acc-b.on-d{background:#c2410c;border-color:#c2410c;color:#fff;font-weight:700}
+.acc-wrap .acc-b.on-l{background:#6b7090;border-color:#6b7090;color:#fff;font-weight:700}
+
+/* v162 stock quantity */
+.stk-spin{display:inline-flex;align-items:stretch;border:1.5px solid var(--bs-border-color,#dfe2ee);border-radius:10px;overflow:hidden}
+.stk-spin button{border:0;background:transparent;color:inherit;width:40px;font-size:18px;line-height:1}
+.stk-spin .stk-qty{width:64px;border:0;border-left:1.5px solid var(--bs-border-color,#dfe2ee);border-right:1.5px solid var(--bs-border-color,#dfe2ee);text-align:center;font-weight:700;background:transparent;color:inherit;-moz-appearance:textfield}
+.stk-spin .stk-qty::-webkit-outer-spin-button,.stk-spin .stk-qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.stk-fix{background:rgba(120,125,160,.15);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700}
+.seg-mini{display:inline-flex;gap:4px}
+
+/* v162.1 app version */
+.app-ver{position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 2px);font-size:10px;line-height:1;color:var(--bs-secondary-color,#8a8fa8);opacity:.55;pointer-events:none;z-index:5;letter-spacing:.02em}

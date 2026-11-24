@@ -1,6 +1,6 @@
 // Installation Tracker service worker: lets the app install and open fast. API calls are never cached.
-const CACHE = 'it-tracker-v159';
-const SHELL = ['./', 'index.html', 'style.css?v=159', 'app.js?v=159', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'it-tracker-v164';
+const SHELL = ['./', 'index.html', 'style.css?v=164', 'app.js?v=164', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

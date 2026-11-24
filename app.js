@@ -37,8 +37,10 @@ function legacyLevel(cat, a, k) {
   if (k === 'oldSn' || k === 'newSn') return lv(a.replace, 2);
   return 0;
 }
+const vtClean = l => { const out = []; (Array.isArray(l) ? l : []).forEach(x => { const n = String((x && x.n) || '').replace(/[|\n]/g, ' ').trim().slice(0, 30); if (n && !out.some(y => y.n.toLowerCase() === n.toLowerCase()) && out.length < 4) { const o = { n }; if (+x.p > 0) o.p = Math.min(10000, Math.round(+x.p * 100) / 100); if (+x.pf > 0) o.pf = Math.min(10000, Math.round(+x.pf * 100) / 100); out.push(o); } }); return out; };
+const accClean = l => (Array.isArray(l) ? l : []).map(x => String(x).replace(/[:,|\n]/g, ' ').trim().slice(0, 40)).filter((x, i, y) => x && y.indexOf(x) === i).slice(0, 30);
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.tkChk === true) o.tkChk = true; if (a.pt > 0) o.pt = +a.pt; if (a.ptFail > 0) o.ptFail = +a.ptFail; if (a.tgChat) o.tgChat = String(a.tgChat); if (a.tgTopic) o.tgTopic = String(a.tgTopic); if (a.res && a.res.on === true) o.res = { on: true, r: (Array.isArray(a.res.r) ? a.res.r : []).map(x => String(x).trim()).filter(Boolean), o: a.res.o !== false, ph: a.res.ph === true, b: a.res.b && typeof a.res.b === 'object' ? a.res.b : {} }; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => (k === 'merchant' || k === 'mid') && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.tkChk === true) o.tkChk = true; if (a.dev === true) { o.dev = true; if (a.devMax >= 2 && a.devMax <= 20) o.devMax = +a.devMax; } if (a.vt && a.vt.on === true) o.vt = { on: true, o: vtClean(a.vt.o) }; if (a.acc && a.acc.on === true) o.acc = { on: true, m: a.acc.m === 'back' ? 'back' : 'out', i: accClean(a.acc.i), q: a.acc.q === true }; if (a.pt > 0) o.pt = +a.pt; if (a.ptFail > 0) o.ptFail = +a.ptFail; if (a.tgChat) o.tgChat = String(a.tgChat); if (a.tgTopic) o.tgTopic = String(a.tgTopic); if (a.res && a.res.on === true) o.res = { on: true, r: (Array.isArray(a.res.r) ? a.res.r : []).map(x => String(x).trim()).filter(Boolean), o: a.res.o !== false, ph: a.res.ph === true, b: a.res.b && typeof a.res.b === 'object' ? a.res.b : {} }; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => (k === 'merchant' || k === 'mid') && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); if (YN_KEYS.includes(k)) o.f[k] = o.f[k] ? 1 : 0; });
@@ -284,6 +286,7 @@ function syncBtype(el) {
   const v = $('.f-btype', el).value.trim().toLowerCase();
   $$('.btype-chips .chip', el).forEach(b => b.classList.toggle('active', (b.dataset.t || '').toLowerCase() === v));
 }
+const phone0 = v => { v = String(v || '').trim(); if (/^855/.test(v)) return '+' + v; return /^[1-9]/.test(v) ? '0' + v : v; };      // task phone: 855... gets a +, other numbers start with 0
 const PHONE_RE = /^[0-9+\-\s()]{6,20}$/;
 /** HTML of one admin-added box: text / number / phone / date / serial (with scan) / drop-down / tick boxes. */
 /** A spin number starts at zero (or at its lowest value when zero is outside its range). */
@@ -381,6 +384,7 @@ function applyOrder(root, d) {
     if (fk) el.style.order = at(fk, 1000 + i);
     else if (el.classList.contains('qc-wrap')) el.style.order = at('qc', 1000 + i);
     else if (el.classList.contains('stock-wrap')) el.style.order = at('stock', 1000 + i);
+    else if (el.classList.contains('acc-wrap') || el.classList.contains('dev-wrap')) el.style.order = 2000 + i;      // other devices and accessories come after the boxes
     else if (!el.classList.contains('custom-wrap')) el.style.order = -1;        // head, activity, date stay on top
   });
   (d.custom || []).forEach((f, i) => { const el = $('.custom-wrap', root).children[i]; if (el) el.style.order = at('x:' + f.id, 1000 + i); });
@@ -421,12 +425,14 @@ async function loadStockItems() { try { const r = await api('getStockItems', S.t
 const stkAllowed = d => S.stockItems.filter(it => (!d.stock.kind || d.stock.kind === it.kind) && (!d.stock.items.length || d.stock.items.some(n => n.toLowerCase() === it.name.toLowerCase())));
 const stkDirOf = (rule, l) => rule.mode === 'return' ? 'return' : 'out';      // S/Ns going out or coming back are read from the S/N boxes by the system; the box here is only for quantities (and the free Deployment box)
 const stkKind = n => (S.stockItems.find(x => x.name === n) || {}).kind;
+const stkIt = n => S.stockItems.find(x => x.name === n) || {};
+const stkStep = n => Math.max(1, +stkIt(n).step || 1), stkMax = n => Math.min(9999, +stkIt(n).max || 9999), stkOne = n => stkIt(n).one === true, stkStart = n => stkOne(n) ? 1 : stkStep(n);      // a spin number starts at its step
 /* Serial numbers need no stock box: the S/N is scanned or typed in its box and the system finds it in stock. The box is only for quantity items and for things taken back. */
 const stkQtyItems = d => stkAllowed(d).filter(it => it.kind === 'qty');
 const stkNeedsBox = d => !!(d && d.stock && (d.stock.free || (d.stock.mode !== 'return' && stkQtyItems(d).length)));
 function stkNewLine(rule, items, mode) {
-  if (rule.free) { const it = items.filter(x => x.kind === 'serial')[0] || items[0]; return { item: it ? it.name : '', dir: rule.mode, kind: it ? it.kind : 'serial', sn: '', qty: 1, cond: '', reason: '' }; }
-  const dir = 'out', it = items.filter(x => x.kind === 'qty'); return { item: it[0] ? it[0].name : '', dir, sn: '', qty: 1, cond: '', reason: '' }; }
+  if (rule.free) { const it = items.filter(x => x.kind === 'serial')[0] || items[0]; return { item: it ? it.name : '', dir: rule.mode, kind: it ? it.kind : 'serial', sn: '', qty: it ? stkStart(it.name) : 1, cond: '', reason: '' }; }
+  const dir = 'out', it = items.filter(x => x.kind === 'qty'); return { item: it[0] ? it[0].name : '', dir, sn: '', qty: it[0] ? stkStart(it[0].name) : 1, cond: '', reason: '' }; }
 function renderStockBox(card, d) {
   const box = $('.stock-wrap', card.el), rule = d && d.stock;
   if (!rule || !stkNeedsBox(d)) { card.stock = []; card.stockMode = rule ? rule.mode : ''; box.innerHTML = ''; show(box, false); return; }
@@ -443,7 +449,8 @@ function renderStockBox(card, d) {
         '<div class="d-flex gap-2 mb-1"><select class="form-select form-select-sm stk-item">' + its.map(it => '<option' + (it.name === l.item ? ' selected' : '') + '>' + esc(it.name) + '</option>').join('') + '</select>' +
         '<button type="button" class="btn btn-sm btn-outline-danger border-0 stk-del" aria-label="Remove"><i class="bi bi-x-lg"></i></button></div>' +
         (serial ? '<div class="input-group input-group-sm"><input class="form-control stk-sn" placeholder="Serial number (scan or type)" value="' + esc(l.sn) + '" autocomplete="off" style="text-transform:uppercase"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div>'
-                : '<div class="d-flex align-items-center gap-2"><span class="small">Quantity</span><input type="number" min="1" max="9999" class="form-control form-control-sm stk-qty" style="max-width:100px" value="' + (l.qty || 1) + '"></div>') +
+                : stkOne(l.item) ? '<div class="d-flex align-items-center gap-2"><span class="small">Quantity</span><span class="stk-fix">× 1 (automatic)</span></div>'
+                : '<div class="d-flex align-items-center gap-2"><span class="small">Quantity</span><div class="stk-spin"><button type="button" class="stk-minus" aria-label="Less">−</button><input type="number" min="1" max="' + stkMax(l.item) + '" step="' + stkStep(l.item) + '" inputmode="numeric" class="stk-qty" value="' + (l.qty || stkStart(l.item)) + '"><button type="button" class="stk-plus" aria-label="More">+</button></div>' + (stkStep(l.item) > 1 ? '<span class="small text-muted">by ' + stkStep(l.item) + '</span>' : '') + '</div>') +
         (out ? '' : '<input class="form-control form-control-sm mt-2 stk-reason" maxlength="100" placeholder="Note (optional): condition, why it comes back" value="' + esc(l.reason) + '">') + '</div>';
     }).join('') + '<button type="button" class="btn btn-soft btn-sm stk-add"><i class="bi bi-plus-lg me-1"></i>Add item</button>';
   show(box, true);
@@ -452,9 +459,10 @@ $('#merchantList').addEventListener('click', e => {
   const w = e.target.closest('.stock-wrap'); if (!w) return;
   const card = S.cards.find(c => c.el.contains(w)); if (!card) return;
   const ln = e.target.closest('[data-li]'), li = ln ? +ln.dataset.li : -1, d = effDef(curType, $('.f-act', card.el).value, S.sub || '');
-  if (e.target.closest('.stk-del')) { card.stock.splice(li, 1); renderStockBox(card, d); }
+  if (e.target.closest('.stk-minus') || e.target.closest('.stk-plus')) { const l = card.stock[li], st = stkStep(l.item), mx = stkMax(l.item), up = !!e.target.closest('.stk-plus'), v = Math.floor(+l.qty) || 0; l.qty = up ? Math.min(mx, v + st) : Math.max(st, v - st); $('.stk-qty', ln).value = l.qty; }
+  else if (e.target.closest('.stk-del')) { card.stock.splice(li, 1); renderStockBox(card, d); }
   else if (e.target.closest('.stk-add')) { card.stock.push(stkNewLine(d.stock, stkAllowed(d), 'out')); renderStockBox(card, d); }
-  else if (e.target.closest('.stk-kind')) { const l = card.stock[li]; l.kind = e.target.closest('.stk-kind').dataset.k; l.item = (stkAllowed(d).filter(x => x.kind === l.kind)[0] || {}).name || ''; l.sn = ''; l.qty = 1; renderStockBox(card, d); }
+  else if (e.target.closest('.stk-kind')) { const l = card.stock[li]; l.kind = e.target.closest('.stk-kind').dataset.k; l.item = (stkAllowed(d).filter(x => x.kind === l.kind)[0] || {}).name || ''; l.sn = ''; l.qty = stkStart(l.item); renderStockBox(card, d); }
   else if (e.target.closest('.stk-dir')) { const l = card.stock[li]; l.dir = e.target.closest('.stk-dir').dataset.d; const its = stkAllowed(d).filter(x => l.dir === 'out' ? x.kind === 'qty' : true); l.item = (its[0] || {}).name || ''; l.sn = ''; l.cond = ''; renderStockBox(card, d); }
 });
 $('#merchantList').addEventListener('input', e => {
@@ -468,7 +476,7 @@ $('#merchantList').addEventListener('input', e => {
 $('#merchantList').addEventListener('change', e => {
   if (!e.target.classList.contains('stk-item')) return;
   const card = S.cards.find(c => c.el.contains(e.target)), ln = e.target.closest('[data-li]'); if (!card || !ln) return;
-  const l = card.stock[+ln.dataset.li]; l.item = e.target.value; l.sn = ''; renderStockBox(card, effDef(curType, $('.f-act', card.el).value, S.sub || ''));
+  const l = card.stock[+ln.dataset.li]; l.item = e.target.value; l.sn = ''; l.qty = stkStart(l.item); renderStockBox(card, effDef(curType, $('.f-act', card.el).value, S.sub || ''));
 });
 /** Selects an activity: highlights it and shows the extra boxes it needs (phone/tag, old/new S/N). */
 /* ---- Track result: Successful / Unsuccessful with a reason (per activity, set by the admin) ---- */
@@ -486,13 +494,73 @@ function failDef(d) {
   o.custom = (d.custom || []).filter(f => f.kind !== 'serial' && b[f.id] !== 0).map(f => b[f.id] === 1 ? Object.assign({}, f, { req: false }) : b[f.id] === 2 ? Object.assign({}, f, { req: true }) : f);
   return o;
 }
+/* ---- Other devices: one record can carry up to 20 devices, each with its own terminal name, MID, TID and serial number ---- */
+const devMaxOf = d => Math.max(2, Math.min(20, +(d && d.devMax) || 20));
+function devSync(card) {      // keeps what was typed in the device rows
+  const rows = $$('.dev-row', card.el); if (!rows.length) return;
+  card.devs = rows.map(r => ({ name: ($('.dv-name', r) || {}).value || '', mid: ($('.dv-mid', r) || {}).value || '', tid: ($('.dv-tid', r) || {}).value || '', sn: (($('.dv-sn', r) || {}).value || '').toUpperCase() }));
+}
+function renderDevs(card, d, nosync) {
+  const w = $('.dev-wrap', card.el), on = !!(d && d.dev) && !qcOn(card);
+  show(w, on); if (!on) { card.devs = []; w.innerHTML = ''; return; }
+  if (!nosync) devSync(card); card.devs = card.devs || [];
+  const dd = card.res === 'fail' && d.res && d.res.on ? failDef(d) : d, L = k => lvl(dd, k), max = devMaxOf(d), star = k => L(k) === 2 ? ' <span class="rq">*</span>' : '';
+  const row = (v, i) => '<div class="dev-row" data-i="' + i + '"><div class="d-flex justify-content-between align-items-center mb-1"><b class="small">Other device ' + (i + 2) + '</b><button type="button" class="btn btn-sm btn-outline-danger border-0 dv-del" aria-label="Remove device"><i class="bi bi-x-lg"></i></button></div>' +
+    (L('merchant') ? '<div class="mb-2"><label class="form-label">Terminal name' + star('merchant') + '</label><input class="form-control dv-name" maxlength="120" autocomplete="off" value="' + esc(v.name || '') + '"></div>' : '') +
+    ((L('mid') || L('tid')) ? '<div class="row g-2 mb-2">' + (L('mid') ? '<div class="col"><label class="form-label">MID' + star('mid') + '</label><input class="form-control dv-mid" inputmode="numeric" maxlength="20" autocomplete="off" value="' + esc(v.mid || '') + '"></div>' : '') + (L('tid') ? '<div class="col"><label class="form-label">TID' + star('tid') + '</label><input class="form-control dv-tid" maxlength="30" autocomplete="off" value="' + esc(v.tid || '') + '"></div>' : '') + '</div>' : '') +
+    (L('serial') ? '<div class="mb-1"><label class="form-label">Serial number' + star('serial') + '</label><div class="input-group"><input class="form-control dv-sn" autocapitalize="characters" autocomplete="off" value="' + esc(v.sn || '') + '"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' : '') + '</div>';
+  w.innerHTML = '<div class="dev-title"><i class="bi bi-hdd-network me-1"></i>Other devices <span class="text-muted fw-normal small">(same date, location and photos; up to ' + max + ' devices in all)</span></div>' + card.devs.map(row).join('') +
+    (card.devs.length + 1 < max ? '<button type="button" class="btn btn-soft w-100 dv-add"><i class="bi bi-plus-lg me-1"></i>Add other device <span class="text-muted">(' + card.devs.length + ' of ' + (max - 1) + ' added)</span></button>' : '<div class="small text-muted">That is the most devices for one record (' + max + ').</div>');
+}
+function devWire(card) {
+  const w = $('.dev-wrap', card.el), cur = () => { const a = $('.f-act', card.el).value; return a ? effDef(curType, a, S.sub || '') : null; };
+  w.addEventListener('click', e => {
+    if (e.target.closest('.dv-add')) { devSync(card); card.devs.push({}); renderDevs(card, cur(), true); const r = $$('.dev-row', card.el).pop(); const f = r && $('input', r); if (f) f.focus(); return; }
+    const del = e.target.closest('.dv-del'); if (del) { devSync(card); card.devs.splice(+del.closest('.dev-row').dataset.i, 1); renderDevs(card, cur(), true); }
+  });
+  w.addEventListener('input', e => {
+    const t = e.target;
+    if (t.classList.contains('dv-mid') && midPrefix(curType)) { const r = t.closest('.dev-row'), tid = $('.dv-tid', r), m = t.value.replace(/\D/g, ''); if (tid && (!tid.value || tid.dataset.auto === '1') && m.length >= 8) { tid.value = m.slice(-8); tid.dataset.auto = '1'; } }
+    else if (t.classList.contains('dv-tid')) t.dataset.auto = '';
+  });
+}
 /** The boxes shown on a merchant card follow its result: the normal rules, or the Unsuccessful rules. */
+/* ---- Visit type (On site / Remote ...): the admin names the types and the points of each ---- */
+function renderVt(card, d) {
+  const w = $('.vt-wrap', card.el), on = !!(d && d.vt && d.vt.on && d.vt.o.length);
+  show(w, on); if (!on) { card.vt = ''; w.innerHTML = ''; return; }
+  if (!d.vt.o.some(x => x.n === card.vt)) card.vt = '';
+  w.innerHTML = '<label class="form-label">Visit type <span class="rq">*</span></label><div class="chips">' + d.vt.o.map(x => '<button type="button" class="chip vt-chip' + (card.vt === x.n ? ' active' : '') + '" data-n="' + esc(x.n) + '">' + esc(x.n) + '</button>').join('') + '</div>';
+}
+function vtWire(card) {
+  $('.vt-wrap', card.el).addEventListener('click', e => { const b = e.target.closest('.vt-chip'); if (!b) return; card.vt = b.dataset.n; $$('.vt-chip', card.el).forEach(x => x.classList.toggle('active', x === b)); });
+}
+/* ---- Accessories: the admin lists them per activity. Given = tick what was given; Collected = every item is Yes / Damaged / Lost (not linked to Stock) ---- */
+const ACC_ST = [['y', 'Yes'], ['d', 'Damaged'], ['l', 'Lost']];
+function renderAcc(card, d) {
+  const w = $('.acc-wrap', card.el), on = !!(d && d.acc && d.acc.on && d.acc.i.length) && card.res !== 'fail';
+  show(w, on); if (!on) { card.acc = null; w.innerHTML = ''; return; }
+  const back = d.acc.m === 'back', key = d.acc.m + '|' + d.acc.i.join('|');
+  if (!card.acc || card.accKey !== key) { card.accKey = key; card.acc = {}; d.acc.i.forEach(n => { if (back) card.acc[n] = 'y'; }); }
+  w.innerHTML = '<label class="form-label"><i class="bi bi-plug me-1"></i>' + (back ? 'Accessories collected' : 'Accessories given') + (d.acc.q && !back ? ' <span class="rq">*</span>' : '') + '</label>' +
+    (back ? d.acc.i.map(n => '<div class="acc-row" data-n="' + esc(n) + '"><span class="acc-n">' + esc(n) + '</span><div class="acc-st">' + ACC_ST.map(x => '<button type="button" class="acc-b' + (card.acc[n] === x[0] ? ' on-' + x[0] : '') + '" data-s="' + x[0] + '">' + x[1] + '</button>').join('') + '</div></div>').join('')
+          : '<div class="chips">' + d.acc.i.map(n => '<button type="button" class="chip acc-chip' + (card.acc[n] ? ' active' : '') + '" data-n="' + esc(n) + '">' + esc(n) + '</button>').join('') + '</div>');
+}
+function accWire(card) {
+  $('.acc-wrap', card.el).addEventListener('click', e => {
+    const b = e.target.closest('.acc-b'), ch = e.target.closest('.acc-chip');
+    if (b) { const n = b.closest('.acc-row').dataset.n; card.acc[n] = b.dataset.s; $$('.acc-b', b.parentNode).forEach(x => { x.className = 'acc-b' + (x === b ? ' on-' + x.dataset.s : ''); }); }
+    else if (ch) { const n = ch.dataset.n; if (card.acc[n]) delete card.acc[n]; else card.acc[n] = 'y'; ch.classList.toggle('active', !!card.acc[n]); }
+  });
+}
 function resApply(card) {
   const a = $('.f-act', card.el).value; if (!a) return;
   const d = effDef(curType, a, S.sub || ''); if (!d) return;
   const fail = card.res === 'fail' && d.res && d.res.on, dd = fail ? failDef(d) : d;
   applyLevels(card.el, dd);
-  if (fail || card._cf) { renderCustom($('.custom-wrap', card.el), dd); card._cf = !!fail; }      // extra fields are redrawn only when the result switches
+  if (fail || card._cf) { renderCustom($('.custom-wrap', card.el), dd); card._cf = !!fail; }
+  renderDevs(card, d);      // extra fields are redrawn only when the result switches
+  renderAcc(card, d);
   updateLocCard();
 }
 function resDef(card) { const a = $('.f-act', card.el).value, d = a ? effDef(curType, a, S.sub || '') : null; return d && d.res && d.res.on ? d.res : null; }
@@ -540,10 +608,13 @@ function setAct(card, a) {
     show(tools, !!first);
   }
   show($('.act-hint', card.el), !d);
-  if (changed) { card.res = 'ok'; card.why = ''; }
+  if (changed) { card.res = 'ok'; card.why = ''; card.devs = []; $('.dev-wrap', card.el).innerHTML = ''; card.acc = null; card.vt = ''; }
   renderRes(card, d);
   renderCustom($('.custom-wrap', card.el), d);
   renderStockBox(card, d);
+  renderDevs(card, d);
+  renderAcc(card, d);
+  renderVt(card, d);
   applyOrder(card.el, d);
   card._rf = undefined; if (card.res === 'fail') resApply(card);
   if (changed) resetToggles(card.el);      // every toggle starts at No
@@ -1008,6 +1079,7 @@ function addMerchant() {
     '<button class="btn btn-sm btn-outline-danger border-0 btn-remove" type="button"><i class="bi bi-trash3"></i></button></div>' +
     '<div class="mb-3 act-wrap"><label class="form-label">Activity <span class="rq">*</span></label><div class="chips act-chips"></div></div><input type="hidden" class="f-act">' +
     '<div class="small text-muted mb-3 act-hint hidden">Choose an activity to see the boxes it needs.</div>' +
+    '<div class="vt-wrap hidden mb-3"></div>' +
     '<div class="mb-3"><label class="form-label"><span class="date-lbl">Installed / action date</span> <span class="rq">*</span></label><input type="date" class="form-control f-date"></div>' +
     '<div class="res-wrap hidden mb-3"><label class="form-label">Result</label><div class="res-seg"><button type="button" class="res-ok active" data-v="ok"><i class="bi bi-check-circle me-1"></i>Successful</button><button type="button" class="res-no" data-v="fail"><i class="bi bi-x-circle me-1"></i>Unsuccessful</button></div>' +
       '<div class="res-why hidden mt-2"><label class="form-label">Reason <span class="rq">*</span></label><div class="chips res-chips"></div><div class="res-note-w hidden mt-2"><textarea class="form-control res-note" rows="2" maxlength="200"></textarea></div><div class="small text-muted mt-2 res-hint">Serial number and stock boxes are skipped. Photos are optional.</div></div></div>' +
@@ -1035,6 +1107,7 @@ function addMerchant() {
       '<div class="progress qc-bar mt-2"><div class="progress-bar" style="width:0%"></div></div><div class="small text-muted qc-sum mt-1">Set the quantity, then scan every QR.</div>' +
       '<button type="button" class="btn btn-primary w-100 mt-2 qc-scan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button><div class="qc-list mt-2"></div></div>' +
     '<div class="custom-wrap hidden"></div>' +
+    '<div class="dev-wrap hidden mb-3"></div>' + '<div class="acc-wrap hidden mb-3"></div>' +
     '<div class="stock-wrap hidden mb-3"></div>' +
     '<div class="mb-3 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea class="form-control f-rem" rows="2"></textarea></div>' +
     '<div class="hidden" data-fk="photo"><label class="form-label">Photos / videos <span class="rq hidden">*</span> <span class="ph-min fw-semibold hidden"></span> <span class="text-lowercase fw-normal">(max ' + MAX_PHOTOS + ', videos ≤ ' + MAX_VIDEOS + ' × ' + MAX_VIDEO_MB + ' MB)</span></label>' +
@@ -1076,7 +1149,7 @@ function addMerchant() {
     pickAct(card, b.dataset.a);
   });
 
-  qcWire(card); resWire(card);
+  qcWire(card); resWire(card); devWire(card); accWire(card); vtWire(card);
   $('.btn-scan', el).onclick = () => { S.qcCard = null; S.scanTarget = card; S.snInput = null; scanMode(false); scanModal.show(); };
   $('.btn-upload', el).onclick = () => $('.qr-file', el).click();
   $('.qr-file', el).onchange = async e => { await decodeFile(card, e.target.files[0]); e.target.value = ''; };
@@ -1583,7 +1656,8 @@ $('#submitBtn').addEventListener('click', async () => {
         const k = stkKind(l.item), dir = stkDirOf(ad.stock, l);
         if (!l.item) { bad('choose the stock item.'); return; }
         if (k !== 'qty' && !l.sn) { bad(l.item + ': enter the serial number.'); return; }
-        if (k === 'qty' && !(l.qty >= 1)) { bad(l.item + ': enter the quantity.'); return; }
+        if (k === 'qty' && stkOne(l.item)) l.qty = 1;
+        if (k === 'qty' && !(l.qty >= 1 && l.qty <= stkMax(l.item))) { bad(l.item + ': enter the quantity (1 to ' + stkMax(l.item) + ').'); return; }
       }
     }
     const needPh = L('photo') ? ((ad && ad.minPh) > 0 ? ad.minPh : (L('photo') === 2 ? DEFAULT_MIN_PH : 0)) : 0;
@@ -1596,7 +1670,35 @@ $('#submitBtn').addEventListener('click', async () => {
       merchant: v('merchant', '.f-name'), mid: v('mid', '.f-mid'), tid: v('tid', '.f-tid'), integ: L('integ') ? $('.f-integ', c.el).checked : false, sim: L('sim') ? $('.f-sim', c.el).checked : false, standee: L('standee') ? $('.f-standee', c.el).checked : false, business: v('business', '.f-biz'), remarks: v('remarks', '.f-rem'),
       serial: v('serial', '.f-serial'), oldSn: v('oldSn', '.f-old'), newSn: v('newSn', '.f-new'), phone: v('phone', '.f-phone'), tag: v('tag', '.f-tag'),
       btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), province: L('province') ? $('#fProvince').value.trim() : '', sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
+    if (ad0 && ad0.vt && ad0.vt.on && ad0.vt.o.length && !c.vt) { bad('choose the visit type.'); $('.vt-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    let accOut;
+    if (ad0 && ad0.acc && ad0.acc.on && ad0.acc.i.length && !fail) {
+      const back = ad0.acc.m === 'back', am = c.acc || {};
+      accOut = ad0.acc.i.filter(n => am[n]).map(n => ({ n, s: back ? am[n] : 'y' }));
+      if (!back && ad0.acc.q && !accOut.length) { bad('tick the accessories given.'); $('.acc-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    }
+    if (accOut && accOut.length) items[items.length - 1].acc = accOut;
+    if (ad0 && ad0.vt && ad0.vt.on && c.vt) items[items.length - 1].vt = c.vt;
     docSets.push(docs);
+    if (ad0 && ad0.dev && !qcOn(c)) {      // other devices: each becomes its own record that shares this one's date, location, photos and boxes
+      devSync(c);
+      const lead = items.length - 1, main = items[lead], seen = {}, sn0 = String(main.serial || '').toUpperCase();
+      if (sn0) seen[sn0] = 1;
+      for (let di = 0; di < c.devs.length; di++) {
+        const v = c.devs[di], tag = 'Other device ' + (di + 2) + ': ', no = m => { toast('Merchant ' + (i + 1) + ' · ' + tag + m, 'danger'); $('.dev-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+        const f = $$('.dev-row', c.el)[di];
+        if (L('merchant') === 2 && !v.name.trim()) { no('enter the terminal name.'); if (f) $('.dv-name', f).focus(); return; }
+        if (L('mid') && v.mid.trim()) { const m = midLenMsg(ad, v.mid.trim()); if (m) { no(m); return; } if (midPrefix(curType) && v.mid.trim()[0] !== midPrefix(curType)) { no('the MID of ' + curType + ' must start with ' + midPrefix(curType) + '.'); return; } }
+        if (L('mid') === 2 && !v.mid.trim()) { no('enter the MID.'); if (f) $('.dv-mid', f).focus(); return; }
+        if (L('tid') === 2 && !v.tid.trim()) { no('enter the TID.'); if (f) $('.dv-tid', f).focus(); return; }
+        if (L('serial') === 2 && !v.sn.trim()) { no('enter the serial number.'); if (f) $('.dv-sn', f).focus(); return; }
+        if (!v.name.trim() && !v.mid.trim() && !v.tid.trim() && !v.sn.trim()) { no('fill it in or remove it.'); return; }
+        const sn = v.sn.trim().toUpperCase(); if (sn) { if (seen[sn]) { no('the serial number ' + sn + ' is used twice.'); return; } seen[sn] = 1; }
+        items.push(Object.assign({}, main, { merchant: L('merchant') ? v.name.trim() : main.merchant, mid: L('mid') ? v.mid.trim() : main.mid, tid: L('tid') ? v.tid.trim().toUpperCase() : main.tid, serial: L('serial') ? sn : main.serial,
+          photos: [], stock: undefined, taskId: undefined, acc: undefined, devOf: lead }));
+        docSets.push([]);
+      }
+    }
   }
   if (S.taskLink && items[0] && items[0].type === S.taskLink.type && items[0].activity === S.taskLink.activity) items[0].taskId = S.taskLink.id;      // started from a task: saving the record completes it
   const photoSets = items.map(it => it.photos);      // the photos wait on the phone: the record is saved first, the photos are sent to Telegram afterwards
@@ -1626,8 +1728,9 @@ $('#submitBtn').addEventListener('click', async () => {
     if (defer) items.forEach((it, i) => { it.photoCount = photoSets[i].length; it.photos = []; });
     const r = await api('submitInstallations', S.token, items, S.batchId, defer || undefined);
     S.batchId = null;
-    if (defer && r.deferred) pgSaved(r.stamps); else pgEnd('Saved', 'ok');
-    if (defer && r.deferred) await qAdd(r.stamps.map((st, i) => ({ id: S.user.username + '|' + st, stamp: st, user: S.user.username, n: i + 1, total: r.stamps.length, photos: photoSets[i], docs: docSets[i], tries: 0, next: 0, t: Date.now() })));
+    const leadIx = r.stamps.map((st, i) => i).filter(i => items[i].devOf == null);      // other devices share their first record's photos and Telegram message
+    if (defer && r.deferred) pgSaved(leadIx.map(i => r.stamps[i])); else pgEnd('Saved', 'ok');
+    if (defer && r.deferred) await qAdd(leadIx.map((i, k) => ({ id: S.user.username + '|' + r.stamps[i], stamp: r.stamps[i], user: S.user.username, n: k + 1, total: leadIx.length, photos: photoSets[i], docs: docSets[i], tries: 0, next: 0, t: Date.now() })));
     r.telegram = defer && r.deferred ? 'photos are sending in the background' : r.telegram;
     r.secs = ((Date.now() - t0) / 1000).toFixed(1);
     const slow = r.ms && r.ms.total > 5000 ? ' [server ' + (r.ms.total / 1000).toFixed(1) + 's: prepare ' + (r.ms.prep / 1000).toFixed(1) + 's, waited for other requests ' + (r.ms.lock / 1000).toFixed(1) + 's, sheet write ' + (r.ms.work / 1000).toFixed(1) + 's]' : '';
@@ -2806,7 +2909,10 @@ const RES_DEFAULT = ['Merchant refused', 'Merchant not available / closed', 'Mer
 function ceActPanel(t, ti, a, ai) {
   const nm = '<div class="ce-title"><input class="a-name ce-name" maxlength="40" placeholder="Activity name" value="' + esc(a.n) + '"><span class="ce-sub">· ' + esc(t.name) + ' · code</span><input class="a-code ce-code" maxlength="4" placeholder="–" title="Optional code added to the record ID" value="' + esc(a.code || '') + '"></div>';
   return '<div class="ce-pane" data-ti="' + ti + '"><div data-ai="' + ai + '" class="ce-act">' + ceHead(nm) +
-    '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (a.tkChk === true ? ' active' : '') + '" data-f="tkChk" title="Default Off. On: before saving, the app checks for an open task of this merchant and offers to complete it, and task owners are alerted when someone else submits it.">Check open tasks</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button><button type="button" class="chip a-flag' + (a.res && a.res.on ? ' active' : '') + '" data-f="resOn" title="Default Off. On: staff can mark a record Unsuccessful and choose a reason (the list below).">Track result</button></div>' +
+    '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (a.tkChk === true ? ' active' : '') + '" data-f="tkChk" title="Default Off. On: before saving, the app checks for an open task of this merchant and offers to complete it, and task owners are alerted when someone else submits it.">Check open tasks</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button><button type="button" class="chip a-flag' + (a.res && a.res.on ? ' active' : '') + '" data-f="resOn" title="Default Off. On: staff can mark a record Unsuccessful and choose a reason (the list below).">Track result</button><button type="button" class="chip a-flag' + (a.dev ? ' active' : '') + '" data-f="dev" title="Default Off. On: one record can carry up to 20 devices, each with its own terminal name, MID, TID and serial number.">Other devices</button><button type="button" class="chip a-flag' + (a.acc && a.acc.on ? ' active' : '') + '" data-f="accOn" title="Default Off. On: the form lists the accessories you set for this activity (given, or collected with Yes / Damaged / Lost). Not linked to Stock.">Accessories</button><button type="button" class="chip a-flag' + (a.vt && a.vt.on ? ' active' : '') + '" data-f="vtOn" title="Default Off. On: staff choose a visit type (for example On site or Remote) and each type can earn different points.">Visit type</button></div>' +
+    (a.dev ? '<div class="ce-dev small">Most devices for one record (including the first) <input type="number" class="form-control form-control-sm d-inline-block a-devmax" style="width:80px" min="2" max="20" value="' + (a.devMax || 20) + '"> <span class="text-muted">Each device earns the activity\'s normal points. Not for activities that scan QR materials.</span></div>' : '') +
+    (a.acc && a.acc.on ? '<div class="ce-dev small"><div class="ce-lab">ACCESSORIES <span class="fw-normal text-muted">(not linked to Stock)</span></div><div class="chips mb-2"><button type="button" class="chip a-accm' + (a.acc.m !== 'back' ? ' active' : '') + '" data-m="out">Given</button><button type="button" class="chip a-accm' + (a.acc.m === 'back' ? ' active' : '') + '" data-m="back">Collected</button><button type="button" class="chip a-accq' + (a.acc.q ? ' active' : '') + '">Required (when Given)</button></div><div class="text-muted mb-1">Given: the user ticks what was given. Collected (removal, replacement, return, terminate): every item is Yes / Damaged / Lost.</div><div class="chips mb-2">' + (a.acc.i || []).map((n, k) => '<span class="chip active">' + esc(n) + ' <i class="bi bi-x a-accdel" data-k="' + k + '" role="button" aria-label="Remove"></i></span>').join('') + '</div><div class="input-group input-group-sm"><input class="form-control a-accin" maxlength="40" placeholder="Accessory name, e.g. Charger"><button type="button" class="btn btn-soft a-accadd">Add</button></div></div>' : '') +
+    (a.vt && a.vt.on ? '<div class="ce-dev small"><div class="ce-lab">VISIT TYPES AND POINTS <span class="fw-normal text-muted">(blank points = the activity\'s normal points)</span></div>' + (a.vt.o || []).map((x, k) => '<div class="row g-2 align-items-end mb-1" data-vk="' + k + '"><div class="col-5"><div class="text-muted">Name</div><input class="form-control form-control-sm a-vtn" maxlength="30" value="' + esc(x.n) + '"></div><div class="col-3"><div class="text-muted">Successful</div><input class="form-control form-control-sm a-vtp" type="number" min="0" step="0.5" value="' + (x.p || '') + '"></div><div class="col-3"><div class="text-muted">Unsuccessful</div><input class="form-control form-control-sm a-vtf" type="number" min="0" step="0.5" value="' + (x.pf || '') + '"></div><div class="col-1">' + ((a.vt.o || []).length > 2 ? '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-vtdel" aria-label="Remove"><i class="bi bi-x-lg"></i></button>' : '') + '</div></div>').join('') + ((a.vt.o || []).length < 4 ? '<button type="button" class="btn btn-soft btn-sm mt-1 a-vtadd"><i class="bi bi-plus-lg me-1"></i>Add visit type</button>' : '') + '</div>' : '') +
     '<div class="ce-pts"><div class="ce-lab">POINTS <span class="fw-normal text-muted">(for the Points tab; blank or 0 = no points)</span></div><div class="row g-2"><div class="col-6"><div class="small text-muted">Per successful action</div><input class="form-control form-control-sm a-pt" type="number" min="0" max="10000" step="0.5" value="' + (a.pt || '') + '"></div>' + (a.res && a.res.on ? '<div class="col-6"><div class="small text-muted">Per unsuccessful action</div><input class="form-control form-control-sm a-ptf" type="number" min="0" max="10000" step="0.5" value="' + (a.ptFail || '') + '"></div>' : '') + '</div><div class="small text-muted mt-1">A change applies to new records only; records already saved keep the points they earned.</div></div>' +
     (a.res && a.res.on ? '<div class="ce-res"><div class="ce-lab">UNSUCCESSFUL REASONS <span class="fw-normal text-muted">(one per line; staff choose one)</span></div><textarea class="form-control form-control-sm a-resr" rows="5" maxlength="1500">' + esc((a.res.r || []).join('\n')) + '</textarea><div class="chips mt-2"><button type="button" class="chip a-res-o' + (a.res.o !== false ? ' active' : '') + '">Allow “Other” with a note</button></div>' + resBoxRows(a) + '<div class="small text-muted mt-1">Serial number and stock boxes are always skipped, and no stock is taken, when a record is Unsuccessful.</div></div>' : '') +
     ((t.subs || []).length ? '<div class="mt-2"><div class="small">Appears under <span class="text-muted">(tap to add or remove; the box rules of each sub category apply there)</span></div><div class="chips mt-1 a-subs">' + t.subs.filter(s => s.n).map(s => ({ n: s.n, name: s.n })).map(o => '<button type="button" class="chip a-subchip' + (actSubs(a).includes(o.n) ? ' active' : '') + '" data-s="' + esc(o.n) + '">' + esc(o.name) + '</button>').join('') + '</div></div>' : '') +
@@ -2901,6 +3007,7 @@ $('#catEditBtn').addEventListener('click', () => {
   catDraft = JSON.parse(JSON.stringify(CATALOG)); catSel = { ti: 0, ai: 0, view: 'act' }; show($('#catError'), false); renderCatEditor(); catModal.show();
 });
 $('#catAdd').addEventListener('click', () => { catDraft.push({ name: '', code: '', subs: [], acts: [normAct({}, { n: '' })] }); catSel = { ti: catDraft.length - 1, ai: 0, view: 'cat' }; renderCatEditor(); });
+$('#catList').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('a-accin')) { e.preventDefault(); const b = e.target.closest('[data-ai]'); if (b) $('.a-accadd', b).click(); } });
 $('#catList').addEventListener('input', e => {
   const box = e.target.closest('[data-ti]'); if (!box) return; const t = catDraft[+box.dataset.ti];
   if (e.target.classList.contains('c-name')) t.name = e.target.value;
@@ -2909,6 +3016,8 @@ $('#catList').addEventListener('input', e => {
   else if (e.target.classList.contains('a-tgchat')) t.acts[+e.target.closest('[data-ai]').dataset.ai].tgChat = e.target.value.trim();
   else if (e.target.classList.contains('a-tgtopic')) t.acts[+e.target.closest('[data-ai]').dataset.ai].tgTopic = e.target.value.trim();
   else if (e.target.classList.contains('a-tg')) { t.acts[+e.target.closest('[data-ai]').dataset.ai].tg = e.target.value; cePreview(); }
+  else if (e.target.classList.contains('a-vtn') || e.target.classList.contains('a-vtp') || e.target.classList.contains('a-vtf')) { const a = t.acts[+e.target.closest('[data-ai]').dataset.ai], x = a.vt.o[+e.target.closest('[data-vk]').dataset.vk], c = e.target.classList; if (c.contains('a-vtn')) x.n = e.target.value; else { const v = Math.round(+e.target.value * 100) / 100, k = c.contains('a-vtp') ? 'p' : 'pf'; if (v > 0) x[k] = Math.min(10000, v); else delete x[k]; } }
+  else if (e.target.classList.contains('a-devmax')) { const a = t.acts[+e.target.closest('[data-ai]').dataset.ai], v = Math.floor(+e.target.value); if (v >= 2 && v <= 20) a.devMax = v; }
   else if (e.target.classList.contains('a-pt') || e.target.classList.contains('a-ptf')) { const a = t.acts[+e.target.closest('[data-ai]').dataset.ai], k = e.target.classList.contains('a-pt') ? 'pt' : 'ptFail', v = Math.round(+e.target.value * 100) / 100; if (v > 0) a[k] = Math.min(10000, v); else delete a[k]; }
   else if (e.target.classList.contains('a-resr')) { const a = t.acts[+e.target.closest('[data-ai]').dataset.ai]; if (a.res) a.res.r = e.target.value.split('\n').map(x => x.trim()).filter(Boolean); }
   else if (e.target.classList.contains('a-code')) t.acts[+e.target.closest('[data-ai]').dataset.ai].code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -2970,6 +3079,14 @@ $('#catList').addEventListener('click', e => {
     renderCatEditor();
   }
   else if (e.target.closest('.a-flag') && e.target.closest('.a-flag').dataset.f === 'resOn') { const a = t.acts[ai], r = a.res || {}; a.res = { on: !r.on, r: (r.r && r.r.length) ? r.r : RES_DEFAULT.slice(), o: r.o !== false, ph: r.ph === true }; renderCatEditor(); }
+  else if (e.target.closest('.a-flag') && e.target.closest('.a-flag').dataset.f === 'vtOn') { const a = t.acts[ai]; a.vt = a.vt && a.vt.on ? Object.assign({}, a.vt, { on: false }) : { on: true, o: (a.vt && a.vt.o && a.vt.o.length >= 2) ? a.vt.o : [{ n: 'On site' }, { n: 'Remote' }] }; renderCatEditor(); }
+  else if (e.target.closest('.a-vtadd')) { const a = t.acts[ai]; a.vt.o.push({ n: 'Visit type ' + (a.vt.o.length + 1) }); renderCatEditor(); }
+  else if (e.target.closest('.a-vtdel')) { t.acts[ai].vt.o.splice(+e.target.closest('[data-vk]').dataset.vk, 1); renderCatEditor(); }
+  else if (e.target.closest('.a-flag') && e.target.closest('.a-flag').dataset.f === 'accOn') { const a = t.acts[ai]; a.acc = a.acc && a.acc.on ? Object.assign({}, a.acc, { on: false }) : { on: true, m: (a.acc && a.acc.m) || 'out', i: (a.acc && a.acc.i) || [], q: !!(a.acc && a.acc.q) }; renderCatEditor(); }
+  else if (e.target.closest('.a-accm')) { t.acts[ai].acc.m = e.target.closest('.a-accm').dataset.m; renderCatEditor(); }
+  else if (e.target.closest('.a-accq')) { t.acts[ai].acc.q = !t.acts[ai].acc.q; renderCatEditor(); }
+  else if (e.target.closest('.a-accdel')) { t.acts[ai].acc.i.splice(+e.target.closest('.a-accdel').dataset.k, 1); renderCatEditor(); }
+  else if (e.target.closest('.a-accadd')) { const a = t.acts[ai]; a.acc.i = accClean((a.acc.i || []).concat(String($('.a-accin', e.target.closest('[data-ai]')).value))); renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; if (f === 'qrchk') t.acts[ai].qrchk = !qcEff(t.name, t.acts[ai], ''); else t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
   else if (e.target.closest('.a-lv')) {
     const row = e.target.closest('.fl-row'), a = t.acts[ai]; a.f[row.dataset.k] = +e.target.closest('.a-lv').dataset.v; if (row.dataset.k === 'photo' && !a.f.photo) { a.minPh = 0; const mi = $('.a-minph', ab); if (mi) mi.value = 0; }
@@ -3408,13 +3525,13 @@ $('#adjSave').addEventListener('click', async () => {
 S.itDraft = [];
 function paintItems() {
   if (!S.itDirty) S.itDraft = (S.stockItems || []).map(i => Object.assign({}, i));
-  $('#itList').innerHTML = S.itDraft.length ? S.itDraft.map((i, n) => '<div class="d-flex align-items-center gap-2 mb-1" data-n="' + n + '"><span class="flex-grow-1 text-truncate">' + esc(i.name) + ' <span class="small text-muted">' + (i.kind === 'qty' ? 'quantity' : 'with S/N') + '</span></span><span class="small">Low at</span><input type="number" min="0" class="form-control form-control-sm it-low" style="max-width:80px" value="' + i.low + '">' + (i.kind === 'qty' ? '' : '<label class="small d-flex align-items-center gap-1 mb-0 flex-none" title="Each S/N of this item is stocked in together with a SIM number"><input type="checkbox" class="form-check-input mt-0 it-sim"' + (i.sim ? ' checked' : '') + '>SIM no.</label>') + '<button type="button" class="btn btn-sm btn-outline-danger border-0 it-del"><i class="bi bi-x-lg"></i></button></div>').join('') : '<div class="small text-muted">No items yet.</div>';
+  $('#itList').innerHTML = S.itDraft.length ? S.itDraft.map((i, n) => '<div class="d-flex align-items-center gap-2 mb-1" data-n="' + n + '"><span class="flex-grow-1 text-truncate">' + esc(i.name) + ' <span class="small text-muted">' + (i.kind === 'qty' ? 'quantity' : 'with S/N') + '</span></span><span class="small">Low at</span><input type="number" min="0" class="form-control form-control-sm it-low" style="max-width:80px" value="' + i.low + '">' + (i.kind === 'qty' ? '<span class="seg-mini flex-none"><button type="button" class="chip it-one' + (i.one ? ' active' : '') + '">Always 1</button><button type="button" class="chip it-spin' + (i.one ? '' : ' active') + '">Spin</button></span>' + (i.one ? '' : '<span class="small">Step</span><input type="number" min="1" max="1000" class="form-control form-control-sm it-step" style="max-width:64px" value="' + (i.step || 1) + '"><span class="small">Max</span><input type="number" min="1" max="9999" class="form-control form-control-sm it-max" style="max-width:76px" value="' + (i.max || 9999) + '">') : '<label class="small d-flex align-items-center gap-1 mb-0 flex-none" title="Each S/N of this item is stocked in together with a SIM number"><input type="checkbox" class="form-check-input mt-0 it-sim"' + (i.sim ? ' checked' : '') + '>SIM no.</label>') + '<button type="button" class="btn btn-sm btn-outline-danger border-0 it-del"><i class="bi bi-x-lg"></i></button></div>').join('') : '<div class="small text-muted">No items yet.</div>';
   if (S.stockAlert) { $('#alChat').value = S.stockAlert.chat || ''; $('#alTopic').value = S.stockAlert.topic || ''; }
 }
-$('#itList').addEventListener('input', e => { if (e.target.classList.contains('it-low')) { S.itDraft[+e.target.closest('[data-n]').dataset.n].low = Math.max(0, Math.floor(+e.target.value) || 0); S.itDirty = true; } });
+$('#itList').addEventListener('input', e => { const it = S.itDraft[+(e.target.closest('[data-n]') || { dataset: {} }).dataset.n]; if (it && e.target.classList.contains('it-step')) { it.step = Math.min(1000, Math.max(1, Math.floor(+e.target.value) || 1)); S.itDirty = true; } else if (it && e.target.classList.contains('it-max')) { it.max = Math.min(9999, Math.max(1, Math.floor(+e.target.value) || 9999)); S.itDirty = true; } if (e.target.classList.contains('it-low')) { S.itDraft[+e.target.closest('[data-n]').dataset.n].low = Math.max(0, Math.floor(+e.target.value) || 0); S.itDirty = true; } });
 $('#itList').addEventListener('change', e => { if (e.target.classList.contains('it-sim')) { S.itDraft[+e.target.closest('[data-n]').dataset.n].sim = e.target.checked; S.itDirty = true; } });
-$('#itList').addEventListener('click', e => { const b = e.target.closest('.it-del'); if (!b) return; S.itDraft.splice(+b.closest('[data-n]').dataset.n, 1); S.itDirty = true; paintItems(); });
-$('#itAdd').addEventListener('click', () => { const n = $('#itName').value.trim().replace(/\s+/g, ' '); if (!n) return; if (S.itDraft.some(i => i.name.toLowerCase() === n.toLowerCase())) { toast('That item is already listed.', 'warning'); return; } S.itDraft.push({ name: n, kind: $('#itKind').value, low: 0, sim: false }); S.itDirty = true; $('#itName').value = ''; paintItems(); });
+$('#itList').addEventListener('click', e => { const o1 = e.target.closest('.it-one, .it-spin'); if (o1) { S.itDraft[+o1.closest('[data-n]').dataset.n].one = o1.classList.contains('it-one'); S.itDirty = true; paintItems(); return; } const b = e.target.closest('.it-del'); if (!b) return; S.itDraft.splice(+b.closest('[data-n]').dataset.n, 1); S.itDirty = true; paintItems(); });
+$('#itAdd').addEventListener('click', () => { const n = $('#itName').value.trim().replace(/\s+/g, ' '); if (!n) return; if (S.itDraft.some(i => i.name.toLowerCase() === n.toLowerCase())) { toast('That item is already listed.', 'warning'); return; } S.itDraft.push({ name: n, kind: $('#itKind').value, low: 0, sim: false, one: false, step: 1, max: 9999 }); S.itDirty = true; $('#itName').value = ''; paintItems(); });
 $('#itSave').addEventListener('click', async () => {
   try { const r = await api('saveStockItems', S.token, S.itDraft, { chat: $('#alChat').value.trim(), topic: $('#alTopic').value.trim() }); S.stockItems = r.items; S.stockAlert = r.alert; S.itDirty = false; toast('Stock items saved.', 'success'); loadStock(); } catch (e) { toast(e.message, 'danger'); }
 });
@@ -4190,6 +4307,7 @@ async function loadTasks() {
 }
 function tkPaint() {
   const d = S.tk.d; if (!d) return; const wide = isWide(), c = d.counts, tot = c.open + c.done;
+  show($('#tkPtsBtn'), S.user && S.user.role === 'Admin'); tkViewPaint(); if (wide && S.tk.view === 'dash') return;
   $('#tkStatus').innerHTML = [['Open', 'Open ' + c.open], ['Done', 'Done ' + c.done], ['All', 'All ' + tot]].map(x => '<button type="button" class="chip' + (S.tk.status === x[0] ? ' active' : '') + '" data-v="' + x[0] + '">' + x[1] + '</button>').join('');
   show($('#tkProg'), !wide); show($('#tkKpi'), wide);
   $('#tkSub').textContent = wide ? '' : c.done + ' of ' + tot + ' done' + (c.overdue ? ' · ' + c.overdue + ' overdue' : '');
@@ -4206,11 +4324,69 @@ function tkPaint() {
     $('#tkList').innerHTML = rows.map(t => '<div class="tk-it' + (t.status === 'Done' ? ' done' : '') + '">' + tkBox(t) + '<div class="tk-b"><b>' + esc(t.merchant) + '</b><div class="small text-muted">' + (t.mid ? 'MID ' + esc(t.mid) : '') + (t.mid && t.tid ? ' · ' : '') + (t.tid ? 'TID ' + esc(t.tid) : '') + '</div><div class="tk-pr"><span class="tk-pp">' + esc(t.purpose) + '</span> ' + tkRemHtml(t) + '</div>' + tkLk(t) + tkAlert(t) + (t.contact ? '<div class="small mt-1"><i class="bi bi-telephone me-1"></i>' + tkTel(t.contact) + '</div>' : '') + (t.status === 'Done' ? '<div class="small text-muted mt-1">' + tkDoneTxt(t) + (t.remark ? ' · “' + esc(t.remark) + '”' : '') + '</div>' : '<div class="small text-muted mt-1">Deadline ' + esc(fmtD(t.deadline)) + ' 17:00</div>') + tkRec(t) + tkGo(t) + tkHist(t) + '</div></div>').join('');
   }
 }
+
+/* ---- Tasks dashboard (admin / supervisor): pending and completed per staff, chips pick what is counted ---- */
+S.tk.view = 'list'; S.tk.dash = { st: ['Open', 'Done'], how: ['site', 'remote'], branch: '', staff: '', per: 'all' };
+const TK_PER = [['all', 'All dates'], ['today', 'Today'], ['7', 'Last 7 days'], ['month', 'This month']];
+function tkToday() { return new Date(Date.now() + S.tk.off + 7 * 36e5).toISOString().slice(0, 10); }
+function tkDashRows() {
+  const D = S.tk.dash, d = S.tk.d, today = tkToday(), now = Date.now() + S.tk.off;
+  const from = D.per === 'today' ? today : D.per === '7' ? new Date(Date.parse(today) - 6 * 864e5).toISOString().slice(0, 10) : D.per === 'month' ? today.slice(0, 8) + '01' : '';
+  const rows = (d.rows || []).filter(t => (!from || (t.deadline >= from && t.deadline <= today)) && (!D.branch || t.branch === D.branch) && (!D.staff || t.staff === D.staff));
+  const by = {};
+  rows.forEach(t => {
+    const g = by[t.staff] = by[t.staff] || { staff: t.staff, branch: t.branch || '', pend: 0, over: 0, done: 0, remote: 0 };
+    if (t.status === 'Done') { const r = t.how === 'Remote'; if (D.st.includes('Done') && D.how.includes(r ? 'remote' : 'site')) { g.done++; if (r) g.remote++; } }
+    else if (D.st.includes('Open')) { g.pend++; if (t.dueMs && t.dueMs < now) g.over++; }
+  });
+  return Object.keys(by).sort((a, b) => a.localeCompare(b)).map(k => by[k]).filter(g => g.pend + g.done > 0);
+}
+function tkDashPaint() {
+  const d = S.tk.d; if (!d) return; const D = S.tk.dash, all = d.rows || [];
+  const chips = (arr, cur, key, label) => arr.map(x => '<button type="button" class="chip' + (cur(x[0]) ? ' active' : '') + '" data-k="' + key + '" data-v="' + esc(x[0]) + '">' + esc(x[1]) + '</button>').join('');
+  const branches = [...new Set(all.map(t => t.branch || '').filter(Boolean))].sort(), staffs = [...new Set(all.filter(t => !D.branch || t.branch === D.branch).map(t => t.staff))].sort((a, b) => a.localeCompare(b));
+  const rows = tkDashRows(), T = rows.reduce((a, g) => ({ pend: a.pend + g.pend, over: a.over + g.over, done: a.done + g.done, remote: a.remote + g.remote }), { pend: 0, over: 0, done: 0, remote: 0 });
+  const pct = (g) => g.pend + g.done ? Math.round(g.done / (g.pend + g.done) * 100) + '%' : '–';
+  $('#tkDash').innerHTML = '<div class="kx-grid mb-2">' + [['Pending', T.pend], ['Completed', T.done], ['Done remotely', T.remote], ['Overdue', T.over]].map(x => '<div class="kx"><div class="kx-l">' + x[0] + '</div><div class="kx-v">' + x[1] + '</div></div>').join('') + '</div>' +
+    '<div class="small text-muted fw-bold mt-2">STATUS</div><div class="chips mb-1">' + chips([['Open', 'Pending'], ['Done', 'Completed']], v => D.st.includes(v), 'st') + '</div>' +
+    '<div class="small text-muted fw-bold mt-2">HOW DONE <span class="fw-normal">(completed tasks)</span></div><div class="chips mb-1">' + chips([['site', 'On site'], ['remote', 'Remote']], v => D.how.includes(v), 'how') + '</div>' +
+    '<div class="small text-muted fw-bold mt-2">DEADLINE</div><div class="chips mb-1">' + chips(TK_PER, v => D.per === v, 'per') + '</div>' +
+    (branches.length > 1 ? '<div class="small text-muted fw-bold mt-2">BRANCH</div><div class="chips mb-1">' + chips([['', 'All']].concat(branches.map(b => [b, b])), v => D.branch === v, 'branch') + '</div>' : '') +
+    '<div class="small text-muted fw-bold mt-2">STAFF</div><div class="chips mb-2">' + chips([['', 'All']].concat(staffs.map(b => [b, b])), v => D.staff === v, 'staff') + '</div>' +
+    '<div class="tk-scroll"><table class="tk-t"><thead><tr><th>Staff</th><th>Branch</th><th class="text-end">Pending</th><th class="text-end">Overdue</th><th class="text-end">Completed</th><th class="text-end">Remote</th><th class="text-end">Completion</th></tr></thead><tbody>' +
+    (rows.length ? rows.map(g => '<tr><td><b>' + esc(g.staff) + '</b></td><td>' + esc(g.branch) + '</td><td class="text-end">' + g.pend + '</td><td class="text-end' + (g.over ? ' text-danger fw-bold' : '') + '">' + g.over + '</td><td class="text-end">' + g.done + '</td><td class="text-end">' + g.remote + '</td><td class="text-end"><b>' + pct(g) + '</b></td></tr>').join('') + '<tr class="fw-bold"><td>Total</td><td></td><td class="text-end">' + T.pend + '</td><td class="text-end">' + T.over + '</td><td class="text-end">' + T.done + '</td><td class="text-end">' + T.remote + '</td><td class="text-end">' + pct(T) + '</td></tr>' : '<tr><td colspan="7" class="text-muted">Nothing for these chips.</td></tr>') + '</tbody></table></div>' +
+    '<button type="button" class="btn btn-soft btn-sm mt-2" id="tkDashCsv"><i class="bi bi-download me-1"></i>Download CSV</button>';
+}
+$('#tkDash').addEventListener('click', e => {
+  const b = e.target.closest('.chip');
+  if (b) { const D = S.tk.dash, k = b.dataset.k, v = b.dataset.v; if (k === 'st' || k === 'how') { const a = D[k], i = a.indexOf(v); if (i >= 0) { if (a.length > 1) a.splice(i, 1); } else a.push(v); } else { D[k] = v; if (k === 'branch') D.staff = ''; } tkDashPaint(); return; }
+  if (e.target.closest('#tkDashCsv')) { const rows = tkDashRows(), q = x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"', lines = [['Staff', 'Branch', 'Pending', 'Overdue', 'Completed', 'Remote', 'Completion %']].concat(rows.map(g => [g.staff, g.branch, g.pend, g.over, g.done, g.remote, g.pend + g.done ? Math.round(g.done / (g.pend + g.done) * 100) : ''])); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' })); a.download = 'tasks-dashboard.csv'; a.click(); }
+});
+function tkViewPaint() {
+  const wide = isWide(), dash = wide && S.tk.view === 'dash';
+  show($('#tkView'), wide);
+  $('#tkView').innerHTML = [['list', 'List'], ['dash', 'Dashboard']].map(x => '<button type="button" class="chip' + (S.tk.view === x[0] ? ' active' : '') + '" data-v="' + x[0] + '">' + x[1] + '</button>').join('');
+  show($('#tkDash'), dash); show($('#tkFilters'), !dash); show($('#tkCard'), !dash);
+  if (dash) { show($('#tkKpi'), false); tkDashPaint(); }
+}
+$('#tkView').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.tk.view = b.dataset.v; tkPaint(); });
+/* remote points (admin) */
+$('#tkPtsBtn').addEventListener('click', () => {
+  const d = S.tk.d || {}, c = d.remotePts || { m: {}, o: 0 }, names = [...new Set((d.purposes || []).concat(Object.keys(c.m || {})))].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  $('#tkPtsRows').innerHTML = names.map(n => '<div class="d-flex align-items-center gap-2 mb-1"><span class="flex-grow-1">' + esc(n) + '</span><input type="number" min="0" step="0.5" class="form-control form-control-sm tk-pp" style="max-width:100px" data-p="' + esc(n) + '" value="' + (c.m[n] || '') + '"></div>').join('') + '<div class="d-flex align-items-center gap-2 mb-1 border-top pt-2"><span class="flex-grow-1"><b>Any other purpose</b></span><input type="number" min="0" step="0.5" class="form-control form-control-sm" style="max-width:100px" id="tkPtsOther" value="' + (c.o || '') + '"></div>';
+  $('#tkPtsMsg').textContent = ''; tkPtsModal.show();
+});
+$('#tkPtsSave').addEventListener('click', async () => {
+  const m = {}; $$('.tk-pp').forEach(i => { const v = +i.value; if (v > 0) m[i.dataset.p] = v; });
+  const b = $('#tkPtsSave'); busy(b, true, 'Saving…');
+  try { const r = await api('saveTaskPoints', S.token, { m, o: +$('#tkPtsOther').value || 0 }); if (S.tk.d) S.tk.d.remotePts = r; tkPtsModal.hide(); toast('Remote points saved.', 'success'); loadTasks(); } catch (e) { $('#tkPtsMsg').textContent = e.message; }
+  busy(b, false);
+});
 setInterval(() => { $$('.tk-rem').forEach(el => { const r = tkRem(+el.dataset.due); el.className = 'tk-rem ' + r.cls; el.innerHTML = '<i class="bi bi-clock me-1"></i>' + r.text; }); }, 30000);
 $('#tkStatus').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.tk.status = b.dataset.v; tkPaint(); });
 $('#tkStaffF').addEventListener('change', tkPaint); $('#tkPurF').addEventListener('change', tkPaint);
 let tkT = 0; $('#tkQ').addEventListener('input', () => { clearTimeout(tkT); tkT = setTimeout(tkPaint, 120); });
-const tkDoneModal = new bootstrap.Modal($('#tkDoneModal')), tkModal = new bootstrap.Modal($('#tkModal'));
+const tkDoneModal = new bootstrap.Modal($('#tkDoneModal')), tkModal = new bootstrap.Modal($('#tkModal')), tkPtsModal = new bootstrap.Modal($('#tkPtsModal'));
 $('#tkList').addEventListener('click', async e => {
   const ed = e.target.closest('.tk-ed'), del = e.target.closest('.tk-del'), ck = e.target.closest('.tk-ck'), go = e.target.closest('.tk-go'), hs = e.target.closest('.tk-hist');
   if (hs) { const t = ((S.tk.d || {}).rows || []).find(r => r.id === hs.dataset.id); if (t) { const q = t.mid || t.tid || t.merchant; $('#mhQ').value = q; lkModal.show(); mhRun(q); } return; }
@@ -4219,12 +4395,17 @@ $('#tkList').addEventListener('click', async e => {
   if (del) { if (!confirm('Delete this task?')) return; try { await api('deleteTask', S.token, del.dataset.id); toast('Task deleted.', 'success'); loadTasks(); tkBadge(); } catch (x) { toast(x.message, 'danger'); } return; }
   if (!ck) return; const t = (S.tk.d.rows || []).find(r => r.id === ck.dataset.id); if (!t) return;
   if (t.status === 'Done') { if (!isWide() || !confirm('Put this task back to Open?')) return; try { await api('reopenTask', S.token, t.id); loadTasks(); tkBadge(); } catch (x) { toast(x.message, 'danger'); } return; }
-  S.tk.id = t.id; $('#tkDoneWho').innerHTML = '<b>' + esc(t.merchant) + '</b> · ' + esc(t.purpose); $('#tkRemark').value = ''; $('#tkDoneMsg').textContent = ''; tkDoneModal.show(); setTimeout(() => $('#tkRemark').focus(), 300);
+  S.tk.id = t.id; S.tk.remote = false; tkHowPaint(t.rp || 0); $('#tkDoneWho').innerHTML = '<b>' + esc(t.merchant) + '</b> · ' + esc(t.purpose); $('#tkRemark').value = ''; $('#tkDoneMsg').textContent = ''; tkDoneModal.show(); setTimeout(() => $('#tkRemark').focus(), 300);
 });
+function tkHowPaint(rp) {
+  show($('#tkHowW'), rp > 0);
+  $('#tkHow').innerHTML = rp > 0 ? '<button type="button" class="chip' + (S.tk.remote ? '' : ' active') + '" data-r="0">Closed (no points)</button><button type="button" class="chip' + (S.tk.remote ? ' active' : '') + '" data-r="1"><i class="bi bi-telephone me-1"></i>Done remotely · ' + rp + ' pts</button>' : '';
+}
+$('#tkHow').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; S.tk.remote = b.dataset.r === '1'; $$('#tkHow .chip').forEach(x => x.classList.toggle('active', x === b)); });
 $('#tkDoneSave').addEventListener('click', async () => {
   const r = $('#tkRemark').value.trim(); if (r.length < 2) { $('#tkDoneMsg').textContent = 'Write the remark: what you did and the result.'; return; }
   const b = $('#tkDoneSave'); busy(b, true, 'Saving…');
-  try { await api('completeTask', S.token, S.tk.id, r); tkDoneModal.hide(); toast('Task marked done ✅', 'success'); loadTasks(); tkBadge(); } catch (e) { $('#tkDoneMsg').textContent = e.message; }
+  try { await api('completeTask', S.token, S.tk.id, r, '', S.tk.remote === true); tkDoneModal.hide(); toast('Task marked done ✅', 'success'); loadTasks(); tkBadge(); } catch (e) { $('#tkDoneMsg').textContent = e.message; }
   busy(b, false);
 });
 /* new / paste */
@@ -4400,3 +4581,5 @@ $('#ptCsv').addEventListener('click', () => {
   const cell = v => { const x = String(v == null ? '' : v); return /[",\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.map(l => l.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })); a.download = 'points_' + S.pt.per.cur.from + '_' + S.pt.per.cur.to + '.csv'; document.body.appendChild(a); a.click(); a.remove();
 });
+
+['#tkContact', '#teContact'].forEach(id => { const el = $(id); if (el) el.addEventListener('blur', () => { el.value = phone0(el.value); }); });
