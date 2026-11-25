@@ -40,7 +40,7 @@ function legacyLevel(cat, a, k) {
 const vtClean = l => { const out = []; (Array.isArray(l) ? l : []).forEach(x => { const n = String((x && x.n) || '').replace(/[|\n]/g, ' ').trim().slice(0, 30); if (n && !out.some(y => y.n.toLowerCase() === n.toLowerCase()) && out.length < 4) { const o = { n }; if (+x.p > 0) o.p = Math.min(10000, Math.round(+x.p * 100) / 100); if (+x.pf > 0) o.pf = Math.min(10000, Math.round(+x.pf * 100) / 100); out.push(o); } }); return out; };
 const accClean = l => (Array.isArray(l) ? l : []).map(x => String(x).replace(/[:,|\n]/g, ' ').trim().slice(0, 40)).filter((x, i, y) => x && y.indexOf(x) === i).slice(0, 30);
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.tkChk === true) o.tkChk = true; if (a.dev === true) { o.dev = true; if (a.devMax >= 2 && a.devMax <= 20) o.devMax = +a.devMax; } if (a.vt && a.vt.on === true) o.vt = { on: true, o: vtClean(a.vt.o) }; if (a.acc && a.acc.on === true) o.acc = { on: true, m: a.acc.m === 'back' ? 'back' : 'out', i: accClean(a.acc.i), q: a.acc.q === true }; if (a.pt > 0) o.pt = +a.pt; if (a.ptFail > 0) o.ptFail = +a.ptFail; if (a.tgChat) o.tgChat = String(a.tgChat); if (a.tgTopic) o.tgTopic = String(a.tgTopic); if (a.res && a.res.on === true) o.res = { on: true, r: (Array.isArray(a.res.r) ? a.res.r : []).map(x => String(x).trim()).filter(Boolean), o: a.res.o !== false, ph: a.res.ph === true, b: a.res.b && typeof a.res.b === 'object' ? a.res.b : {} }; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => (k === 'merchant' || k === 'mid') && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.tkChk === true) o.tkChk = true; if (a.dev === true) { o.dev = true; if (a.devMax >= 2 && a.devMax <= 20) o.devMax = +a.devMax; } if (a.vt && a.vt.on === true) o.vt = { on: true, o: vtClean(a.vt.o) }; if (a.acc && a.acc.on === true) o.acc = { on: true, m: a.acc.m === 'back' ? 'back' : 'out', i: accClean(a.acc.i), q: a.acc.q === true, lk: a.acc.lk === true, inc: accClean(a.acc.inc) }; if (a.pt > 0) o.pt = +a.pt; if (a.ptFail > 0) o.ptFail = +a.ptFail; if (a.tgChat) o.tgChat = String(a.tgChat); if (a.tgTopic) o.tgTopic = String(a.tgTopic); if (a.res && a.res.on === true) o.res = { on: true, r: (Array.isArray(a.res.r) ? a.res.r : []).map(x => String(x).trim()).filter(Boolean), o: a.res.o !== false, ph: a.res.ph === true, b: a.res.b && typeof a.res.b === 'object' ? a.res.b : {} }; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => (k === 'merchant' || k === 'mid') && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); if (YN_KEYS.includes(k)) o.f[k] = o.f[k] ? 1 : 0; });
@@ -70,16 +70,32 @@ function midPrefix(type) { const t = typeDef(type), k = String((t && t.code) || 
 function refreshMidLabel(inp, type) { const w = inp.closest('[data-fk="mid"]'), t = w && $('.mid-t', w); if (t) t.textContent = midLabelFor(type, inp.value); }
 document.addEventListener('input', e => { if (e.target.matches && e.target.matches('.f-tid')) delete e.target.dataset.auto; if (e.target.matches && e.target.matches('.f-mid')) { refreshMidLabel(e.target, curType); const c = S.cards.find(x => x.el.contains(e.target)); if (c) autoTid(c.el); } else if (e.target.id === 'eMid') refreshMidLabel(e.target, window._eType); });
 /** Every toggle starts at No (off): used for a new merchant card and whenever the activity changes. */
-function resetToggles(el) { $$('.yn-row input', el).forEach(i => { if (i.checked) { i.checked = false; syncYn(i); } }); }
+function resetToggles(el) { $$('.yn-row input', el).forEach(i => { delete i.dataset.manual; if (i.checked) { i.checked = false; syncYn(i); } }); }
 function syncYn(inp) { const row = inp.closest('.yn-row'); if (!row) return; row.classList.toggle('on', inp.checked); const t = $('.yn-t', row); if (t) t.textContent = inp.checked ? 'Yes' : 'No'; }
-document.addEventListener('change', e => { if (e.target.matches && e.target.matches('.yn-row input')) syncYn(e.target); });
+document.addEventListener('change', e => { if (e.target.matches && e.target.matches('.yn-row input')) { syncYn(e.target); if (e.isTrusted) e.target.dataset.manual = '1'; } });
+/** SIM: when the MID / TID is filled, Stock is asked whether a terminal with that TID has a SIM; found = SIM turns to Yes, not found = it stays as it is (No). A choice made by hand is never changed. */
+const simMemo = {}; let simT = null;
+function simCheckSoon(card) { clearTimeout(simT); simT = setTimeout(() => simCheck(card), 450); }
+async function simCheck(card) {
+  if (!card || !card.el.isConnected) return;
+  const row = $('.yn-row[data-fk="sim"]', card.el), sw = $('.f-sim', card.el), ti = $('.f-tid', card.el);
+  if (!row || !sw || !ti || row.classList.contains('hidden') || sw.dataset.manual === '1' || sw.checked) return;
+  const tid = ti.value.trim().toUpperCase(); if (tid.length < 4) return;
+  try {
+    if (!(tid in simMemo)) simMemo[tid] = api('simByTid', S.token, tid).then(r => !!(r && r.found), () => false);
+    const found = await simMemo[tid]; if (!found) { delete simMemo[tid]; return; }      // not found: asked again next time (stock may change)
+    if (ti.value.trim().toUpperCase() === tid && sw.dataset.manual !== '1') { sw.checked = true; syncYn(sw); }
+  } catch (x) {}
+}
+document.addEventListener('input', e => { if (e.target.matches && e.target.matches('.f-mid, .f-tid')) { const c = S.cards.find(x => x.el.contains(e.target)); if (c) simCheckSoon(c); } });
 const lvl = (d, k) => (d && d.f && d.f[k]) || 0;
 const isReq = (d, k) => lvl(d, k) === 2;
 let CATALOG = DEFAULT_CATALOG, TYPES = [], ACTIVITIES = {};
 const typeDef = n => CATALOG.find(t => t.name === n) || null;
 /** Activities named like Deployment / Removal need no stock setup: staff pick the item type themselves (an admin stock rule, if set, wins). */
 const freeStock = n => /liabil/i.test(n) ? { mode: 'out', kind: '', items: [], free: true, liab: true } : /remov/i.test(n) ? { mode: 'return', kind: '', items: [], free: true, auto: true } : /return|terminat/i.test(n) ? { mode: 'return', kind: '', items: [], auto: true } : /deploy/i.test(n) ? { mode: 'out', kind: '', items: [], free: true } : /replac/i.test(n) ? { mode: 'both', kind: '', items: [], auto: true } : /install/i.test(n) ? { mode: 'out', kind: '', items: [], auto: true } : null;
-const actDef = (t, a) => { const d = typeDef(t); const x = d ? (d.acts.find(y => y.n === a) || null) : null; if (!x || x.stock || !x.autoStock) return x; const fs = freeStock(x.n); return fs ? Object.assign({}, x, { stock: fs }) : x; };
+const actDef = (t, a) => { const d = typeDef(t); let x = d ? (d.acts.find(y => y.n === a) || null) : null; if (x && x.custom && x.custom.some(f => f.off)) x = Object.assign({}, x, { custom: x.custom.filter(f => !f.off) });      // an extra field the admin set to Off is not on the form
+  if (!x || x.stock || !x.autoStock) return x; const fs = freeStock(x.n); return fs ? Object.assign({}, x, { stock: fs }) : x; };
 const actSubs = a => (a && a.subs && a.subs.length) ? a.subs : [''];      // the sub categories an activity appears under; [''] = not linked to any (category without links)
 /** Once any activity is linked to a sub category, every activity belongs to at least one: unlinked ones appear under all sub categories (there is no stand-alone group). */
 function allocSubs(t) {
@@ -384,7 +400,8 @@ function applyOrder(root, d) {
     if (fk) el.style.order = at(fk, 1000 + i);
     else if (el.classList.contains('qc-wrap')) el.style.order = at('qc', 1000 + i);
     else if (el.classList.contains('stock-wrap')) el.style.order = at('stock', 1000 + i);
-    else if (el.classList.contains('acc-wrap') || el.classList.contains('dev-wrap')) el.style.order = 2000 + i;      // other devices and accessories come after the boxes
+    else if (el.classList.contains('acc-wrap')) el.style.order = at('serial', 1000 + i) + 0.5;
+    else if (el.classList.contains('dev-wrap')) el.style.order = 2000 + i;      // other devices and accessories come after the boxes
     else if (!el.classList.contains('custom-wrap')) el.style.order = -1;        // head, activity, date stay on top
   });
   (d.custom || []).forEach((f, i) => { const el = $('.custom-wrap', root).children[i]; if (el) el.style.order = at('x:' + f.id, 1000 + i); });
@@ -537,21 +554,27 @@ function vtWire(card) {
 }
 /* ---- Accessories: the admin lists them per activity. Given = tick what was given; Collected = every item is Yes / Damaged / Lost (not linked to Stock) ---- */
 const ACC_ST = [['y', 'Yes'], ['d', 'Damaged'], ['l', 'Lost']];
+const accStk = (d, n) => d.acc.lk ? stkIt(n) : {};      // a linked accessory takes its quantity rules (Always 1, or spin with a step) from its Stock item
 function renderAcc(card, d) {
   const w = $('.acc-wrap', card.el), on = !!(d && d.acc && d.acc.on && d.acc.i.length) && card.res !== 'fail';
   show(w, on); if (!on) { card.acc = null; w.innerHTML = ''; return; }
-  const back = d.acc.m === 'back', key = d.acc.m + '|' + d.acc.i.join('|');
+  const back = d.acc.m === 'back', key = d.acc.m + '|' + d.acc.i.join('|') + '|' + (d.acc.lk ? 'L' : '');
   if (!card.acc || card.accKey !== key) { card.accKey = key; card.acc = {}; d.acc.i.forEach(n => { if (back) card.acc[n] = 'y'; }); }
+  const spin = n => { const it = accStk(d, n); return d.acc.lk && it.kind === 'qty' && it.one !== true; };
   w.innerHTML = '<label class="form-label"><i class="bi bi-plug me-1"></i>' + (back ? 'Accessories collected' : 'Accessories given') + (d.acc.q && !back ? ' <span class="rq">*</span>' : '') + '</label>' +
     (back ? d.acc.i.map(n => '<div class="acc-row" data-n="' + esc(n) + '"><span class="acc-n">' + esc(n) + '</span><div class="acc-st">' + ACC_ST.map(x => '<button type="button" class="acc-b' + (card.acc[n] === x[0] ? ' on-' + x[0] : '') + '" data-s="' + x[0] + '">' + x[1] + '</button>').join('') + '</div></div>').join('')
-          : '<div class="chips">' + d.acc.i.map(n => '<button type="button" class="chip acc-chip' + (card.acc[n] ? ' active' : '') + '" data-n="' + esc(n) + '">' + esc(n) + '</button>').join('') + '</div>');
+          : d.acc.i.map(n => { const on1 = !!card.acc[n]; return '<div class="acc-row" data-n="' + esc(n) + '"><button type="button" class="chip acc-chip' + (on1 ? ' active' : '') + '" data-n="' + esc(n) + '">' + esc(n) + '</button>' +
+            (on1 && spin(n) ? '<div class="stk-spin ms-auto"><button type="button" class="acc-minus" aria-label="Less">−</button><input type="number" min="1" max="' + stkMax(n) + '" step="' + stkStep(n) + '" inputmode="numeric" class="acc-qty" value="' + card.acc[n] + '"><button type="button" class="acc-plus" aria-label="More">+</button></div>' : on1 && d.acc.lk ? '<span class="stk-fix ms-auto">× 1</span>' : '') + '</div>'; }).join(''));
 }
 function accWire(card) {
+  const cur = () => { const a = $('.f-act', card.el).value; return a ? effDef(curType, a, S.sub || '') : null; };
   $('.acc-wrap', card.el).addEventListener('click', e => {
-    const b = e.target.closest('.acc-b'), ch = e.target.closest('.acc-chip');
+    const b = e.target.closest('.acc-b'), ch = e.target.closest('.acc-chip'), pm = e.target.closest('.acc-minus, .acc-plus');
     if (b) { const n = b.closest('.acc-row').dataset.n; card.acc[n] = b.dataset.s; $$('.acc-b', b.parentNode).forEach(x => { x.className = 'acc-b' + (x === b ? ' on-' + x.dataset.s : ''); }); }
-    else if (ch) { const n = ch.dataset.n; if (card.acc[n]) delete card.acc[n]; else card.acc[n] = 'y'; ch.classList.toggle('active', !!card.acc[n]); }
+    else if (ch) { const n = ch.dataset.n; if (card.acc[n]) delete card.acc[n]; else card.acc[n] = stkStart(n) || 1; renderAcc(card, cur()); }
+    else if (pm) { const row = pm.closest('.acc-row'), n = row.dataset.n, st = stkStep(n), mx = stkMax(n), v = Math.floor(+card.acc[n]) || st; card.acc[n] = pm.classList.contains('acc-plus') ? Math.min(mx, v + st) : Math.max(st, v - st); $('.acc-qty', row).value = card.acc[n]; }
   });
+  $('.acc-wrap', card.el).addEventListener('input', e => { if (e.target.classList.contains('acc-qty')) { const n = e.target.closest('.acc-row').dataset.n; card.acc[n] = Math.min(stkMax(n), Math.floor(+e.target.value) || 0); } });
 }
 function resApply(card) {
   const a = $('.f-act', card.el).value; if (!a) return;
@@ -847,6 +870,7 @@ const NOQR = 'No QR found';
 function setQRFields(card, name, mid, tid) {
   const n = $('.f-name', card.el), m = $('.f-mid', card.el);
   if (tid) { const ti = $('.f-tid', card.el); ti.value = tid.toUpperCase(); delete ti.dataset.auto; }      // a TID read from the QR wins
+  simCheckSoon(card);
   // Overwrite with new values; clear an old "No QR found" marker; leave manual text alone otherwise.
   if (name) n.value = name; else if (n.value === NOQR) n.value = '';
   if (mid) m.value = mid; else if (m.value === NOQR) m.value = '';
@@ -1092,6 +1116,7 @@ function addMerchant() {
     '<div class="hidden yn-row" data-fk="standee"><label class="form-check-label">POS Standee</label><div class="form-check form-switch m-0"><input class="form-check-input f-standee" type="checkbox" role="switch" aria-label="POS Standee"><span class="yn-t small fw-semibold">No</span></div></div>' +
     '<div class="mb-3 hidden" data-fk="business"><label class="form-label">Business name <span class="rq hidden">*</span></label><input class="form-control f-biz" placeholder="N/A"></div>' +
     '<div class="mb-3 hidden" data-fk="serial"><label class="form-label">Serial number <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-serial" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
+    '<div class="acc-wrap hidden mb-3"></div>' +
     '<div class="mb-3 hidden" data-fk="oldSn"><label class="form-label">Old S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-old" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="newSn"><label class="form-label">New S/N <span class="rq hidden">*</span></label><div class="input-group"><input class="form-control f-new" autocapitalize="characters" autocomplete="off"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' +
     '<div class="mb-3 hidden" data-fk="btype"><label class="form-label">Business type <span class="rq hidden">*</span></label><input class="form-control f-btype mb-2" maxlength="60" autocomplete="off" placeholder="Type, or tap one below">' +
@@ -1107,7 +1132,7 @@ function addMerchant() {
       '<div class="progress qc-bar mt-2"><div class="progress-bar" style="width:0%"></div></div><div class="small text-muted qc-sum mt-1">Set the quantity, then scan every QR.</div>' +
       '<button type="button" class="btn btn-primary w-100 mt-2 qc-scan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button><div class="qc-list mt-2"></div></div>' +
     '<div class="custom-wrap hidden"></div>' +
-    '<div class="dev-wrap hidden mb-3"></div>' + '<div class="acc-wrap hidden mb-3"></div>' +
+    '<div class="dev-wrap hidden mb-3"></div>' +
     '<div class="stock-wrap hidden mb-3"></div>' +
     '<div class="mb-3 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea class="form-control f-rem" rows="2"></textarea></div>' +
     '<div class="hidden" data-fk="photo"><label class="form-label">Photos / videos <span class="rq hidden">*</span> <span class="ph-min fw-semibold hidden"></span> <span class="text-lowercase fw-normal">(max ' + MAX_PHOTOS + ', videos ≤ ' + MAX_VIDEOS + ' × ' + MAX_VIDEO_MB + ' MB)</span></label>' +
@@ -1674,7 +1699,7 @@ $('#submitBtn').addEventListener('click', async () => {
     let accOut;
     if (ad0 && ad0.acc && ad0.acc.on && ad0.acc.i.length && !fail) {
       const back = ad0.acc.m === 'back', am = c.acc || {};
-      accOut = ad0.acc.i.filter(n => am[n]).map(n => ({ n, s: back ? am[n] : 'y' }));
+      accOut = ad0.acc.i.filter(n => am[n]).map(n => back ? { n, s: am[n] } : { n, s: 'y', q: ad0.acc.lk && stkKind(n) === 'qty' && !stkOne(n) ? Math.max(1, Math.min(stkMax(n), Math.floor(+am[n]) || 1)) : 1 });
       if (!back && ad0.acc.q && !accOut.length) { bad('tick the accessories given.'); $('.acc-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     }
     if (accOut && accOut.length) items[items.length - 1].acc = accOut;
@@ -2906,12 +2931,20 @@ function resBoxRows(a) {
   return '<div class="ce-lab mt-2">BOXES WHEN UNSUCCESSFUL <span class="fw-normal text-muted">(Same = as a normal record)</span></div>' + core.concat(cus).join('');
 }
 const RES_DEFAULT = ['Merchant refused', 'Merchant not available / closed', 'Merchant not ready', 'Wrong address / cannot find', 'Merchant already has a terminal', 'Equipment or network problem'];
+const cfLv = f => f.off ? 0 : f.req ? 2 : 1;      // an extra field: Off / Optional / Must
 function ceActPanel(t, ti, a, ai) {
   const nm = '<div class="ce-title"><input class="a-name ce-name" maxlength="40" placeholder="Activity name" value="' + esc(a.n) + '"><span class="ce-sub">· ' + esc(t.name) + ' · code</span><input class="a-code ce-code" maxlength="4" placeholder="–" title="Optional code added to the record ID" value="' + esc(a.code || '') + '"></div>';
   return '<div class="ce-pane" data-ti="' + ti + '"><div data-ai="' + ai + '" class="ce-act">' + ceHead(nm) +
     '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (a.tkChk === true ? ' active' : '') + '" data-f="tkChk" title="Default Off. On: before saving, the app checks for an open task of this merchant and offers to complete it, and task owners are alerted when someone else submits it.">Check open tasks</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button><button type="button" class="chip a-flag' + (a.res && a.res.on ? ' active' : '') + '" data-f="resOn" title="Default Off. On: staff can mark a record Unsuccessful and choose a reason (the list below).">Track result</button><button type="button" class="chip a-flag' + (a.dev ? ' active' : '') + '" data-f="dev" title="Default Off. On: one record can carry up to 20 devices, each with its own terminal name, MID, TID and serial number.">Other devices</button><button type="button" class="chip a-flag' + (a.acc && a.acc.on ? ' active' : '') + '" data-f="accOn" title="Default Off. On: the form lists the accessories you set for this activity (given, or collected with Yes / Damaged / Lost). Not linked to Stock.">Accessories</button><button type="button" class="chip a-flag' + (a.vt && a.vt.on ? ' active' : '') + '" data-f="vtOn" title="Default Off. On: staff choose a visit type (for example On site or Remote) and each type can earn different points.">Visit type</button></div>' +
     (a.dev ? '<div class="ce-dev small">Most devices for one record (including the first) <input type="number" class="form-control form-control-sm d-inline-block a-devmax" style="width:80px" min="2" max="20" value="' + (a.devMax || 20) + '"> <span class="text-muted">Each device earns the activity\'s normal points. Not for activities that scan QR materials.</span></div>' : '') +
-    (a.acc && a.acc.on ? '<div class="ce-dev small"><div class="ce-lab">ACCESSORIES <span class="fw-normal text-muted">(not linked to Stock)</span></div><div class="chips mb-2"><button type="button" class="chip a-accm' + (a.acc.m !== 'back' ? ' active' : '') + '" data-m="out">Given</button><button type="button" class="chip a-accm' + (a.acc.m === 'back' ? ' active' : '') + '" data-m="back">Collected</button><button type="button" class="chip a-accq' + (a.acc.q ? ' active' : '') + '">Required (when Given)</button></div><div class="text-muted mb-1">Given: the user ticks what was given. Collected (removal, replacement, return, terminate): every item is Yes / Damaged / Lost.</div><div class="chips mb-2">' + (a.acc.i || []).map((n, k) => '<span class="chip active">' + esc(n) + ' <i class="bi bi-x a-accdel" data-k="' + k + '" role="button" aria-label="Remove"></i></span>').join('') + '</div><div class="input-group input-group-sm"><input class="form-control a-accin" maxlength="40" placeholder="Accessory name, e.g. Charger"><button type="button" class="btn btn-soft a-accadd">Add</button></div></div>' : '') +
+    (a.acc && a.acc.on ? '<div class="ce-dev small"><div class="ce-lab">ACCESSORIES</div>' +
+      '<div class="d-flex justify-content-between align-items-center mb-2"><span>Items are</span><span class="fl-seg">' + [['out', 'Given'], ['back', 'Collected']].map(p => '<button type="button" class="a-accm' + ((a.acc.m === 'back' ? 'back' : 'out') === p[0] ? ' active' : '') + '" data-v="1" data-m="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>' +
+      '<div class="d-flex justify-content-between align-items-center mb-2"><span>Required <span class="text-muted">(when Given)</span></span><span class="fl-seg">' + [[0, 'Optional'], [1, 'Must']].map(p => '<button type="button" class="a-accq' + ((a.acc.q ? 1 : 0) === p[0] ? ' active' : '') + '" data-v="' + (p[0] ? 2 : 1) + '" data-q="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>' +
+      '<div class="d-flex justify-content-between align-items-center mb-2"><span>Stock link</span><span class="fl-seg">' + [[0, 'Not linked'], [1, 'Linked']].map(p => '<button type="button" class="a-acclk' + ((a.acc.lk ? 1 : 0) === p[0] ? ' active' : '') + '" data-v="1" data-l="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>' +
+      '<div class="text-muted mb-1">' + (a.acc.lk ? 'Given takes the item out of stock. Collected: Yes and Damaged go back to stock (waiting for the admin to check); Lost changes no stock (only the record). Quantity follows each Stock item (Always 1 or spin).' : 'Only recorded on the record. Stock does not change.') + '</div>' +
+      (a.acc.lk ? '<div class="small text-muted fw-bold mt-2">PICK FROM STOCK (QUANTITY ITEMS)</div><div class="chips mb-2">' + ((S.stockItems || []).filter(x => x.kind === 'qty').map(x => '<button type="button" class="chip a-accpick' + ((a.acc.i || []).includes(x.name) ? ' active' : '') + '" data-n="' + esc(x.name) + '">' + esc(x.name) + '</button>').join('') || '<span class="text-muted">No quantity items in Stock yet.</span>') + '</div>'
+        : '<div class="chips mb-2">' + (a.acc.i || []).map((n, k) => '<span class="chip active">' + esc(n) + ' <i class="bi bi-x a-accdel" data-k="' + k + '" role="button" aria-label="Remove"></i></span>').join('') + '</div><div class="input-group input-group-sm mb-2"><input class="form-control a-accin" maxlength="40" placeholder="Accessory name, e.g. Charger"><button type="button" class="btn btn-soft a-accadd">Add</button></div>') +
+      (a.acc.m !== 'back' ? '<div class="small text-muted fw-bold mt-2">INCLUDED AUTOMATICALLY <span class="fw-normal">(not shown to the user, no stock change; saved on the record, e.g. the POS / SB set)</span></div><div class="chips mb-1">' + (a.acc.inc || []).map((n, k) => '<span class="chip active">' + esc(n) + ' <i class="bi bi-x a-accincdel" data-k="' + k + '" role="button" aria-label="Remove"></i></span>').join('') + '</div><div class="input-group input-group-sm"><input class="form-control a-accinc" maxlength="40" placeholder="e.g. AC power adapter"><button type="button" class="btn btn-soft a-accincadd">Add</button></div>' : '') + '</div>' : '') +
     (a.vt && a.vt.on ? '<div class="ce-dev small"><div class="ce-lab">VISIT TYPES AND POINTS <span class="fw-normal text-muted">(blank points = the activity\'s normal points)</span></div>' + (a.vt.o || []).map((x, k) => '<div class="row g-2 align-items-end mb-1" data-vk="' + k + '"><div class="col-5"><div class="text-muted">Name</div><input class="form-control form-control-sm a-vtn" maxlength="30" value="' + esc(x.n) + '"></div><div class="col-3"><div class="text-muted">Successful</div><input class="form-control form-control-sm a-vtp" type="number" min="0" step="0.5" value="' + (x.p || '') + '"></div><div class="col-3"><div class="text-muted">Unsuccessful</div><input class="form-control form-control-sm a-vtf" type="number" min="0" step="0.5" value="' + (x.pf || '') + '"></div><div class="col-1">' + ((a.vt.o || []).length > 2 ? '<button type="button" class="btn btn-sm btn-outline-danger border-0 a-vtdel" aria-label="Remove"><i class="bi bi-x-lg"></i></button>' : '') + '</div></div>').join('') + ((a.vt.o || []).length < 4 ? '<button type="button" class="btn btn-soft btn-sm mt-1 a-vtadd"><i class="bi bi-plus-lg me-1"></i>Add visit type</button>' : '') + '</div>' : '') +
     '<div class="ce-pts"><div class="ce-lab">POINTS <span class="fw-normal text-muted">(for the Points tab; blank or 0 = no points)</span></div><div class="row g-2"><div class="col-6"><div class="small text-muted">Per successful action</div><input class="form-control form-control-sm a-pt" type="number" min="0" max="10000" step="0.5" value="' + (a.pt || '') + '"></div>' + (a.res && a.res.on ? '<div class="col-6"><div class="small text-muted">Per unsuccessful action</div><input class="form-control form-control-sm a-ptf" type="number" min="0" max="10000" step="0.5" value="' + (a.ptFail || '') + '"></div>' : '') + '</div><div class="small text-muted mt-1">A change applies to new records only; records already saved keep the points they earned.</div></div>' +
     (a.res && a.res.on ? '<div class="ce-res"><div class="ce-lab">UNSUCCESSFUL REASONS <span class="fw-normal text-muted">(one per line; staff choose one)</span></div><textarea class="form-control form-control-sm a-resr" rows="5" maxlength="1500">' + esc((a.res.r || []).join('\n')) + '</textarea><div class="chips mt-2"><button type="button" class="chip a-res-o' + (a.res.o !== false ? ' active' : '') + '">Allow “Other” with a note</button></div>' + resBoxRows(a) + '<div class="small text-muted mt-1">Serial number and stock boxes are always skipped, and no stock is taken, when a record is Unsuccessful.</div></div>' : '') +
@@ -2928,7 +2961,7 @@ function ceActPanel(t, ti, a, ai) {
           '<div class="d-flex gap-1 mb-1 align-items-center" data-ci="' + ci + '"><input class="form-control form-control-sm cf-label" maxlength="30" placeholder="' + (f.kind === 'info' ? 'Title (optional)' : 'Field name') + '" value="' + esc(f.label) + '">' +
           '<select class="form-select form-select-sm cf-kind" style="max-width:112px">' + CF_KINDS.map(k => '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + k[1] + '</option>').join('') + '</select>' +
           (f.kind === 'info' ? '' : '<input class="form-control form-control-sm cf-ic ic-in" maxlength="4" placeholder="🔹" title="Icon in Telegram" value="' + esc(f.ic || '') + '">') +
-          (f.kind === 'info' || f.kind === 'toggle' ? '' : '<button type="button" class="chip cf-req' + (f.req ? ' active' : '') + '">Must</button>') +
+          (f.kind === 'info' ? '' : '<span class="fl-seg flex-none">' + (f.kind === 'toggle' ? [[0, 'Off'], [1, 'On']] : [[0, 'Off'], [1, 'Optional'], [2, 'Must']]).map(p => '<button type="button" class="cf-lv' + (cfLv(f) === p[0] ? ' active' : '') + '" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</span>') +
           '<button type="button" class="btn btn-sm btn-outline-danger border-0 cf-del" aria-label="Remove field"><i class="bi bi-x"></i></button></div>' +
           (f.kind === 'info' ? '<textarea class="form-control form-control-sm cf-text mb-2" rows="3" maxlength="600" data-ci="' + ci + '" placeholder="Text shown on the form for this activity (nothing is saved)">' + esc(f.text || '') + '</textarea>' : '') +
           (['select', 'check', 'radio', 'toggle'].includes(f.kind) ? '<div class="cf-vics mb-2" data-ci="' + ci + '">' + vicHtml(f) + '</div>' : '') +
@@ -3007,7 +3040,7 @@ $('#catEditBtn').addEventListener('click', () => {
   catDraft = JSON.parse(JSON.stringify(CATALOG)); catSel = { ti: 0, ai: 0, view: 'act' }; show($('#catError'), false); renderCatEditor(); catModal.show();
 });
 $('#catAdd').addEventListener('click', () => { catDraft.push({ name: '', code: '', subs: [], acts: [normAct({}, { n: '' })] }); catSel = { ti: catDraft.length - 1, ai: 0, view: 'cat' }; renderCatEditor(); });
-$('#catList').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('a-accin')) { e.preventDefault(); const b = e.target.closest('[data-ai]'); if (b) $('.a-accadd', b).click(); } });
+$('#catList').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.target.classList.contains('a-accin') || e.target.classList.contains('a-accinc'))) { e.preventDefault(); const b = e.target.closest('[data-ai]'); if (b) $(e.target.classList.contains('a-accin') ? '.a-accadd' : '.a-accincadd', b).click(); } });
 $('#catList').addEventListener('input', e => {
   const box = e.target.closest('[data-ti]'); if (!box) return; const t = catDraft[+box.dataset.ti];
   if (e.target.classList.contains('c-name')) t.name = e.target.value;
@@ -3084,7 +3117,11 @@ $('#catList').addEventListener('click', e => {
   else if (e.target.closest('.a-vtdel')) { t.acts[ai].vt.o.splice(+e.target.closest('[data-vk]').dataset.vk, 1); renderCatEditor(); }
   else if (e.target.closest('.a-flag') && e.target.closest('.a-flag').dataset.f === 'accOn') { const a = t.acts[ai]; a.acc = a.acc && a.acc.on ? Object.assign({}, a.acc, { on: false }) : { on: true, m: (a.acc && a.acc.m) || 'out', i: (a.acc && a.acc.i) || [], q: !!(a.acc && a.acc.q) }; renderCatEditor(); }
   else if (e.target.closest('.a-accm')) { t.acts[ai].acc.m = e.target.closest('.a-accm').dataset.m; renderCatEditor(); }
-  else if (e.target.closest('.a-accq')) { t.acts[ai].acc.q = !t.acts[ai].acc.q; renderCatEditor(); }
+  else if (e.target.closest('.a-accq')) { t.acts[ai].acc.q = e.target.closest('.a-accq').dataset.q === '1'; renderCatEditor(); }
+  else if (e.target.closest('.a-acclk')) { const a = t.acts[ai], on = e.target.closest('.a-acclk').dataset.l === '1'; if (on !== !!a.acc.lk) { a.acc.lk = on; if (on) a.acc.i = (a.acc.i || []).filter(n => (S.stockItems || []).some(x => x.kind === 'qty' && x.name === n)); } renderCatEditor(); }
+  else if (e.target.closest('.a-accpick')) { const a = t.acts[ai], n = e.target.closest('.a-accpick').dataset.n, i = (a.acc.i || []).indexOf(n); if (i >= 0) a.acc.i.splice(i, 1); else a.acc.i = (a.acc.i || []).concat(n); renderCatEditor(); }
+  else if (e.target.closest('.a-accincdel')) { t.acts[ai].acc.inc.splice(+e.target.closest('.a-accincdel').dataset.k, 1); renderCatEditor(); }
+  else if (e.target.closest('.a-accincadd')) { const a = t.acts[ai]; a.acc.inc = accClean((a.acc.inc || []).concat(String($('.a-accinc', e.target.closest('[data-ai]')).value))); renderCatEditor(); }
   else if (e.target.closest('.a-accdel')) { t.acts[ai].acc.i.splice(+e.target.closest('.a-accdel').dataset.k, 1); renderCatEditor(); }
   else if (e.target.closest('.a-accadd')) { const a = t.acts[ai]; a.acc.i = accClean((a.acc.i || []).concat(String($('.a-accin', e.target.closest('[data-ai]')).value))); renderCatEditor(); }
   else if (e.target.closest('.a-flag')) { const f = e.target.closest('.a-flag').dataset.f; if (f === 'qrchk') t.acts[ai].qrchk = !qcEff(t.name, t.acts[ai], ''); else t.acts[ai][f] = !t.acts[ai][f]; renderCatEditor(); }
@@ -3121,7 +3158,7 @@ $('#catList').addEventListener('click', e => {
     renderCatEditor();
   }
   else if (e.target.closest('.cf-del')) { t.acts[ai].custom.splice(+e.target.closest('[data-ci]').dataset.ci, 1); renderCatEditor(); }
-  else if (e.target.closest('.cf-req')) { const f = t.acts[ai].custom[+e.target.closest('[data-ci]').dataset.ci]; f.req = !f.req; e.target.closest('.cf-req').classList.toggle('active', f.req); }
+  else if (e.target.closest('.cf-lv')) { const b = e.target.closest('.cf-lv'), f = t.acts[ai].custom[+b.closest('[data-ci]').dataset.ci], v = +b.dataset.v; if (v === 0) f.off = true; else delete f.off; f.req = v === 2 && f.kind !== 'toggle'; $$('.cf-lv', b.parentNode).forEach(x => x.classList.toggle('active', x === b)); }
 });
 /* column buttons, header buttons and the order of the boxes */
 $('#catList').addEventListener('input', e => {
@@ -3525,7 +3562,7 @@ $('#adjSave').addEventListener('click', async () => {
 S.itDraft = [];
 function paintItems() {
   if (!S.itDirty) S.itDraft = (S.stockItems || []).map(i => Object.assign({}, i));
-  $('#itList').innerHTML = S.itDraft.length ? S.itDraft.map((i, n) => '<div class="d-flex align-items-center gap-2 mb-1" data-n="' + n + '"><span class="flex-grow-1 text-truncate">' + esc(i.name) + ' <span class="small text-muted">' + (i.kind === 'qty' ? 'quantity' : 'with S/N') + '</span></span><span class="small">Low at</span><input type="number" min="0" class="form-control form-control-sm it-low" style="max-width:80px" value="' + i.low + '">' + (i.kind === 'qty' ? '<span class="seg-mini flex-none"><button type="button" class="chip it-one' + (i.one ? ' active' : '') + '">Always 1</button><button type="button" class="chip it-spin' + (i.one ? '' : ' active') + '">Spin</button></span>' + (i.one ? '' : '<span class="small">Step</span><input type="number" min="1" max="1000" class="form-control form-control-sm it-step" style="max-width:64px" value="' + (i.step || 1) + '"><span class="small">Max</span><input type="number" min="1" max="9999" class="form-control form-control-sm it-max" style="max-width:76px" value="' + (i.max || 9999) + '">') : '<label class="small d-flex align-items-center gap-1 mb-0 flex-none" title="Each S/N of this item is stocked in together with a SIM number"><input type="checkbox" class="form-check-input mt-0 it-sim"' + (i.sim ? ' checked' : '') + '>SIM no.</label>') + '<button type="button" class="btn btn-sm btn-outline-danger border-0 it-del"><i class="bi bi-x-lg"></i></button></div>').join('') : '<div class="small text-muted">No items yet.</div>';
+  $('#itList').innerHTML = S.itDraft.length ? S.itDraft.map((i, n) => '<div class="d-flex align-items-center gap-2 mb-1" data-n="' + n + '"><span class="flex-grow-1 text-truncate">' + esc(i.name) + ' <span class="small text-muted">' + (i.kind === 'qty' ? 'quantity' : 'with S/N') + '</span></span><span class="small">Low at</span><input type="number" min="0" class="form-control form-control-sm it-low" style="max-width:80px" value="' + i.low + '">' + (i.kind === 'qty' ? '<span class="fl-seg flex-none"><button type="button" class="it-one' + (i.one ? ' active' : '') + '" data-v="1">Always 1</button><button type="button" class="it-spin' + (i.one ? '' : ' active') + '" data-v="1">Spin</button></span>' + (i.one ? '' : '<span class="small">Step</span><input type="number" min="1" max="1000" class="form-control form-control-sm it-step" style="max-width:64px" value="' + (i.step || 1) + '"><span class="small">Max</span><input type="number" min="1" max="9999" class="form-control form-control-sm it-max" style="max-width:76px" value="' + (i.max || 9999) + '">') : '<label class="small d-flex align-items-center gap-1 mb-0 flex-none" title="Each S/N of this item is stocked in together with a SIM number"><input type="checkbox" class="form-check-input mt-0 it-sim"' + (i.sim ? ' checked' : '') + '>SIM no.</label>') + '<button type="button" class="btn btn-sm btn-outline-danger border-0 it-del"><i class="bi bi-x-lg"></i></button></div>').join('') : '<div class="small text-muted">No items yet.</div>';
   if (S.stockAlert) { $('#alChat').value = S.stockAlert.chat || ''; $('#alTopic').value = S.stockAlert.topic || ''; }
 }
 $('#itList').addEventListener('input', e => { const it = S.itDraft[+(e.target.closest('[data-n]') || { dataset: {} }).dataset.n]; if (it && e.target.classList.contains('it-step')) { it.step = Math.min(1000, Math.max(1, Math.floor(+e.target.value) || 1)); S.itDirty = true; } else if (it && e.target.classList.contains('it-max')) { it.max = Math.min(9999, Math.max(1, Math.floor(+e.target.value) || 9999)); S.itDirty = true; } if (e.target.classList.contains('it-low')) { S.itDraft[+e.target.closest('[data-n]').dataset.n].low = Math.max(0, Math.floor(+e.target.value) || 0); S.itDirty = true; } });
@@ -4326,13 +4363,13 @@ function tkPaint() {
 }
 
 /* ---- Tasks dashboard (admin / supervisor): pending and completed per staff, chips pick what is counted ---- */
-S.tk.view = 'list'; S.tk.dash = { st: ['Open', 'Done'], how: ['site', 'remote'], branch: '', staff: '', per: 'all' };
+S.tk.view = 'list'; S.tk.dash = { st: ['Open', 'Done'], how: ['site', 'remote'], branch: '', staff: '', purpose: '', per: 'all' };
 const TK_PER = [['all', 'All dates'], ['today', 'Today'], ['7', 'Last 7 days'], ['month', 'This month']];
 function tkToday() { return new Date(Date.now() + S.tk.off + 7 * 36e5).toISOString().slice(0, 10); }
 function tkDashRows() {
   const D = S.tk.dash, d = S.tk.d, today = tkToday(), now = Date.now() + S.tk.off;
   const from = D.per === 'today' ? today : D.per === '7' ? new Date(Date.parse(today) - 6 * 864e5).toISOString().slice(0, 10) : D.per === 'month' ? today.slice(0, 8) + '01' : '';
-  const rows = (d.rows || []).filter(t => (!from || (t.deadline >= from && t.deadline <= today)) && (!D.branch || t.branch === D.branch) && (!D.staff || t.staff === D.staff));
+  const rows = (d.rows || []).filter(t => (!from || (t.deadline >= from && t.deadline <= today)) && (!D.branch || t.branch === D.branch) && (!D.staff || t.staff === D.staff) && (!D.purpose || t.purpose === D.purpose));
   const by = {};
   rows.forEach(t => {
     const g = by[t.staff] = by[t.staff] || { staff: t.staff, branch: t.branch || '', pend: 0, over: 0, done: 0, remote: 0 };
@@ -4352,6 +4389,7 @@ function tkDashPaint() {
     '<div class="small text-muted fw-bold mt-2">HOW DONE <span class="fw-normal">(completed tasks)</span></div><div class="chips mb-1">' + chips([['site', 'On site'], ['remote', 'Remote']], v => D.how.includes(v), 'how') + '</div>' +
     '<div class="small text-muted fw-bold mt-2">DEADLINE</div><div class="chips mb-1">' + chips(TK_PER, v => D.per === v, 'per') + '</div>' +
     (branches.length > 1 ? '<div class="small text-muted fw-bold mt-2">BRANCH</div><div class="chips mb-1">' + chips([['', 'All']].concat(branches.map(b => [b, b])), v => D.branch === v, 'branch') + '</div>' : '') +
+    ((d.purposes || []).length ? '<div class="small text-muted fw-bold mt-2">PURPOSE</div><div class="chips mb-1">' + chips([['', 'All']].concat(d.purposes.map(b => [b, b])), v => D.purpose === v, 'purpose') + '</div>' : '') +
     '<div class="small text-muted fw-bold mt-2">STAFF</div><div class="chips mb-2">' + chips([['', 'All']].concat(staffs.map(b => [b, b])), v => D.staff === v, 'staff') + '</div>' +
     '<div class="tk-scroll"><table class="tk-t"><thead><tr><th>Staff</th><th>Branch</th><th class="text-end">Pending</th><th class="text-end">Overdue</th><th class="text-end">Completed</th><th class="text-end">Remote</th><th class="text-end">Completion</th></tr></thead><tbody>' +
     (rows.length ? rows.map(g => '<tr><td><b>' + esc(g.staff) + '</b></td><td>' + esc(g.branch) + '</td><td class="text-end">' + g.pend + '</td><td class="text-end' + (g.over ? ' text-danger fw-bold' : '') + '">' + g.over + '</td><td class="text-end">' + g.done + '</td><td class="text-end">' + g.remote + '</td><td class="text-end"><b>' + pct(g) + '</b></td></tr>').join('') + '<tr class="fw-bold"><td>Total</td><td></td><td class="text-end">' + T.pend + '</td><td class="text-end">' + T.over + '</td><td class="text-end">' + T.done + '</td><td class="text-end">' + T.remote + '</td><td class="text-end">' + pct(T) + '</td></tr>' : '<tr><td colspan="7" class="text-muted">Nothing for these chips.</td></tr>') + '</tbody></table></div>' +
