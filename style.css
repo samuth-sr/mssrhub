@@ -693,3 +693,16 @@ body.desk .pg-pill{bottom:24px;left:260px;margin:0}
 
 /* v162.1 app version */
 .app-ver{position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 2px);font-size:10px;line-height:1;color:var(--bs-secondary-color,#8a8fa8);opacity:.55;pointer-events:none;z-index:5;letter-spacing:.02em}
+
+/* v1.66 accessory toggles */
+.acc-wrap .yn-row{margin-bottom:8px}
+.acc-wrap .acc-sub{display:flex;align-items:center;gap:8px;margin:-2px 0 8px 14px}
+/* v1.67 returned items: 1 / N/a / Damaged / Lost */
+.acc-wrap .acc-row{flex-wrap:wrap}
+.acc-wrap .acc-st{gap:4px;margin-left:auto}
+.acc-wrap .acc-b{width:auto;min-width:46px;padding:6px 8px;font-size:12px}
+.acc-wrap .acc-b.on-1{background:#1f9d62;border-color:#1f9d62;color:#fff;font-weight:700}
+.acc-wrap .acc-b.on-n{background:#6b7090;border-color:#6b7090;color:#fff;font-weight:700}
+.acc-wrap .acc-b.on-d{background:#d97706;border-color:#d97706;color:#fff;font-weight:700}
+.acc-wrap .acc-b.on-l{background:#c2410c;border-color:#c2410c;color:#fff;font-weight:700}
+
