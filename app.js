@@ -46,7 +46,7 @@ function retNorm(r) {      // Returned items: { on, items: [{ n, s: linked to St
   return items.length ? { on: true, items } : null;
 }
 function normAct(cat, a) {
-  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.tkChk === true) o.tkChk = true; if (a.vt && a.vt.on === true) o.vt = { on: true, o: vtClean(a.vt.o) }; { const rn = retNorm(a.ret); if (rn) o.ret = rn; } if (a.oc === true) o.oc = true; if (a.pt > 0) o.pt = +a.pt; if (a.ptFail > 0) o.ptFail = +a.ptFail; if (a.tgChat) o.tgChat = String(a.tgChat); if (a.tgTopic) o.tgTopic = String(a.tgTopic); if (a.res && a.res.on === true) o.res = { on: true, r: (Array.isArray(a.res.r) ? a.res.r : []).map(x => String(x).trim()).filter(Boolean), o: a.res.o !== false, ph: a.res.ph === true, b: a.res.b && typeof a.res.b === 'object' ? a.res.b : {} }; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => (k === 'merchant' || k === 'mid') && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
+  const o = { n: a.n }; if (a.inst) o.inst = true; if (a.pdf || a.zip) o.pdf = true; if (a.autoStock) o.autoStock = true; if (a.review) o.review = true; if (a.tkChk === true) o.tkChk = true; if (a.vt && a.vt.on === true) o.vt = { on: true, o: vtClean(a.vt.o) }; { const rn = retNorm(a.ret); if (rn) o.ret = rn; } if (a.pt > 0) o.pt = +a.pt; if (a.ptFail > 0) o.ptFail = +a.ptFail; if (a.tgChat) o.tgChat = String(a.tgChat); if (a.tgTopic) o.tgTopic = String(a.tgTopic); if (a.res && a.res.on === true) o.res = { on: true, r: (Array.isArray(a.res.r) ? a.res.r : []).map(x => String(x).trim()).filter(Boolean), o: a.res.o !== false, ph: a.res.ph === true, b: a.res.b && typeof a.res.b === 'object' ? a.res.b : {} }; if (Array.isArray(a.lk)) o.lk = a.lk.filter((k, i, x) => (k === 'merchant' || k === 'mid') && x.indexOf(k) === i); if (a.qrchk === true || a.qrchk === false) o.qrchk = a.qrchk; if (a.stock && (a.stock.mode === 'out' || a.stock.mode === 'return' || a.stock.mode === 'both')) o.stock = { mode: a.stock.mode, kind: a.stock.kind === 'serial' || a.stock.kind === 'qty' ? a.stock.kind : '', items: a.stock.items || [] }; if (a.pq === 'high' || a.pq === 'max') o.pq = a.pq; if (a.code) o.code = String(a.code).toUpperCase(); if (a.tg) o.tg = a.tg;
   { const sl = Array.isArray(a.subs) ? a.subs.map(String) : (a.sub ? [String(a.sub)] : []), su = sl.filter((x, i) => sl.indexOf(x) === i); if (su.length && !(su.length === 1 && su[0] === '')) o.subs = su; }      // sub categories it appears under ('' = also stand-alone)
   if (+a.minPh > 0) o.minPh = Math.min(MAX_PHOTOS, Math.floor(+a.minPh));
   o.f = {}; FIELD_KEYS.forEach(k => { const v = a.f ? Number(a.f[k]) : NaN; o.f[k] = (v === 0 || v === 1 || v === 2) ? v : legacyLevel(cat, a, k); if (YN_KEYS.includes(k)) o.f[k] = o.f[k] ? 1 : 0; });
@@ -406,7 +406,7 @@ function applyOrder(root, d) {
     if (fk) el.style.order = at(fk, 1000 + i);
     else if (el.classList.contains('qc-wrap')) el.style.order = at('qc', 1000 + i);
     else if (el.classList.contains('stock-wrap')) el.style.order = at('stock', 1000 + i);
-    else if (el.classList.contains('oc-wrap') || el.classList.contains('ret-wrap')) el.style.order = at('stock', 1000 + i) - (el.classList.contains('oc-wrap') ? 0.2 : 0.1);
+    else if (el.classList.contains('ret-wrap')) el.style.order = at('stock', 1000 + i) - 0.1;
     else if (el.classList.contains('dev-wrap')) el.style.order = 2000 + i;      // other devices and accessories come after the boxes
     else if (!el.classList.contains('custom-wrap')) el.style.order = -1;        // head, activity, date stay on top
   });
@@ -453,9 +453,11 @@ const stkStep = n => Math.max(1, +stkIt(n).step || 1), stkMax = n => Math.min(99
 /* Serial numbers need no stock box: the S/N is scanned or typed in its box and the system finds it in stock. The box is only for quantity items and for things taken back. */
 const stkQtyItems = d => stkAllowed(d).filter(it => it.kind === 'qty');
 const stkNeedsBox = d => !!(d && d.stock && (d.stock.free || (d.stock.mode !== 'return' && stkQtyItems(d).length)));
-function stkNewLine(rule, items, mode) {
+const stkTaken = (card, skip) => (card.stock || []).filter((l, j) => j !== skip && stkKind(l.item) === 'qty').map(l => l.item);      // a quantity item is listed once: its quantity is changed in its own line
+function stkNewLine(rule, items, mode, taken) {
+  taken = taken || []; items = items.filter(x => x.kind !== 'qty' || !taken.includes(x.name));
   if (rule.free) { const it = items.filter(x => x.kind === 'serial')[0] || items[0]; return { item: it ? it.name : '', dir: rule.mode, kind: it ? it.kind : 'serial', sn: '', qty: it ? stkStart(it.name) : 1, cond: '', reason: '' }; }
-  const dir = 'out', it = items.filter(x => x.kind === 'qty'); return { item: it[0] ? it[0].name : '', dir, sn: '', qty: it[0] ? stkStart(it[0].name) : 1, cond: '', reason: '' }; }
+  const dir = 'out', it = items.filter(x => x.kind === 'qty' && !taken.includes(x.name)); return { item: it[0] ? it[0].name : '', dir, sn: '', qty: it[0] ? stkStart(it[0].name) : 1, cond: '', reason: '' }; }
 function renderStockBox(card, d) {
   const box = $('.stock-wrap', card.el), rule = d && d.stock;
   if (!rule || !stkNeedsBox(d)) { card.stock = []; card.stockMode = rule ? rule.mode : ''; box.innerHTML = ''; show(box, false); return; }
@@ -466,7 +468,7 @@ function renderStockBox(card, d) {
   const title = rule.liab ? 'Items given to the merchant (lost / damaged) *' : rule.free ? (rule.mode === 'return' ? 'Items removed (battery, charger, SIM ...)' : 'Items deployed') : 'Items used (quantity)';
   box.innerHTML = '<label class="form-label"><i class="bi bi-box-seam me-1"></i>' + title + (req ? ' <span class="rq">*</span>' : '') + '</label>' +
     card.stock.map((l, i) => {
-      const dir = stkDirOf(rule, l), out = dir === 'out', its = rule.free ? items.filter(x => x.kind === (l.kind || 'serial')) : out ? items.filter(x => x.kind === 'qty') : items, serial = stkKind(l.item) !== 'qty';
+      const dir = stkDirOf(rule, l), out = dir === 'out', its = (rule.free ? items.filter(x => x.kind === (l.kind || 'serial')) : out ? items.filter(x => x.kind === 'qty') : items).filter(x => x.kind !== 'qty' || x.name === l.item || !stkTaken(card, i).includes(x.name)), serial = stkKind(l.item) !== 'qty';
       return '<div class="stk-line" data-li="' + i + '">' +
         (rule.free ? '<div class="chips mb-1">' + [['serial', 'With S/N'], ['qty', 'No S/N']].map(c => '<button type="button" class="chip stk-kind' + ((l.kind || 'serial') === c[0] ? ' active' : '') + '" data-k="' + c[0] + '">' + c[1] + '</button>').join('') + '</div>' : '') +
         '<div class="d-flex gap-2 mb-1"><select class="form-select form-select-sm stk-item">' + its.map(it => '<option' + (it.name === l.item ? ' selected' : '') + '>' + esc(it.name) + '</option>').join('') + '</select>' +
@@ -475,7 +477,7 @@ function renderStockBox(card, d) {
                 : stkOne(l.item) ? '<div class="d-flex align-items-center gap-2"><span class="small">Quantity</span><span class="stk-fix">× 1 (automatic)</span></div>'
                 : '<div class="d-flex align-items-center gap-2"><span class="small">Quantity</span><div class="stk-spin"><button type="button" class="stk-minus" aria-label="Less">−</button><input type="number" min="1" max="' + stkMax(l.item) + '" step="' + stkStep(l.item) + '" inputmode="numeric" class="stk-qty" value="' + (l.qty || stkStart(l.item)) + '"><button type="button" class="stk-plus" aria-label="More">+</button></div>' + (stkStep(l.item) > 1 ? '<span class="small text-muted">by ' + stkStep(l.item) + '</span>' : '') + '</div>') +
         (out ? '' : '<input class="form-control form-control-sm mt-2 stk-reason" maxlength="100" placeholder="Note (optional): condition, why it comes back" value="' + esc(l.reason) + '">') + '</div>';
-    }).join('') + '<button type="button" class="btn btn-soft btn-sm stk-add"><i class="bi bi-plus-lg me-1"></i>Add item</button>';
+    }).join('') + (rule.free || items.some(x => x.kind === 'qty' && !stkTaken(card, -1).includes(x.name)) ? '<button type="button" class="btn btn-soft btn-sm stk-add"><i class="bi bi-plus-lg me-1"></i>Add item</button>' : '');
   show(box, true);
 }
 $('#merchantList').addEventListener('click', e => {
@@ -484,8 +486,8 @@ $('#merchantList').addEventListener('click', e => {
   const ln = e.target.closest('[data-li]'), li = ln ? +ln.dataset.li : -1, d = effDef(curType, $('.f-act', card.el).value, S.sub || '');
   if (e.target.closest('.stk-minus') || e.target.closest('.stk-plus')) { const l = card.stock[li], st = stkStep(l.item), mx = stkMax(l.item), up = !!e.target.closest('.stk-plus'), v = Math.floor(+l.qty) || 0; l.qty = up ? Math.min(mx, v + st) : Math.max(st, v - st); $('.stk-qty', ln).value = l.qty; }
   else if (e.target.closest('.stk-del')) { card.stock.splice(li, 1); renderStockBox(card, d); }
-  else if (e.target.closest('.stk-add')) { card.stock.push(stkNewLine(d.stock, stkAllowed(d), 'out')); renderStockBox(card, d); }
-  else if (e.target.closest('.stk-kind')) { const l = card.stock[li]; l.kind = e.target.closest('.stk-kind').dataset.k; l.item = (stkAllowed(d).filter(x => x.kind === l.kind)[0] || {}).name || ''; l.sn = ''; l.qty = stkStart(l.item); renderStockBox(card, d); }
+  else if (e.target.closest('.stk-add')) { const nl = stkNewLine(d.stock, stkAllowed(d), 'out', stkTaken(card, -1)); if (!nl.item) { toast('Every item is already listed. Change its quantity instead.', 'warning'); return; } card.stock.push(nl); renderStockBox(card, d); }
+  else if (e.target.closest('.stk-kind')) { const l = card.stock[li]; l.kind = e.target.closest('.stk-kind').dataset.k; l.item = (stkAllowed(d).filter(x => x.kind === l.kind && (x.kind !== 'qty' || !stkTaken(card, li).includes(x.name)))[0] || {}).name || ''; l.sn = ''; l.qty = stkStart(l.item); renderStockBox(card, d); }
   else if (e.target.closest('.stk-dir')) { const l = card.stock[li]; l.dir = e.target.closest('.stk-dir').dataset.d; const its = stkAllowed(d).filter(x => l.dir === 'out' ? x.kind === 'qty' : true); l.item = (its[0] || {}).name || ''; l.sn = ''; l.cond = ''; renderStockBox(card, d); }
 });
 $('#merchantList').addEventListener('input', e => {
@@ -529,13 +531,12 @@ function renderDevs(card, d, nosync) {
   show(w, on); if (!on) { card.devs = []; w.innerHTML = ''; return; }
   if (!nosync) devSync(card); card.devs = card.devs || [];
   const dd = card.res === 'fail' && d.res && d.res.on ? failDef(d) : d, L = k => lvl(dd, k), max = devMaxOf(d), star = k => L(k) === 2 ? ' <span class="rq">*</span>' : '';
-  const retOn = !!(d.ret && d.ret.on) && card.res !== 'fail', ocOn = !!d.oc && card.res !== 'fail';
+  const retOn = !!(d.ret && d.ret.on) && card.res !== 'fail';
   const row = (v, i) => { v.ret = v.ret || {};
     return '<div class="dev-row" data-i="' + i + '"><div class="d-flex justify-content-between align-items-center mb-1"><b class="small">Other device ' + (i + 2) + '</b><button type="button" class="btn btn-sm btn-outline-danger border-0 dv-del" aria-label="Remove device"><i class="bi bi-x-lg"></i></button></div>' +
     (L('merchant') ? '<div class="mb-2"><div class="d-flex justify-content-between align-items-end gap-2 mb-1"><label class="form-label mb-0">Terminal name' + star('merchant') + '</label><button type="button" class="btn btn-soft btn-xs dv-scan"><i class="bi bi-qr-code-scan me-1"></i>Scan KHQR</button></div><input class="form-control dv-name" maxlength="120" autocomplete="off" value="' + esc(v.name || '') + '"></div>' : '') +
     ((L('mid') || L('tid')) ? '<div class="row g-2 mb-2">' + (L('mid') ? '<div class="col"><label class="form-label">MID' + star('mid') + '</label><input class="form-control dv-mid" inputmode="numeric" maxlength="20" autocomplete="off" value="' + esc(v.mid || '') + '"></div>' : '') + (L('tid') ? '<div class="col"><label class="form-label">TID' + star('tid') + '</label><input class="form-control dv-tid" maxlength="30" autocomplete="off" value="' + esc(v.tid || '') + '"></div>' : '') + '</div>' : '') +
     (L('serial') ? '<div class="mb-1"><label class="form-label">Serial number' + star('serial') + '</label><div class="input-group"><input class="form-control dv-sn" autocapitalize="characters" autocomplete="off" value="' + esc(v.sn || '') + '"><button type="button" class="btn btn-soft btn-sn" aria-label="Scan barcode"><i class="bi bi-upc-scan"></i></button></div></div>' : '') +
-    (ocOn ? '<div class="mb-2 mt-2"><label class="form-label">Old POS condition <span class="rq">*</span></label><div class="chips">' + ['Good', 'Medium', 'Faulty'].map(x => '<button type="button" class="chip dv-oc' + (v.oc === x ? ' active' : '') + '" data-v="' + x + '">' + x + '</button>').join('') + '</div></div>' : '') +
     (retOn ? '<div class="acc-wrap"><div class="form-label mt-2"><i class="bi bi-box-arrow-in-down me-1"></i>Returned items</div>' + d.ret.items.map(x => { const s = v.ret[x.n] || '1'; return '<div class="acc-row" data-n="' + esc(x.n) + '"><span class="acc-n">' + esc(x.n) + '</span><span class="acc-st">' + RET_ST.map(p => '<button type="button" class="acc-b' + (s === p[0] ? ' on-' + p[0] : '') + '" data-s="' + p[0] + '">' + p[1] + '</button>').join('') + '</span></div>'; }).join('') + '</div>' : '') +
     '</div>'; };
   w.innerHTML = '<div class="dev-title"><i class="bi bi-hdd-network me-1"></i>Other devices <span class="text-muted fw-normal small">(same date, location and photos; up to ' + max + ' devices in all)</span></div>' + card.devs.map(row).join('') +
@@ -546,9 +547,8 @@ function devWire(card) {
   w.addEventListener('click', e => {
     if (e.target.closest('.dv-add')) { devSync(card); card.devs.push({}); renderDevs(card, cur(), true); const r = $$('.dev-row', card.el).pop(); const f = r && $('input', r); if (f) f.focus(); return; }
     const sc = e.target.closest('.dv-scan'); if (sc) { S.qcCard = null; S.scanTarget = { dev: sc.closest('.dev-row') }; S.snInput = null; scanMode(false); scanModal.show(); return; }
-    const rb = e.target.closest('.acc-b'), ocb = e.target.closest('.dv-oc');
+    const rb = e.target.closest('.acc-b');
     if (rb) { devSync(card); const r = rb.closest('.dev-row'), v = card.devs[+r.dataset.i]; v.ret = v.ret || {}; v.ret[rb.closest('.acc-row').dataset.n] = rb.dataset.s; $$('.acc-b', rb.parentNode).forEach(x => { x.className = 'acc-b' + (x === rb ? ' on-' + x.dataset.s : ''); }); return; }
-    if (ocb) { devSync(card); const r = ocb.closest('.dev-row'); card.devs[+r.dataset.i].oc = ocb.dataset.v; $$('.dv-oc', r).forEach(x => x.classList.toggle('active', x === ocb)); return; }
     const del = e.target.closest('.dv-del');
     if (del) { devSync(card); card.devs.splice(+del.closest('.dev-row').dataset.i, 1); renderDevs(card, cur(), true); }
   });
@@ -570,9 +570,8 @@ function renderVt(card, d) {
 /* ---- Returned items (Return / Terminate): each item is 1 / N/a / Damaged / Lost, set per activity by the admin; Replacement can also ask the condition of the old POS ---- */
 const RET_ST = [['1', '1'], ['n', 'N/a'], ['d', 'Damaged'], ['l', 'Lost']];
 function renderRet(card, d) {
-  const w = $('.ret-wrap', card.el), ow = $('.oc-wrap', card.el), fail = card.res === 'fail';
-  const list = d && d.ret && d.ret.on && !fail ? d.ret.items : [], oc = !!(d && d.oc) && !fail;
-  show(ow, oc); if (!oc) { card.oc = ''; ow.innerHTML = ''; } else ow.innerHTML = '<label class="form-label">Old POS condition <span class="rq">*</span></label><div class="chips">' + ['Good', 'Medium', 'Faulty'].map(x => '<button type="button" class="chip oc-chip' + (card.oc === x ? ' active' : '') + '" data-v="' + x + '">' + x + '</button>').join('') + '</div>';
+  const w = $('.ret-wrap', card.el), fail = card.res === 'fail';
+  const list = d && d.ret && d.ret.on && !fail ? d.ret.items : [];
   show(w, !!list.length); if (!list.length) { card.ret = null; w.innerHTML = ''; return; }
   const key = list.map(x => x.n).join('|');
   if (!card.ret || card.retKey !== key) { card.retKey = key; card.ret = {}; list.forEach(x => { card.ret[x.n] = '1'; }); }
@@ -580,7 +579,6 @@ function renderRet(card, d) {
 }
 function retWire(card) {
   $('.ret-wrap', card.el).addEventListener('click', e => { const b = e.target.closest('.acc-b'); if (!b) return; card.ret[b.closest('.acc-row').dataset.n] = b.dataset.s; $$('.acc-b', b.parentNode).forEach(x => { x.className = 'acc-b' + (x === b ? ' on-' + x.dataset.s : ''); }); });
-  $('.oc-wrap', card.el).addEventListener('click', e => { const b = e.target.closest('.oc-chip'); if (!b) return; card.oc = b.dataset.v; $$('.oc-chip', card.el).forEach(x => x.classList.toggle('active', x === b)); });
 }
 function vtWire(card) {
   $('.vt-wrap', card.el).addEventListener('click', e => { const b = e.target.closest('.vt-chip'); if (!b) return; card.vt = b.dataset.n; $$('.vt-chip', card.el).forEach(x => x.classList.toggle('active', x === b)); });
@@ -640,7 +638,7 @@ function setAct(card, a) {
     show(tools, !!first);
   }
   show($('.act-hint', card.el), !d);
-  if (changed) { card.res = 'ok'; card.why = ''; card.devs = []; $('.dev-wrap', card.el).innerHTML = ''; card.vt = ''; card.ret = null; card.oc = ''; }
+  if (changed) { card.res = 'ok'; card.why = ''; card.devs = []; $('.dev-wrap', card.el).innerHTML = ''; card.vt = ''; card.ret = null; }
   renderRes(card, d);
   renderCustom($('.custom-wrap', card.el), d);
   renderStockBox(card, d);
@@ -655,7 +653,7 @@ function setAct(card, a) {
 /** The location card is shown while some merchant card still needs a location (admin: Location box = optional or must). */
 function updateLocCard() {
   const ds = S.cards.map(c => { const a = $('.f-act', c.el).value, d0 = a ? effDef(curType, a, S.sub || '') : null; return d0 && d0.res && d0.res.on && c.res === 'fail' ? failDef(d0) : d0; });
-  const needLoc = ds.some(d => !d || lvl(d, 'location') > 0 || lvl(d, 'province') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0), needProv = ds.some(d => d && lvl(d, 'province') > 0);
+  const needLoc = ds.some(d => d && lvl(d, 'location') > 0), needDist = ds.some(d => d && lvl(d, 'commune') > 0), needProv = ds.some(d => d && lvl(d, 'province') > 0);
   show($('#locCard'), needLoc || needDist || needProv); show($('#locRow'), needLoc); show($('#distRow'), needDist || needProv); show($('#distWrap'), needDist); show($('#provWrap'), needProv); $('#provWrap').classList.toggle('col-12', needProv && !needDist); $('#provWrap').classList.toggle('col-6', !(needProv && !needDist)); $('#distWrap').classList.toggle('col-12', needDist && !needProv); $('#distWrap').classList.toggle('col-6', !(needDist && !needProv));
   show($('#provStar'), ds.some(d => d && lvl(d, 'province') === 2));
   show($('#locStar'), ds.some(d => d && lvl(d, 'location') === 2)); show($('#locStar2'), ds.some(d => d && lvl(d, 'location') === 2));
@@ -1150,7 +1148,7 @@ function addMerchant() {
       '<button type="button" class="btn btn-primary w-100 mt-2 qc-scan"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button><div class="qc-list mt-2"></div></div>' +
     '<div class="custom-wrap hidden"></div>' +
     '<div class="dev-wrap hidden mb-3"></div>' +
-    '<div class="oc-wrap hidden mb-3"></div><div class="ret-wrap acc-wrap hidden mb-3"></div>' +
+    '<div class="ret-wrap acc-wrap hidden mb-3"></div>' +
     '<div class="stock-wrap hidden mb-3"></div>' +
     '<div class="mb-3 hidden" data-fk="remarks"><label class="form-label">Remarks <span class="rq hidden">*</span></label><textarea class="form-control f-rem" rows="2"></textarea></div>' +
     '<div class="hidden" data-fk="photo"><label class="form-label">Photos / videos <span class="rq hidden">*</span> <span class="ph-min fw-semibold hidden"></span> <span class="text-lowercase fw-normal">(max ' + MAX_PHOTOS + ', videos ≤ ' + MAX_VIDEOS + ' × ' + MAX_VIDEO_MB + ' MB)</span></label>' +
@@ -1715,7 +1713,6 @@ $('#submitBtn').addEventListener('click', async () => {
       btype: v('btype', '.f-btype'), ptype: v('ptype', '.f-ptype'), commune: L('commune') ? $('#fDistrict').value.trim() : '', zone: v('zone', '.f-zone'), province: L('province') ? $('#fProvince').value.trim() : '', sub: S.sub || '', group: v('group', '.f-group'), hours: L('hours') && g('.f-open') ? g('.f-open') + ' - ' + g('.f-close') : '', photos: L('photo') ? c.photos : [], stock: stockLines ? stockLines.map(l => ({ item: l.item, dir: stkDirOf(ad.stock, l), sn: l.sn, qty: l.qty, cond: l.cond, reason: l.reason })) : stockLines });
     if (ad0 && ad0.vt && ad0.vt.on && ad0.vt.o.length && !c.vt) { bad('choose the visit type.'); $('.vt-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     if (ad0 && ad0.vt && ad0.vt.on && c.vt) items[items.length - 1].vt = c.vt;
-    if (ad0 && ad0.oc && !fail) { if (!c.oc) { bad('choose the condition of the old POS.'); $('.oc-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; } items[items.length - 1].oc = c.oc; }
     if (ad0 && ad0.ret && ad0.ret.on && !fail && c.ret) items[items.length - 1].ret = ad0.ret.items.map(x => ({ n: x.n, s: c.ret[x.n] || '1' }));
     docSets.push(docs);
     if (ad0 && ad0.dev && !qcOn(c)) {      // other devices: each becomes its own record that shares this one's date, location, photos and boxes
@@ -1725,7 +1722,6 @@ $('#submitBtn').addEventListener('click', async () => {
       for (let di = 0; di < c.devs.length; di++) {
         const v = c.devs[di], tag = 'Other device ' + (di + 2) + ': ', no = m => { toast('Merchant ' + (i + 1) + ' · ' + tag + m, 'danger'); $('.dev-wrap', c.el).scrollIntoView({ behavior: 'smooth', block: 'center' }); };
         const f = $$('.dev-row', c.el)[di];
-        if (ad0.oc && !fail && !v.oc) { no('choose the condition of the old POS.'); return; }
         if (L('merchant') === 2 && !v.name.trim()) { no('enter the terminal name.'); if (f) $('.dv-name', f).focus(); return; }
         if (L('mid') && v.mid.trim()) { const m = midLenMsg(ad, v.mid.trim()); if (m) { no(m); return; } if (midPrefix(curType) && v.mid.trim()[0] !== midPrefix(curType)) { no('the MID of ' + curType + ' must start with ' + midPrefix(curType) + '.'); return; } }
         if (L('mid') === 2 && !v.mid.trim()) { no('enter the MID.'); if (f) $('.dv-mid', f).focus(); return; }
@@ -1734,7 +1730,7 @@ $('#submitBtn').addEventListener('click', async () => {
         if (!v.name.trim() && !v.mid.trim() && !v.tid.trim() && !v.sn.trim()) { no('fill it in or remove it.'); return; }
         const sn = v.sn.trim().toUpperCase(); if (sn) { if (seen[sn]) { no('the serial number ' + sn + ' is used twice.'); return; } seen[sn] = 1; }
         items.push(Object.assign({}, main, { merchant: L('merchant') ? v.name.trim() : main.merchant, mid: L('mid') ? v.mid.trim() : main.mid, tid: L('tid') ? v.tid.trim().toUpperCase() : main.tid, serial: L('serial') ? sn : main.serial,
-          photos: [], stock: undefined, taskId: undefined, ret: ad0.ret && ad0.ret.on && !fail ? ad0.ret.items.map(x => ({ n: x.n, s: (v.ret || {})[x.n] || '1' })) : undefined, oc: ad0.oc && !fail ? v.oc : undefined, devOf: lead }));
+          photos: [], stock: undefined, taskId: undefined, ret: ad0.ret && ad0.ret.on && !fail ? ad0.ret.items.map(x => ({ n: x.n, s: (v.ret || {})[x.n] || '1' })) : undefined, devOf: lead }));
         docSets.push([]);
       }
     }
@@ -2949,10 +2945,10 @@ const cfLv = f => f.off ? 0 : f.req ? 2 : 1;      // an extra field: Off / Optio
 function ceActPanel(t, ti, a, ai) {
   const nm = '<div class="ce-title"><input class="a-name ce-name" maxlength="40" placeholder="Activity name" value="' + esc(a.n) + '"><span class="ce-sub">· ' + esc(t.name) + ' · code</span><input class="a-code ce-code" maxlength="4" placeholder="–" title="Optional code added to the record ID" value="' + esc(a.code || '') + '"></div>';
   return '<div class="ce-pane" data-ti="' + ti + '"><div data-ai="' + ai + '" class="ce-act">' + ceHead(nm) +
-    '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (a.tkChk === true ? ' active' : '') + '" data-f="tkChk" title="Default Off. On: before saving, the app checks for an open task of this merchant and offers to complete it, and task owners are alerted when someone else submits it.">Check open tasks</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button><button type="button" class="chip a-flag' + (a.res && a.res.on ? ' active' : '') + '" data-f="resOn" title="Default Off. On: staff can mark a record Unsuccessful and choose a reason (the list below).">Track result</button><button type="button" class="chip a-flag' + (a.vt && a.vt.on ? ' active' : '') + '" data-f="vtOn" title="Default Off. On: staff choose a visit type (for example On site or Remote) and each type can earn different points.">Visit type</button><button type="button" class="chip a-flag' + (a.ret && a.ret.on ? ' active' : '') + '" data-f="retOn" title="Default Off. On: the form lists the returned items you set for this activity; each is 1 / N/a / Damaged / Lost, and linked ones reach Stock.">Returned items</button><button type="button" class="chip a-flag' + (a.oc ? ' active' : '') + '" data-f="ocOn" title="Default Off. On: staff say the condition of the old POS (Good / Medium / Faulty), for Replacement.">Old POS condition</button></div>' +
+    '<div class="chips"><button type="button" class="chip a-flag' + (a.inst ? ' active' : '') + '" data-f="inst">Installed wording</button><button type="button" class="chip a-flag' + (a.pdf ? ' active' : '') + '" data-f="pdf" title="Also send this activity\'s photos to Telegram as one PDF file named Picture of [merchant]_[category] (videos are not included)">PDF of photos to Telegram</button><button type="button" class="chip a-flag' + (a.review ? ' active' : '') + '" data-f="review" title="Records of this activity stay Pending until the admin approves them or returns them to the staff member with a note">Needs admin review</button><button type="button" class="chip a-flag' + (a.tkChk === true ? ' active' : '') + '" data-f="tkChk" title="Default Off. On: before saving, the app checks for an open task of this merchant and offers to complete it, and task owners are alerted when someone else submits it.">Check open tasks</button><button type="button" class="chip a-flag' + (qcEff(t.name, a, '') ? ' active' : '') + '" data-f="qrchk" title="Staff enter how many QR materials they gave the merchant and must scan every one. A QR of another MID is refused and the admin is told.">Scan every QR</button><button type="button" class="chip a-flag' + (a.res && a.res.on ? ' active' : '') + '" data-f="resOn" title="Default Off. On: staff can mark a record Unsuccessful and choose a reason (the list below).">Track result</button><button type="button" class="chip a-flag' + (a.vt && a.vt.on ? ' active' : '') + '" data-f="vtOn" title="Default Off. On: staff choose a visit type (for example On site or Remote) and each type can earn different points.">Visit type</button><button type="button" class="chip a-flag' + (a.ret && a.ret.on ? ' active' : '') + '" data-f="retOn" title="Default Off. On: the form lists the returned items you set for this activity; each is 1 / N/a / Damaged / Lost, and linked ones reach Stock.">Returned items</button></div>' +
     (a.ret && a.ret.on ? '<div class="ce-dev small"><div class="ce-lab">RETURNED ITEMS <span class="fw-normal text-muted">(staff choose 1 / N/a / Damaged / Lost for each)</span></div>' +
       (a.ret.items || []).map((x, k) => '<div class="d-flex align-items-center gap-1 py-1 border-bottom" data-rk="' + k + '"><span class="flex-grow-1 text-truncate">' + esc(x.n) + '</span><span class="fl-seg flex-none">' + [[0, 'Record only'], [1, 'Stock']].map(p => '<button type="button" class="a-rets' + ((x.s ? 1 : 0) === p[0] ? ' active' : '') + '" data-v="1" data-s="' + p[0] + '">' + p[1] + '</button>').join('') + '</span><button type="button" class="btn btn-sm btn-outline-danger border-0 a-retdel" data-k="' + k + '" aria-label="Remove"><i class="bi bi-x"></i></button></div>').join('') +
-      '<div class="small text-muted fw-bold mt-2">ADD FROM STOCK <span class="fw-normal">(quantity items)</span></div><div class="chips mb-2">' + (((S.stockItems || []).filter(x => x.kind === 'qty' && !(a.ret.items || []).some(y => y.n.toLowerCase() === x.name.toLowerCase())).map(x => '<button type="button" class="chip a-retpick" data-n="' + esc(x.name) + '">+ ' + esc(x.name) + '</button>').join('')) || '<span class="text-muted">None left</span>') + '</div>' +
+      '<div class="small text-muted fw-bold mt-2">ADD FROM STOCK <span class="fw-normal">(S/N items are found by the TID on the form; the user types nothing)</span></div><div class="chips mb-2">' + (((S.stockItems || []).filter(x => !(a.ret.items || []).some(y => y.n.toLowerCase() === x.name.toLowerCase())).map(x => '<button type="button" class="chip a-retpick" data-n="' + esc(x.name) + '">+ ' + esc(x.name) + (x.kind === 'serial' ? ' (S/N)' : '') + '</button>').join('')) || '<span class="text-muted">None left</span>') + '</div>' +
       '<div class="input-group input-group-sm"><input class="form-control a-retin" maxlength="40" placeholder="Or type a name (record only), e.g. Charging Dock"><button type="button" class="btn btn-soft a-retadd">Add</button></div>' +
       '<button type="button" class="btn btn-soft btn-sm mt-2 a-retall"><i class="bi bi-files me-1"></i>Copy this list to all POS and Sound Box activities</button>' +
       '<div class="text-muted mt-2">Stock items: 1 and Damaged wait for you in Stock; Lost is only logged and stock changes only if you decide. N/a does nothing. Record only items are just saved on the record.</div></div>' : '') +
@@ -3122,13 +3118,12 @@ $('#catList').addEventListener('click', e => {
     renderCatEditor();
   }
   else if (e.target.closest('.a-flag') && e.target.closest('.a-flag').dataset.f === 'resOn') { const a = t.acts[ai], r = a.res || {}; a.res = { on: !r.on, r: (r.r && r.r.length) ? r.r : RES_DEFAULT.slice(), o: r.o !== false, ph: r.ph === true }; renderCatEditor(); }
-  else if (e.target.closest('.a-flag') && e.target.closest('.a-flag').dataset.f === 'ocOn') { const a = t.acts[ai]; a.oc = !a.oc; renderCatEditor(); }
   else if (e.target.closest('.a-flag') && e.target.closest('.a-flag').dataset.f === 'retOn') { const a = t.acts[ai]; a.ret = a.ret && a.ret.on ? Object.assign({}, a.ret, { on: false }) : { on: true, items: (a.ret && a.ret.items && a.ret.items.length) ? a.ret.items : [['POS Terminal', 0], ['SIM Card', 1], ['POS Standee', 1], ['Battery', 1], ['AC Power Adaptor', 1], ['AC Power Cable', 1], ['Charging Dock', 0], ['POS Stand Holder', 0]].map(p => ({ n: p[0], s: !!p[1] })) }; renderCatEditor(); }
-  else if (e.target.closest('.a-rets')) { const k = +e.target.closest('[data-rk]').dataset.rk, x = t.acts[ai].ret.items[k], on = e.target.closest('.a-rets').dataset.s === '1'; if (on && stkKind(x.n) !== 'qty') { toast('"' + x.n + '" is not a quantity item in Stock. Add it in Stock first.', 'warning'); return; } x.s = on; renderCatEditor(); }
+  else if (e.target.closest('.a-rets')) { const k = +e.target.closest('[data-rk]').dataset.rk, x = t.acts[ai].ret.items[k], on = e.target.closest('.a-rets').dataset.s === '1'; if (on && !stkKind(x.n)) { toast('"' + x.n + '" is not an item in Stock. Add it in Stock first.', 'warning'); return; } x.s = on; renderCatEditor(); }
   else if (e.target.closest('.a-retpick')) { const a = t.acts[ai]; a.ret.items = (a.ret.items || []).concat({ n: e.target.closest('.a-retpick').dataset.n, s: true }); renderCatEditor(); }
   else if (e.target.closest('.a-retall')) {
     const src = t.acts[ai]; let n = 0;
-    catDraft.forEach(ty => { if (/pos|sound\s?box|\bsb\b/i.test(ty.name || '')) ty.acts.forEach(x => { if (x !== src) { x.ret = JSON.parse(JSON.stringify(src.ret)); if (src.oc) x.oc = true; n++; } }); });
+    catDraft.forEach(ty => { if (/pos|sound\s?box|\bsb\b/i.test(ty.name || '')) ty.acts.forEach(x => { if (x !== src) { x.ret = JSON.parse(JSON.stringify(src.ret)); n++; } }); });
     toast('Copied to ' + n + ' other activit' + (n === 1 ? 'y' : 'ies') + '. Save the catalog to keep it.', 'success'); renderCatEditor();
   }
   else if (e.target.closest('.a-retdel')) { t.acts[ai].ret.items.splice(+e.target.closest('.a-retdel').dataset.k, 1); renderCatEditor(); }
@@ -3449,7 +3444,7 @@ async function loadPending() {
       d.qty.map(q => '<div class="rv-item" data-item="' + esc(q.item) + '" data-branch="' + esc(q.branch) + '" data-max="' + q.n + '"><div class="d-flex justify-content-between gap-2"><b>' + esc(q.item) + '</b><span class="small text-muted">' + esc(q.branch) + ' · ' + q.n + ' waiting</span></div>' +
         '<div class="small text-muted">' + esc([q.merchant ? 'last from ' + q.merchant : '', q.by ? 'by ' + q.by : ''].filter(Boolean).join(' · ')) + '</div>' + (q.note ? '<div class="rv-note">' + esc(q.note) + '</div>' : '') +
         '<div class="d-flex align-items-center gap-2 mt-2"><span class="small">Quantity</span><input type="number" min="1" max="' + q.n + '" value="' + q.n + '" class="form-control form-control-sm pd-qty" style="max-width:90px"></div>' + opts + '</div>').join('') +
-      lost.map(x => '<div class="rv-item" data-lrec="' + esc(x.rec) + '" data-litem="' + esc(x.item) + '"><div class="d-flex justify-content-between gap-2"><b>' + esc(x.item) + ' ×' + x.n + '</b><span class="badge text-bg-secondary">Lost</span></div><div class="small text-muted">' + esc([x.by, x.merchant, x.mid ? 'MID ' + x.mid : '', x.date ? fmtD(x.date) : ''].filter(Boolean).join(' · ')) + '</div><div class="d-flex flex-wrap gap-2 mt-2"><button type="button" class="btn btn-success btn-sm pd-found">Found: back in stock</button><button type="button" class="btn btn-outline-secondary btn-sm pd-lost">Confirm lost</button></div></div>').join('');
+      lost.map(x => '<div class="rv-item" data-lrec="' + esc(x.rec) + '" data-litem="' + esc(x.item) + '" data-lsn="' + esc(x.sn || '') + '"><div class="d-flex justify-content-between gap-2"><b>' + esc(x.item) + (x.sn ? ' ' + esc(x.sn) : ' ×' + x.n) + '</b><span class="badge text-bg-secondary">Lost</span></div><div class="small text-muted">' + esc([x.by, x.merchant, x.mid ? 'MID ' + x.mid : '', x.date ? fmtD(x.date) : ''].filter(Boolean).join(' · ')) + '</div><div class="d-flex flex-wrap gap-2 mt-2"><button type="button" class="btn btn-success btn-sm pd-found">Found: back in stock</button><button type="button" class="btn btn-outline-secondary btn-sm pd-lost">Confirm lost</button></div></div>').join('');
   } catch (e) { show($('#stPendCard'), false); }
 }
 $('#stPend').addEventListener('click', async e => {
@@ -3457,7 +3452,7 @@ $('#stPend').addEventListener('click', async e => {
   if (it.dataset.lrec !== undefined) {      // a lost item: found = back in stock; confirm = stock stays as it is
     const found = !!e.target.closest('.pd-found'); if (!found && !e.target.closest('.pd-lost')) return;
     busy(e.target.closest('button'), true, 'Saving…');
-    try { await api('stockLostDecide', S.token, { rec: it.dataset.lrec, item: it.dataset.litem, decision: found ? 'found' : 'confirm' }); toast(found ? 'Returned to stock.' : 'Confirmed lost.', 'success'); loadStock(); } catch (ex) { toast(ex.message, 'danger'); busy(e.target.closest('button'), false); }
+    try { await api('stockLostDecide', S.token, { rec: it.dataset.lrec, item: it.dataset.litem, sn: it.dataset.lsn || '', decision: found ? 'found' : 'confirm' }); toast(found ? 'Returned to stock.' : 'Confirmed lost.', 'success'); loadStock(); } catch (ex) { toast(ex.message, 'danger'); busy(e.target.closest('button'), false); }
     return;
   }
   if (e.target.closest('.pd-fa')) { show($('.pd-why', it), true); $('.pd-reason', it).focus(); return; }
