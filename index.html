@@ -22,7 +22,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" media="print" onload="this.media='all'">
 
-  <link href="style.css?v=1711" rel="stylesheet">
+  <link href="style.css?v=174" rel="stylesheet">
 </head>
 <body>
 
@@ -509,6 +509,16 @@
         </div>
         <div id="userList"></div>
       </div>
+
+      <div class="card-x hidden" id="signCard">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold"><i class="bi bi-box-arrow-in-right me-1"></i>Sign-in log</div>
+          <button class="btn btn-soft btn-sm" id="signReload" aria-label="Reload"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+        <input class="form-control form-control-sm mb-2" id="signQ" placeholder="Search staff, device…" autocomplete="off">
+        <div class="chips mb-2" id="signChips"><button type="button" class="chip active" data-f="all">All</button><button type="button" class="chip" data-f="Signed in">Signed in</button><button type="button" class="chip" data-f="Failed">Failed</button><button type="button" class="chip" data-f="today">Today</button></div>
+        <div id="signList"></div>
+      </div>
     </section>
   </main>
 
@@ -785,7 +795,6 @@
         <div class="mb-3 hidden" data-fk="merchant"><label class="form-label">Merchant name <span class="rq hidden">*</span></label><input id="eName" class="form-control"></div>
         <div class="mb-3 hidden" data-fk="mid"><label class="form-label"><span class="mid-t">MID</span> <span class="rq hidden">*</span></label><input id="eMid" class="form-control"></div>
         <div class="mb-3 hidden" data-fk="tid"><label class="form-label">TID <span class="rq hidden">*</span></label><input id="eTid" class="form-control" autocapitalize="characters" autocomplete="off"></div>
-        <div class="hidden yn-row" data-fk="integ"><label class="form-check-label">Integration</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" id="eInteg" aria-label="Integration"><span class="yn-t small fw-semibold">No</span></div></div>
         <div class="hidden yn-row" data-fk="sim"><label class="form-check-label">SIM</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" id="eSim" aria-label="SIM"><span class="yn-t small fw-semibold">No</span></div></div>
         <div class="hidden yn-row" data-fk="standee"><label class="form-check-label">POS Standee</label><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" id="eStandee" aria-label="POS Standee"><span class="yn-t small fw-semibold">No</span></div></div>
         <div class="mb-3 hidden" data-fk="business"><label class="form-label">Business name <span class="rq hidden">*</span></label><input id="eBiz" class="form-control" placeholder="N/A"></div>
@@ -972,7 +981,7 @@
   </div>
 </div>
 
-<div id="appVer" class="app-ver" aria-hidden="true">v1.71.1</div>
+<div id="appVer" class="app-ver" aria-hidden="true">v1.74.0</div>
 
 <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" id="toasts" style="margin-top: env(safe-area-inset-top)"></div>
 
@@ -980,6 +989,6 @@
 <!-- Chart.js, Leaflet and ZXing are loaded by app.js after the app is up (ensureLib), so they do not slow the first screen -->
 
 <script src="config.js" defer></script>
-<script src="app.js?v=1711" defer></script>
+<script src="app.js?v=174" defer></script>
 </body>
 </html>
