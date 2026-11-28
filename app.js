@@ -23,15 +23,15 @@ const DEFAULT_CATALOG = [
 ];
 /* Box levels per activity: 0 = hidden, 1 = optional, 2 = must fill (red *). Same rules as the server. */
 const YN_KEYS = ['sim', 'standee'];      // Yes/No toggles under TID (default No): hidden or shown, never "must"
-const FIELD_KEYS = ['merchant', 'mid', 'tid', 'sim', 'standee', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune', 'zone', 'province'];
-const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', sim: 'SIM', standee: 'POS Standee', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'District', zone: 'Zone / Area', province: 'Province' };
+const FIELD_KEYS = ['items', 'merchant', 'mid', 'tid', 'sim', 'standee', 'business', 'remarks', 'photo', 'phone', 'tag', 'btype', 'hours', 'group', 'serial', 'oldSn', 'newSn', 'location', 'ptype', 'commune', 'zone', 'province'];
+const FIELD_NAMES = { merchant: 'Merchant name', mid: 'MID', tid: 'TID', items: 'Items used', sim: 'SIM', standee: 'POS Standee', business: 'Business name', remarks: 'Remarks', photo: 'Photos', phone: 'Phone number', tag: 'Tag', btype: 'Business type', hours: 'Business hours', group: 'Group name', serial: 'Serial number', oldSn: 'Old S/N', newSn: 'New S/N', location: 'Location', ptype: 'Product type', commune: 'District', zone: 'Zone / Area', province: 'Province' };
 function legacyLevel(cat, a, k) {
   const rq = a.req && typeof a.req === 'object' ? a.req : {};
   const lv = (on, d) => !on ? 0 : (typeof rq[k] === 'boolean' ? (rq[k] ? 2 : 1) : d);
   if (k === 'merchant' || k === 'mid' || k === 'photo') return 2;
   if (k === 'tid') return cat && cat.tid ? 2 : 0;
   if (k === 'business') return /^pos$/i.test(String(cat && cat.name)) ? 0 : 1;
-  if (k === 'remarks' || k === 'location') return 1;
+  if (k === 'remarks' || k === 'location' || k === 'items') return 1;
   if (k === 'phone' || k === 'tag') return lv(a.contact, 1);
   if (k === 'btype' || k === 'hours' || k === 'group') return lv(a.bizinfo, 1);
   if (k === 'oldSn' || k === 'newSn') return lv(a.replace, 2);
@@ -388,7 +388,7 @@ function ordList(a, t) {
   CARD_ORDER.forEach(k => {
     if (k === 'custom') cf.forEach(f => base.push({ k: 'x:' + f.id, n: (f.label || (f.kind === 'info' ? 'Info text' : 'New field')) + ' (field)' }));
     else if (k === 'qc') { if (t && qcEff(t.name, a)) base.push({ k, n: 'QR materials & scan' }); }
-    else if (k === 'stock') { if (a.stock) base.push({ k, n: 'Stock items' }); }
+    else if (k === 'stock') { if (a.stock) base.push({ k, n: 'Items used / stock items' }); }
     else if (lvl(a, k) > 0) base.push({ k, n: FIELD_NAMES[k] });
   });
   const pos = {}; (a.ord || []).forEach((k, i) => { pos[k] = i; });
@@ -454,17 +454,38 @@ const stkIt = n => S.stockItems.find(x => x.name === n) || {};
 const stkStep = n => Math.max(1, +stkIt(n).step || 1), stkMax = n => Math.min(9999, +stkIt(n).max || 9999), stkOne = n => stkIt(n).one === true, stkStart = n => stkOne(n) ? 1 : stkStep(n);      // a spin number starts at its step
 /* Serial numbers need no stock box: the S/N is scanned or typed in its box and the system finds it in stock. The box is only for quantity items and for things taken back. */
 const stkQtyItems = d => stkAllowed(d).filter(it => it.kind === 'qty');
-const stkNeedsBox = d => !!(d && d.stock && (d.stock.free || (d.stock.mode !== 'return' && stkQtyItems(d).length)));
+const stkNeedsBox = d => !!(d && d.stock && (d.stock.free || (d.stock.mode !== 'return' && lvl(d, 'items') > 0 && d.stock.items.length && stkQtyItems(d).length)));      // Items used: a normal box (Off / Optional / Must) listing the items the admin chose; an empty list shows nothing
 const stkTaken = (card, skip) => (card.stock || []).filter((l, j) => j !== skip && stkKind(l.item) === 'qty').map(l => l.item);      // a quantity item is listed once: its quantity is changed in its own line
 function stkNewLine(rule, items, mode, taken) {
   taken = taken || []; items = items.filter(x => x.kind !== 'qty' || !taken.includes(x.name));
   if (rule.free) { const it = items.filter(x => x.kind === 'serial')[0] || items[0]; return { item: it ? it.name : '', dir: rule.mode, kind: it ? it.kind : 'serial', sn: '', qty: it ? stkStart(it.name) : 1, cond: '', reason: '' }; }
   const dir = 'out', it = items.filter(x => x.kind === 'qty' && !taken.includes(x.name)); return { item: it[0] ? it[0].name : '', dir, sn: '', qty: it[0] ? stkStart(it[0].name) : 1, cond: '', reason: '' }; }
+/** Items used: every item the admin chose is on the form with one input (quantity: − 0 +; "Always 1": Yes / No). Nothing to add or pick. */
+function renderItemsUsed(card, d) {
+  const box = $('.stock-wrap', card.el), items = stkQtyItems(d), must = lvl(d, 'items') === 2;
+  const key = items.map(x => x.name).join('|'); if (!card.iu || card.iuKey !== key) { card.iuKey = key; card.iu = {}; }
+  box.innerHTML = '<label class="form-label"><i class="bi bi-box-seam me-1"></i>Items used' + (must ? ' <span class="rq">*</span>' : '') + '</label>' + items.map(x => {
+    const q = +card.iu[x.name] || 0;
+    return '<div class="acc-row iu-row" data-n="' + esc(x.name) + '"><span class="acc-n">' + esc(x.name) + '</span>' + (stkOne(x.name)
+      ? '<div class="form-check form-switch m-0 d-flex align-items-center gap-2"><input class="form-check-input iu-sw" type="checkbox" role="switch" aria-label="' + esc(x.name) + '"' + (q ? ' checked' : '') + '><span class="small fw-semibold iu-t">' + (q ? 'Yes' : 'No') + '</span></div>'
+      : '<div class="stk-spin"><button type="button" class="iu-minus" aria-label="Less">−</button><input type="number" min="0" max="' + stkMax(x.name) + '" step="' + stkStep(x.name) + '" inputmode="numeric" class="iu-qty" value="' + q + '"><button type="button" class="iu-plus" aria-label="More">+</button></div>') + '</div>';
+  }).join('');
+  show(box, true);
+}
+$('#merchantList').addEventListener('click', e => {
+  const b = e.target.closest('.iu-minus, .iu-plus'); if (!b) return;
+  const card = S.cards.find(c => c.el.contains(b)), row = b.closest('.iu-row'); if (!card || !row) return;
+  const n = row.dataset.n, st = stkStep(n), mx = stkMax(n), v = Math.floor(+card.iu[n]) || 0;
+  card.iu[n] = b.classList.contains('iu-plus') ? Math.min(mx, v + st) : Math.max(0, v - st); $('.iu-qty', row).value = card.iu[n];
+});
+$('#merchantList').addEventListener('input', e => { if (!e.target.classList.contains('iu-qty')) return; const card = S.cards.find(c => c.el.contains(e.target)), row = e.target.closest('.iu-row'); if (card && row) card.iu[row.dataset.n] = Math.max(0, Math.min(stkMax(row.dataset.n), Math.floor(+e.target.value) || 0)); });
+$('#merchantList').addEventListener('change', e => { if (!e.target.classList.contains('iu-sw')) return; const card = S.cards.find(c => c.el.contains(e.target)), row = e.target.closest('.iu-row'); if (!card || !row) return; card.iu[row.dataset.n] = e.target.checked ? 1 : 0; $('.iu-t', row).textContent = e.target.checked ? 'Yes' : 'No'; });
 function renderStockBox(card, d) {
   const box = $('.stock-wrap', card.el), rule = d && d.stock;
   if (!rule || !stkNeedsBox(d)) { card.stock = []; card.stockMode = rule ? rule.mode : ''; box.innerHTML = ''; show(box, false); return; }
   if (card.stockMode !== rule.mode) card.stock = [];
   card.stockMode = rule.mode;
+  if (!rule.free) { renderItemsUsed(card, d); return; }
   const items = stkAllowed(d), req = false;
   if (rule.free && !card.stock.length && items.length) card.stock.push(stkNewLine(rule, items, rule.mode));
   const title = rule.liab ? 'Items given to the merchant (lost / damaged) *' : rule.free ? (rule.mode === 'return' ? 'Items removed (battery, charger, SIM ...)' : 'Items deployed') : 'Items used (quantity)';
@@ -1692,6 +1713,10 @@ $('#submitBtn').addEventListener('click', async () => {
     let stockLines;
     if (ad && ad.stock && !fail) {
       stockLines = c.stock || [];
+      if (!ad.stock.free) {      // Items used: the items above 0 / Yes
+        stockLines = Object.keys(c.iu || {}).filter(n => (+c.iu[n] || 0) > 0).map(n => ({ item: n, dir: 'out', kind: 'qty', sn: '', qty: +c.iu[n], cond: '', reason: '' }));
+        if (L('items') === 2 && !stockLines.length) { bad('Items used: enter at least one item.'); const sw = $('.stock-wrap', c.el); if (sw) sw.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      }
       if (ad.stock.liab && !stockLines.some(l => stkKind(l.item) === 'qty' ? l.qty >= 1 : !!l.sn)) { bad('add the item given to the merchant.'); return; }
       if (ad.stock.free) stockLines = stockLines.filter(l => (stkKind(l.item) === 'qty' ? (l.qty >= 1 && l.qty !== undefined) : !!l.sn));      // a blank deployment line is just ignored
       for (const l of stockLines) {
